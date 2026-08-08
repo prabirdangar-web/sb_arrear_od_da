@@ -401,6 +401,41 @@
         <div class="output-box" id="dorOutput" style="margin-top:10px;"><strong>Date of Retirement (DOR):</strong> Loading...</div>
     </div>
 
+    <!-- 2a. PROMOTION / CAREER ADVANCEMENT / HIGHER SCALE MOVEMENT -->
+    <h3>2a. Promotion / Career Advancement / Higher Scale Movement</h3>
+    <div class="panel">
+        <div class="grid">
+            <div class="fg wide">
+                <label class="inline-check"><input type="checkbox" id="enablePromotion" onchange="togglePromotionSection()"> Applicable (staff was promoted or moved to a higher scale during service)</label>
+            </div>
+        </div>
+        <div class="grid" id="promotionFields" style="display:none;">
+            <div class="fg">
+                <label>Event Type</label>
+                <select id="promotionType">
+                    <option value="promo" selected>Promotion to Higher Post (e.g. AT &rarr; HM with Promo Increment)</option>
+                    <option value="highscale">Higher Scale / Upgradation Only (Direct Fitment - No Extra Increment)</option>
+                </select>
+            </div>
+            <div class="fg"><label>Date of Event (Promotion / Higher Scale)</label><input type="date" id="promotionDate" value=""></div>
+            <div class="fg">
+                <label>Target Grade Pay</label>
+                <select id="promotionTargetGp">
+                    <option value="1800">GP 1800</option>
+                    <option value="2900">GP 2900</option>
+                    <option value="4100">GP 4100</option>
+                    <option value="4400">GP 4400</option>
+                    <option value="4700">GP 4700</option>
+                    <option value="4800">GP 4800</option>
+                    <option value="5400" selected>GP 5400 (Level 16, e.g. Headmaster/Headmistress)</option>
+                </select>
+            </div>
+        </div>
+        <div class="output-box" style="background-color:#eff6ff;border-left-color:#1d4ed8;">
+            <strong>Fixation Rule Settings:</strong> Functional post promotions grant an extra increment before matching the target scale. Higher scale movements for qualification/upgradations bypass the promotional increment step. Upon promotion, post-promotion annual increment dates are strictly governed with respect to the Date of Promotion (as per ROPA rules): in ROPA-1998, the increment month shifts to the promotion month; in ROPA-2009/2019, if service in the promoted post as on 1st July is less than 6 months (promotion date between 2nd Jan and 30th Jun), the 1st July increment of that year is skipped and granted on 1st July of the next year.
+        </div>
+    </div>
+
     <!-- 3-5. ROPA PAY FIXATION ENGINE -->
     <h3>3. ROPA-1998 Pre-2006 Fixation (Always Frozen on 31-03-2009)</h3>
     <div class="panel">
@@ -1429,6 +1464,18 @@ function addDays(d, n) {
     return r;
 }
 
+// Reads the "2a. Promotion / Career Advancement / Higher Scale Movement" inputs.
+// Returns null date when the section is not applicable / not filled in.
+function getPromotionParams() {
+    const enabled = document.getElementById('enablePromotion') && document.getElementById('enablePromotion').checked;
+    const dateInput = enabled ? val('promotionDate') : '';
+    return {
+        date: dateInput ? new Date(dateInput) : null,
+        targetGp: parseInt(val('promotionTargetGp'), 10),
+        evType: enabled ? val('promotionType') : 'none'
+    };
+}
+
 // Cumulative non-qualifying LWP days from all entries whose start date is
 // on/before asOfDate — this is what defers a 10/18/20-Year CAS milestone that
 // would otherwise fall on asOfDate. Several discrete LWP spells/single dates
@@ -1500,6 +1547,11 @@ function finalizeDot(compiledRows, endDate) {
     }
 }
 
+function togglePromotionSection() {
+    const enabled = document.getElementById('enablePromotion').checked;
+    document.getElementById('promotionFields').style.display = enabled ? '' : 'none';
+}
+
 function toggleRopa98Section() {
     const enabled = document.getElementById('enableRopa98').checked;
     document.getElementById('ropa98Fields').style.display = enabled ? '' : 'none';
@@ -1521,7 +1573,7 @@ function toggleRopa09Section() {
 
 // FULL ROPA-1998 TIMELINE ENGINE
 const eligibleFor18YScaleChange98 = [1700, 2600, 3900, 4100];
-function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDate, lwpEntries) {
+function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDate, lwpEntries, promotionDate, promotionTargetGp, evType) {
     let ladder = matrixData98[scaleKey] || [];
     let currentScaleKey = scaleKey;
     let events = [];
@@ -1532,6 +1584,11 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
     pushEvent(optionDate, { label: "DOA / PAY FIXATION", isInitial: true });
     const optionMonth = optionDate.getMonth();
     const isEligible18Y = eligibleFor18YScaleChange98.includes(scaleKey);
+
+    const promotionActive98 = (promotionDate instanceof Date && !isNaN(promotionDate) && promotionDate >= optionDate && promotionDate <= endDate);
+    if (promotionActive98) {
+        pushEvent(promotionDate, { label: evType === 'promo' ? "PROMOTION" : "HIGHER SCALE", isPromotion: true, targetGp: promotionTargetGp });
+    }
 
     let milestoneDefs = [
         { d: new Date(doj.getFullYear() + 10, doj.getMonth(), doj.getDate()), name: "10 YEARS - ADDL. INCREMENT", type: "10Y" },
@@ -1557,31 +1614,77 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
         return next;
     }
 
-    let loopYear = optionDate.getFullYear() + 1;
-    while (loopYear <= endDate.getFullYear() + 1) {
-        let normalCycleDate = new Date(loopYear, optionMonth, 1);
-        let priorCycleDate = new Date(loopYear - 1, optionMonth, 1);
-        let interveningMilestone = milestoneDefs.find(m => m.d >= priorCycleDate && m.d < normalCycleDate);
-        let incrementDate;
-        if (interveningMilestone) {
-            incrementDate = vestingExtendedNextDate(interveningMilestone.d);
-            if (incrementDate < normalCycleDate) incrementDate = normalCycleDate;
-        } else {
-            // DISCRETE LWP RULE: a one-time LWP entry defers ONLY the 10/18/20-Year
-            // CAS milestone date(s) (already shifted above via milestoneDefs). Regular
-            // annual increments in years with no intervening milestone are NOT
-            // perpetually shifted and continue to fall on the normal Option/Fixation
-            // cycle date, as per the ROPA-1998 rule stated below.
-            incrementDate = normalCycleDate;
+    if (promotionActive98) {
+        // 1. Pre-promotion annual increments (based on optionMonth cycle)
+        let loopYear = optionDate.getFullYear() + 1;
+        while (loopYear <= promotionDate.getFullYear()) {
+            let normalCycleDate = new Date(loopYear, optionMonth, 1);
+            if (normalCycleDate < promotionDate) {
+                let priorCycleDate = new Date(loopYear - 1, optionMonth, 1);
+                let interveningMilestone = milestoneDefs.find(m => m.d >= priorCycleDate && m.d < normalCycleDate);
+                let incrementDate;
+                if (interveningMilestone) {
+                    incrementDate = vestingExtendedNextDate(interveningMilestone.d);
+                    if (incrementDate < normalCycleDate) incrementDate = normalCycleDate;
+                } else {
+                    incrementDate = normalCycleDate;
+                }
+                if (incrementDate >= optionDate && incrementDate < promotionDate) {
+                    pushEvent(incrementDate, { label: "INCREMENT", isAnnual: true });
+                }
+            }
+            loopYear++;
         }
-        if (incrementDate >= optionDate && incrementDate <= endDate) {
-            pushEvent(incrementDate, { label: "INCREMENT", isAnnual: true });
+
+        // 2. Post-promotion annual increments (based on promotionDate month, as per ROPA-1998 rule)
+        let promoMonth = promotionDate.getMonth();
+        let postLoopYear = promotionDate.getFullYear() + 1;
+        while (postLoopYear <= endDate.getFullYear() + 1) {
+            let normalCycleDate = new Date(postLoopYear, promoMonth, 1);
+            let priorCycleDate = new Date(postLoopYear - 1, promoMonth, 1);
+            let interveningMilestone = milestoneDefs.find(m => m.d >= priorCycleDate && m.d < normalCycleDate);
+            let incrementDate;
+            if (interveningMilestone) {
+                incrementDate = vestingExtendedNextDate(interveningMilestone.d);
+                if (incrementDate < normalCycleDate) incrementDate = normalCycleDate;
+            } else {
+                incrementDate = normalCycleDate;
+            }
+            if (incrementDate > promotionDate && incrementDate <= endDate) {
+                pushEvent(incrementDate, { label: "INCREMENT", isAnnual: true });
+            }
+            postLoopYear++;
         }
-        loopYear++;
+    } else {
+        // No promotion: standard annual increments based on optionMonth
+        let loopYear = optionDate.getFullYear() + 1;
+        while (loopYear <= endDate.getFullYear() + 1) {
+            let normalCycleDate = new Date(loopYear, optionMonth, 1);
+            let priorCycleDate = new Date(loopYear - 1, optionMonth, 1);
+            let interveningMilestone = milestoneDefs.find(m => m.d >= priorCycleDate && m.d < normalCycleDate);
+            let incrementDate;
+            if (interveningMilestone) {
+                incrementDate = vestingExtendedNextDate(interveningMilestone.d);
+                if (incrementDate < normalCycleDate) incrementDate = normalCycleDate;
+            } else {
+                // DISCRETE LWP RULE: a one-time LWP entry defers ONLY the 10/18/20-Year
+                // CAS milestone date(s) (already shifted above via milestoneDefs). Regular
+                // annual increments in years with no intervening milestone are NOT
+                // perpetually shifted and continue to fall on the normal Option/Fixation
+                // cycle date, as per the ROPA-1998 rule stated below.
+                incrementDate = normalCycleDate;
+            }
+            if (incrementDate >= optionDate && incrementDate <= endDate) {
+                pushEvent(incrementDate, { label: "INCREMENT", isAnnual: true });
+            }
+            loopYear++;
+        }
     }
 
     events.sort((a, b) => {
         if (a.date.getTime() !== b.date.getTime()) return a.date - b.date;
+        if (a.isPromotion) return -1;
+        if (b.isPromotion) return 1;
         if (a.isMilestone && b.isAnnual) return -1;
         if (a.isAnnual && b.isMilestone) return 1;
         return 0;
@@ -1601,7 +1704,22 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             remarksText += ` (Deferred by ${ev.deferDays} days LWP)`;
         }
 
-        if (ev.isAnnual) {
+        if (ev.isPromotion) {
+            let preChangeBasic = runningBasicPay;
+            if (evType === 'promo') {
+                if (idx < ladder.length - 1) idx += 1;
+                preChangeBasic = ladder[idx];
+            }
+            let newScaleKey = ev.targetGp;
+            let newLadder = matrixData98[newScaleKey] || ladder;
+            let newIdx = newLadder.findIndex(v => v >= preChangeBasic);
+            if (newIdx === -1) newIdx = newLadder.length - 1;
+            if (newLadder[newIdx] < newLadder[0]) newIdx = 0;
+            currentScaleKey = newScaleKey;
+            ladder = newLadder;
+            idx = newIdx;
+            runningBasicPay = ladder[idx];
+        } else if (ev.isAnnual) {
             if (idx < ladder.length - 1) idx += 1;
             runningBasicPay = ladder[idx];
         } else if (ev.isMilestone) {
@@ -1652,12 +1770,17 @@ function getRopa98SnapshotAsOf(rows, initialBasicPay, asOfDate) {
 }
 
 // FULL ROPA-2009 TIMELINE ENGINE
-function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate, lwpEntries) {
+function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate, lwpEntries, promotionDate, promotionTargetGp, evType) {
     let events = [];
     function pushEvent(dateObj, data) { events.push({ date: new Date(dateObj), ...data }); }
 
     lwpEntries = lwpEntries || [];
     pushEvent(optionDate, { label: "DOA / PAY REVISION", isInitial: true, exactMilestoneDate: optionDate });
+
+    const promotionActive = (promotionDate instanceof Date && !isNaN(promotionDate) && promotionDate >= optionDate && promotionDate <= endDate);
+    if (promotionActive) {
+        pushEvent(promotionDate, { label: evType === 'promo' ? "PROMOTION" : "HIGHER SCALE", isPromotion: true, targetGp: promotionTargetGp, exactPromotionDate: promotionDate });
+    }
 
     let firstIncrementYear = optionDate.getFullYear();
     let optionDay = optionDate.getDate();
@@ -1665,22 +1788,63 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
     if ((optionMonth === 0 && optionDay >= 2) || (optionMonth > 0 && optionMonth < 5) || (optionMonth === 5 && optionDay <= 30)) {
         firstIncrementYear += 1;
     }
-    let loopYear = firstIncrementYear;
-    while (loopYear <= endDate.getFullYear()) {
-        let julDate = new Date(loopYear, 6, 1);
-        const lwpEffect = getLwpEffectForYear(lwpEntries, loopYear);
-        if (lwpEffect) {
-            if (lwpEffect.skip) {
-                loopYear++;
-                continue;
+
+    if (promotionActive) {
+        // 1. Pre-promotion annual increments (01-July cycles strictly before the promotion date)
+        let loopYear = firstIncrementYear;
+        while (loopYear <= promotionDate.getFullYear()) {
+            let julDate = new Date(loopYear, 6, 1);
+            if (julDate < promotionDate) {
+                const lwpEffect = getLwpEffectForYear(lwpEntries, loopYear);
+                if (lwpEffect) {
+                    if (lwpEffect.skip) { loopYear++; continue; }
+                    if (julDate >= optionDate && julDate < promotionDate) {
+                        pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
+                    }
+                } else if (julDate >= optionDate && julDate < promotionDate) {
+                    pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+                }
             }
-            if (julDate >= optionDate && julDate <= endDate) {
-                pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
-            }
-        } else if (julDate >= optionDate && julDate <= endDate) {
-            pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+            loopYear++;
         }
-        loopYear++;
+
+        // 2. Post-promotion annual increments (01-July calculated WRT promotionDate as per ROPA Rules)
+        // If promotion is on Jan 1: service on July 1st is 6 months -> next increment is July 1st of promotion year.
+        // If promotion is between Jan 2 and Dec 31: service on July 1st is < 6 months (or after July 1st) -> next increment is July 1st of NEXT year.
+        let postPromoStartYear = (promotionDate.getMonth() === 0 && promotionDate.getDate() === 1) ? promotionDate.getFullYear() : promotionDate.getFullYear() + 1;
+        let postLoopYear = postPromoStartYear;
+        while (postLoopYear <= endDate.getFullYear()) {
+            let julDate = new Date(postLoopYear, 6, 1);
+            const lwpEffect = getLwpEffectForYear(lwpEntries, postLoopYear);
+            if (lwpEffect) {
+                if (lwpEffect.skip) { postLoopYear++; continue; }
+                if (julDate > promotionDate && julDate <= endDate) {
+                    pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
+                }
+            } else if (julDate > promotionDate && julDate <= endDate) {
+                pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+            }
+            postLoopYear++;
+        }
+    } else {
+        // No promotion: standard annual increments
+        let loopYear = firstIncrementYear;
+        while (loopYear <= endDate.getFullYear()) {
+            let julDate = new Date(loopYear, 6, 1);
+            const lwpEffect = getLwpEffectForYear(lwpEntries, loopYear);
+            if (lwpEffect) {
+                if (lwpEffect.skip) {
+                    loopYear++;
+                    continue;
+                }
+                if (julDate >= optionDate && julDate <= endDate) {
+                    pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
+                }
+            } else if (julDate >= optionDate && julDate <= endDate) {
+                pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+            }
+            loopYear++;
+        }
     }
 
     const isExcludedFrom18Y = [4700, 4800, 5400].includes(gpInput);
@@ -1713,6 +1877,8 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
 
     events.sort((a, b) => {
         if (a.date.getTime() !== b.date.getTime()) return a.date - b.date;
+        if (a.isPromotion) return -1;
+        if (b.isPromotion) return 1;
         if (a.isAnnual && b.isMilestone) return -1;
         if (a.isMilestone && b.isAnnual) return 1;
         return 0;
@@ -1739,6 +1905,34 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
 
         if (ev.isInitial) {
             // seed row
+        } else if (ev.isPromotion) {
+            let oldGp = runningGp;
+            runningGp = ev.targetGp;
+
+            if (evType === 'promo') {
+                incAmt = calculate09Increment(runningBandPay, oldGp);
+                runningBandPay += incAmt;
+                runningBasicPay = runningBandPay + runningGp;
+                slipBlockHTML = `
+                    <div class="slip-box">
+                        <div class="slip-row"><span class="slip-bold">1. Existing Pay on ${formatDate(ev.date)}</span><span>BP: Rs. ${existingBandPay.toLocaleString('en-IN')}, GP: Rs. ${oldGp.toLocaleString('en-IN')}</span></div>
+                        <div class="slip-row"><span>2.a) One Additional Increment in Existing Scale</span><span>Rs. ${incAmt.toLocaleString('en-IN')}</span></div>
+                        <div class="slip-row"><span>&nbsp;&nbsp;&nbsp;b) Grade Pay changed to promoted post</span><span>Rs. ${oldGp.toLocaleString('en-IN')} &rarr; Rs. ${runningGp.toLocaleString('en-IN')}</span></div>
+                        <div class="slip-row"><span class="slip-bold">&nbsp;&nbsp;&nbsp;c) Pay Fixed on Promotion w.e.f ${formatDate(ev.date)}</span><span class="slip-bold">Rs. ${runningBasicPay.toLocaleString('en-IN')}</span></div>
+                    </div>`;
+            } else {
+                const floorBand = minEntryPayBand09[runningGp] || 0;
+                if (runningBandPay < floorBand) {
+                    runningBandPay = floorBand;
+                }
+                runningBasicPay = runningBandPay + runningGp;
+                slipBlockHTML = `
+                    <div class="slip-box">
+                        <div class="slip-row"><span class="slip-bold">1. Existing Pay on ${formatDate(ev.date)}</span><span>BP: Rs. ${existingBandPay.toLocaleString('en-IN')}, GP: Rs. ${oldGp.toLocaleString('en-IN')}</span></div>
+                        <div class="slip-row"><span>2. Fitted directly into Higher Scale GP ${runningGp.toLocaleString('en-IN')} (No promotional increment)</span><span>&mdash;</span></div>
+                        <div class="slip-row"><span class="slip-bold">3. Fixed Basic Pay w.e.f ${formatDate(ev.date)}</span><span class="slip-bold">Rs. ${runningBasicPay.toLocaleString('en-IN')}</span></div>
+                    </div>`;
+            }
         } else if (ev.isAnnual) {
             incAmt = calculate09Increment(runningBandPay, runningGp);
             runningBandPay += incAmt;
@@ -1793,12 +1987,17 @@ function getRopa09SnapshotAsOf(rows, initialGp, initialBandPay, asOfDate) {
 }
 
 // FULL ROPA-2019 TIMELINE ENGINE
-function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, dor, lwpEntries) {
+function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, dor, lwpEntries, promotionDate, promotionTargetGp, evType) {
     let events = [];
     function pushEvent(dateObj, data) { events.push({ date: new Date(dateObj), ...data }); }
 
     lwpEntries = lwpEntries || [];
     pushEvent(startDate, { label: "ROPA-19 OPTION / FITMENT", isInitial: true, exactMilestoneDate: startDate });
+
+    const promotionActive = (promotionDate instanceof Date && !isNaN(promotionDate) && promotionDate >= startDate && promotionDate <= dor);
+    if (promotionActive) {
+        pushEvent(promotionDate, { label: evType === 'promo' ? "PROMOTION" : "HIGHER SCALE", isPromotion: true, targetGp: promotionTargetGp, exactPromotionDate: promotionDate });
+    }
 
     let firstIncrementYear = startDate.getFullYear();
     let optionDay = startDate.getDate();
@@ -1806,22 +2005,61 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
     if ((optionMonth === 0 && optionDay >= 2) || (optionMonth > 0 && optionMonth < 5) || (optionMonth === 5 && optionDay <= 30)) {
         firstIncrementYear += 1;
     }
-    let loopYear = firstIncrementYear;
-    while (loopYear <= dor.getFullYear()) {
-        let julDate = new Date(loopYear, 6, 1);
-        const lwpEffect = getLwpEffectForYear(lwpEntries, loopYear);
-        if (lwpEffect) {
-            if (lwpEffect.skip) {
-                loopYear++;
-                continue;
+
+    if (promotionActive) {
+        // 1. Pre-promotion annual increments (01-July cycles strictly before the promotion date)
+        let loopYear = firstIncrementYear;
+        while (loopYear <= promotionDate.getFullYear()) {
+            let julDate = new Date(loopYear, 6, 1);
+            if (julDate < promotionDate) {
+                const lwpEffect = getLwpEffectForYear(lwpEntries, loopYear);
+                if (lwpEffect) {
+                    if (lwpEffect.skip) { loopYear++; continue; }
+                    if (julDate >= startDate && julDate < promotionDate) {
+                        pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
+                    }
+                } else if (julDate >= startDate && julDate < promotionDate) {
+                    pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+                }
             }
-            if (julDate >= startDate && julDate <= dor) {
-                pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
-            }
-        } else if (julDate >= startDate && julDate <= dor) {
-            pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+            loopYear++;
         }
-        loopYear++;
+
+        // 2. Post-promotion annual increments (01-July calculated WRT promotionDate as per ROPA Rules)
+        let postPromoStartYear = (promotionDate.getMonth() === 0 && promotionDate.getDate() === 1) ? promotionDate.getFullYear() : promotionDate.getFullYear() + 1;
+        let postLoopYear = postPromoStartYear;
+        while (postLoopYear <= dor.getFullYear()) {
+            let julDate = new Date(postLoopYear, 6, 1);
+            const lwpEffect = getLwpEffectForYear(lwpEntries, postLoopYear);
+            if (lwpEffect) {
+                if (lwpEffect.skip) { postLoopYear++; continue; }
+                if (julDate > promotionDate && julDate <= dor) {
+                    pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
+                }
+            } else if (julDate > promotionDate && julDate <= dor) {
+                pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+            }
+            postLoopYear++;
+        }
+    } else {
+        // No promotion: standard annual increments
+        let loopYear = firstIncrementYear;
+        while (loopYear <= dor.getFullYear()) {
+            let julDate = new Date(loopYear, 6, 1);
+            const lwpEffect = getLwpEffectForYear(lwpEntries, loopYear);
+            if (lwpEffect) {
+                if (lwpEffect.skip) {
+                    loopYear++;
+                    continue;
+                }
+                if (julDate >= startDate && julDate <= dor) {
+                    pushEvent(lwpEffect.financialDate, { label: "INCREMENT", isAnnual: true, isLwpDeferred: true, notionalDate: julDate });
+                }
+            } else if (julDate >= startDate && julDate <= dor) {
+                pushEvent(julDate, { label: "INCREMENT", isAnnual: true });
+            }
+            loopYear++;
+        }
     }
 
     const isExcludedFrom18Y = [4700, 4800, 5400].includes(gpInput);
@@ -1851,6 +2089,8 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
 
     events.sort((a, b) => {
         if (a.date.getTime() !== b.date.getTime()) return a.date - b.date;
+        if (a.isPromotion) return -1;
+        if (b.isPromotion) return 1;
         if (a.isAnnual && b.isMilestone) return -1;
         if (a.isMilestone && b.isAnnual) return 1;
         return 0;
@@ -1878,6 +2118,38 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
 
         if (ev.isInitial) {
             colTrackingInfo = cellData.cell;
+        } else if (ev.isPromotion) {
+            let oldLevel = runningLevel;
+            let oldGp = runningGp;
+            let targetLevel = levelMap19[ev.targetGp] || runningLevel;
+
+            if (evType === 'promo') {
+                let oneStepValue = matrixData19[runningLevel][cellData.index + 1] || runningBasicPay;
+                let fitted = findCell19(targetLevel, oneStepValue);
+                runningLevel = targetLevel;
+                runningGp = ev.targetGp;
+                runningBasicPay = fitted.value;
+                colTrackingInfo = fitted.cell;
+                slipBlockHTML = `
+                    <div class="slip-box">
+                        <div class="slip-row"><span class="slip-bold">1. Existing Pay Matrix Cell on ${formatDate(ev.date)}</span><span>Rs. ${existingBasic.toLocaleString('en-IN')} (L-${oldLevel}, GP ${oldGp.toLocaleString('en-IN')})</span></div>
+                        <div class="slip-row"><span>2.a) One Increment within Existing Level ${oldLevel}</span><span>Rs. ${oneStepValue.toLocaleString('en-IN')}</span></div>
+                        <div class="slip-row"><span>&nbsp;&nbsp;&nbsp;b) Fitted into Target Level ${targetLevel} (equal/next-higher cell)</span><span>&mdash;</span></div>
+                        <div class="slip-row"><span class="slip-bold">&nbsp;&nbsp;&nbsp;c) Pay Fixed on Promotion w.e.f ${formatDate(ev.date)}</span><span class="slip-bold">Rs. ${runningBasicPay.toLocaleString('en-IN')} (${fitted.cell})</span></div>
+                    </div>`;
+            } else {
+                let fitted = findCell19(targetLevel, runningBasicPay);
+                runningLevel = targetLevel;
+                runningGp = ev.targetGp;
+                runningBasicPay = fitted.value;
+                colTrackingInfo = fitted.cell;
+                slipBlockHTML = `
+                    <div class="slip-box">
+                        <div class="slip-row"><span class="slip-bold">1. Existing Pay Matrix Cell on ${formatDate(ev.date)}</span><span>Rs. ${existingBasic.toLocaleString('en-IN')} (L-${oldLevel}, GP ${oldGp.toLocaleString('en-IN')})</span></div>
+                        <div class="slip-row"><span>2. Fitted directly into Target Level ${targetLevel} (equal/next-higher cell - No promo increment)</span><span>&mdash;</span></div>
+                        <div class="slip-row"><span class="slip-bold">3. Pay Fixed w.e.f ${formatDate(ev.date)}</span><span class="slip-bold">Rs. ${runningBasicPay.toLocaleString('en-IN')} (${fitted.cell})</span></div>
+                    </div>`;
+            }
         } else if (ev.isAnnual) {
             runningBasicPay = matrixData19[runningLevel][cellData.index + 1] || runningBasicPay;
             colTrackingInfo = findCell19(runningLevel, runningBasicPay).cell;
@@ -2040,6 +2312,7 @@ function processFixationTimeline() {
 
     // MULTI-ROW LWP ENTRIES (several discrete spells / single dates, cumulative)
     const lwpEntries = getLwpEntries();
+    const promo = getPromotionParams();
 
     let ropa98Rows = [];
     let ropa09Rows = [];
@@ -2057,7 +2330,7 @@ function processFixationTimeline() {
         const ropa98OptionDate = new Date(ropa98OptionInput);
         const ropa98EndDate = dor < ROPA98_CUTOFF ? dor : ROPA98_CUTOFF;
 
-        const result98 = computeRopa98Timeline(doj, ropa98OptionDate, ropa98Scale, ropa98BasicPay, ropa98EndDate, lwpEntries);
+        const result98 = computeRopa98Timeline(doj, ropa98OptionDate, ropa98Scale, ropa98BasicPay, ropa98EndDate, lwpEntries, promo.date, promo.targetGp, promo.evType);
         ropa98Rows = result98.rows;
 
         const ropa09OptionInputForSnap = val('ropa09OptionDate');
@@ -2086,7 +2359,7 @@ function processFixationTimeline() {
         const ropa09OptionDate = new Date(ropa09OptionInput);
         const ropa09EndDate = dor < ROPA09_CUTOFF ? dor : ROPA09_CUTOFF;
 
-        const result09 = computeRopa09Timeline(doj, ropa09OptionDate, ropa09Gp, ropa09BandPay, ropa09EndDate, lwpEntries);
+        const result09 = computeRopa09Timeline(doj, ropa09OptionDate, ropa09Gp, ropa09BandPay, ropa09EndDate, lwpEntries, promo.date, promo.targetGp, promo.evType);
         ropa09Rows = result09.rows;
 
         const snap = getRopa09SnapshotAsOf(ropa09Rows, ropa09Gp, ropa09BandPay, ropa19OptionDate);
@@ -2108,7 +2381,7 @@ function processFixationTimeline() {
     }
 
     // Phase 3: ROPA-2019 (From 01.01.2020)
-    const result19 = computeRopa19Timeline(doj, ropa19OptionDate, carryGp, carryLevel, carryBasic, dor, lwpEntries);
+    const result19 = computeRopa19Timeline(doj, ropa19OptionDate, carryGp, carryLevel, carryBasic, dor, lwpEntries, promo.date, promo.targetGp, promo.evType);
 
     document.getElementById('carryForwardOutput98').style.display = enableRopa98 ? '' : 'none';
     document.getElementById('carryForwardOutput98').innerHTML = carryNote98;
@@ -4089,6 +4362,7 @@ async function exportOverdrawnExcel() {
 
 window.addEventListener('DOMContentLoaded', function () {
     calculateDOR();
+    togglePromotionSection();
     toggleRopa09Section();
     generateArrearTable();
     seedDefaultOverdrawnRows();
