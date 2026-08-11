@@ -1470,7 +1470,7 @@ function getPromotionParams() {
     const enabled = document.getElementById('enablePromotion') && document.getElementById('enablePromotion').checked;
     const dateInput = enabled ? val('promotionDate') : '';
     return {
-        date: dateInput ? new Date(dateInput) : null,
+        date: dateInput ? parseDateInputLocal(dateInput) : null,
         targetGp: parseInt(val('promotionTargetGp'), 10),
         evType: enabled ? val('promotionType') : 'none'
     };
@@ -1532,17 +1532,39 @@ function getLwpEffectForYear(entries, year) {
     return null;
 }
 
+// Parses an HTML <input type="date"> value as a LOCAL calendar date.
+// Using new Date("YYYY-MM-DD") creates a UTC timestamp, which can be 5:30
+// hours earlier in India and makes two events on the same calendar date look
+// like different dates. That was causing promotion ranges such as
+// 06.10.2007 to 05.10.2007.
+function parseDateInputLocal(value) {
+    if (!value) return null;
+    const parts = String(value).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => !Number.isFinite(n))) return null;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return isNaN(d.getTime()) ? null : d;
+}
+
 function finalizeDot(compiledRows, endDate) {
     for (let i = 0; i < compiledRows.length; i++) {
         if (i < compiledRows.length - 1) {
-            let nextRowDate = compiledRows[i + 1].date;
-            if (compiledRows[i].date.getTime() === nextRowDate.getTime()) {
-                compiledRows[i].dot = new Date(nextRowDate);
+            const currentDate = compiledRows[i].date;
+            const nextRowDate = compiledRows[i + 1].date;
+            const sameCalendarDate =
+                currentDate.getFullYear() === nextRowDate.getFullYear() &&
+                currentDate.getMonth() === nextRowDate.getMonth() &&
+                currentDate.getDate() === nextRowDate.getDate();
+
+            // Events may come from an HTML date input (UTC midnight) or from
+            // new Date(y,m,d) (local midnight). Treat the same calendar day as
+            // the same effective date, never as a one-day negative interval.
+            if (sameCalendarDate) {
+                compiledRows[i].dot = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
             } else {
                 compiledRows[i].dot = new Date(nextRowDate.getFullYear(), nextRowDate.getMonth(), nextRowDate.getDate() - 1);
             }
         } else {
-            compiledRows[i].dot = endDate;
+            compiledRows[i].dot = new Date(endDate);
         }
     }
 }
@@ -1749,7 +1771,8 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             basicDisplay: runningBasicPay.toLocaleString('en-IN'),
             slipHTML: '',
             snapBasicPay: runningBasicPay,
-            snapGp: currentScaleKey
+            snapGp: currentScaleKey,
+            snapScaleKey: currentScaleKey
         });
     });
 
@@ -1757,16 +1780,18 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
     return { rows: compiledRows, finalScaleKey: currentScaleKey };
 }
 
-function getRopa98SnapshotAsOf(rows, initialBasicPay, asOfDate) {
+function getRopa98SnapshotAsOf(rows, initialBasicPay, initialScaleKey, asOfDate) {
     let basic = initialBasicPay;
+    let scaleKey = initialScaleKey;
     for (const row of rows) {
         if (row.date.getTime() <= asOfDate.getTime()) {
             basic = row.snapBasicPay;
+            scaleKey = row.snapScaleKey || scaleKey;
         } else {
             break;
         }
     }
-    return { basic };
+    return { basic, scaleKey };
 }
 
 // FULL ROPA-2009 TIMELINE ENGINE
@@ -2301,11 +2326,11 @@ function processFixationTimeline() {
     const dojInput = val('doj');
     const dor = getDOR();
     if (!dojInput || !dor) return;
-    const doj = new Date(dojInput);
+    const doj = parseDateInputLocal(dojInput);
 
     const ropa19OptionInput = val('ropa19OptionDate');
     if (!ropa19OptionInput) return;
-    const ropa19OptionDate = new Date(ropa19OptionInput);
+    const ropa19OptionDate = parseDateInputLocal(ropa19OptionInput);
 
     const enableRopa98 = document.getElementById('enableRopa98').checked;
     const enableRopa09 = document.getElementById('enableRopa09').checked;
@@ -2327,18 +2352,21 @@ function processFixationTimeline() {
         const ropa98Scale = parseInt(val('ropa98Scale'), 10);
         const ropa98BasicPay = parseInt(val('ropa98BasicPay'), 10);
         if (!ropa98OptionInput || isNaN(ropa98Scale) || isNaN(ropa98BasicPay)) return;
-        const ropa98OptionDate = new Date(ropa98OptionInput);
+        const ropa98OptionDate = parseDateInputLocal(ropa98OptionInput);
         const ropa98EndDate = dor < ROPA98_CUTOFF ? dor : ROPA98_CUTOFF;
 
         const result98 = computeRopa98Timeline(doj, ropa98OptionDate, ropa98Scale, ropa98BasicPay, ropa98EndDate, lwpEntries, promo.date, promo.targetGp, promo.evType);
         ropa98Rows = result98.rows;
 
         const ropa09OptionInputForSnap = val('ropa09OptionDate');
-        const snapAsOfDate = ropa09OptionInputForSnap ? new Date(ropa09OptionInputForSnap) : ropa98EndDate;
-        const snap98 = getRopa98SnapshotAsOf(ropa98Rows, ropa98BasicPay, snapAsOfDate);
+        const snapAsOfDate = ropa09OptionInputForSnap ? parseDateInputLocal(ropa09OptionInputForSnap) : ropa98EndDate;
+        const snap98 = getRopa98SnapshotAsOf(ropa98Rows, ropa98BasicPay, ropa98Scale, snapAsOfDate);
         const rawBand = snap98.basic * ROPA98_TO_09_FACTOR;
         const multipliedBand = ceilToNext10(rawBand);
-        ropa09InitialGp = result98.finalScaleKey;
+        // IMPORTANT: carry the GP/scale applicable ON the ROPA-09 option date.
+        // Do not use result98.finalScaleKey, because a later promotion (e.g.
+        // 06.10.2007) must not retroactively change the GP on 01.01.2006.
+        ropa09InitialGp = parseInt(snap98.scaleKey, 10);
 
         const minBandForGp = minEntryPayBand09[ropa09InitialGp];
         const minEntryApplied = (minBandForGp !== undefined && multipliedBand < minBandForGp);
@@ -2347,7 +2375,7 @@ function processFixationTimeline() {
 
         carryNote98 = `<strong>Carried Forward into ROPA-2009 (Rule II, WBS(ROPA) Rules 2009):</strong> Notional basic pay as on ${formatDate(snapAsOfDate)} under ROPA-1998 = Rs. ${snap98.basic.toLocaleString('en-IN')} &times; fitment factor 1.86 = Rs. ${rawBand.toFixed(2)} &rarr; rounded up to next Rs. 10 = Rs. ${multipliedBand.toLocaleString('en-IN')}` +
             (minEntryApplied ? ` &rarr; below Minimum Entry Pay in Pay Band for GP ${ropa09InitialGp.toLocaleString('en-IN')} (Rs. ${minBandForGp.toLocaleString('en-IN')}) &rarr; stepped up to Rs. ${ropa09InitialBand.toLocaleString('en-IN')}` : ``) +
-            ` Pay in Pay Band + Grade Pay Rs. ${ropa09InitialGp.toLocaleString('en-IN')} = Total Rs. ${(ropa09InitialBand + ropa09InitialGp).toLocaleString('en-IN')}.`;
+            ` GP applicable on ${formatDate(snapAsOfDate)} = Rs. ${ropa09InitialGp.toLocaleString('en-IN')}. Pay in Pay Band + Grade Pay = Rs. ${(ropa09InitialBand + ropa09InitialGp).toLocaleString('en-IN')}.`;
     }
 
     // Phase 2: ROPA-2009 (01.04.2009 to 31.12.2019)
@@ -2356,7 +2384,7 @@ function processFixationTimeline() {
         let ropa09Gp = ropa09HasCarry ? ropa09InitialGp : parseInt(val('ropa09GradePay'), 10);
         let ropa09BandPay = ropa09HasCarry ? ropa09InitialBand : parseInt(val('ropa09BandPay'), 10);
         if (!ropa09OptionInput || isNaN(ropa09Gp) || isNaN(ropa09BandPay)) return;
-        const ropa09OptionDate = new Date(ropa09OptionInput);
+        const ropa09OptionDate = parseDateInputLocal(ropa09OptionInput);
         const ropa09EndDate = dor < ROPA09_CUTOFF ? dor : ROPA09_CUTOFF;
 
         const result09 = computeRopa09Timeline(doj, ropa09OptionDate, ropa09Gp, ropa09BandPay, ropa09EndDate, lwpEntries, promo.date, promo.targetGp, promo.evType);
