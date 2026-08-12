@@ -2604,10 +2604,22 @@ function generateArrearTable() {
     if (typeof autoDeriveDaBasicSegments === 'function') autoDeriveDaBasicSegments();
 }
 
-// M.A. default: Rs. 300/month under ROPA-2009 era (before 01-01-2020),
+// M.A. default: Rs. 100/month for 01-04-2008 to 31-03-2009 (ROPA-98 period rate),
+// Rs. 300/month under ROPA-2009 era (01-04-2009 to 31-12-2019),
 // Rs. 500/month under ROPA-2019 era (from 01-01-2020) — always editable per row.
 function defaultMaForMonth(y, m) {
-    return (new Date(y, m - 1, 1) < new Date(2020, 0, 1)) ? 300 : 500;
+    const d = new Date(y, m - 1, 1);
+    if (d >= new Date(2008, 3, 1) && d <= new Date(2009, 2, 1)) return 100;
+    return (d < new Date(2020, 0, 1)) ? 300 : 500;
+}
+
+// H.R.A. rate default: 15% of Basic Pay for 01-04-2008 to 31-03-2009 (ROPA-98 period
+// rate); the global "H.R.A. Rate (%)" field is used as the default for every other
+// month. Always editable per row (like M.A. / I.R. / GPF / I.Tax / Other).
+function defaultHraRateForMonth(y, m, fallbackPct) {
+    const d = new Date(y, m - 1, 1);
+    if (d >= new Date(2008, 3, 1) && d <= new Date(2009, 2, 1)) return 15;
+    return fallbackPct;
 }
 
 // I.R. (Interim Relief) default: 10% of Basic Pay as on 01-01-2016 (Grade Pay in full),
@@ -3368,7 +3380,7 @@ function generateDaCaseTable() {
         // GPF, I.Tax, Other, M.A. and I.R. all default per the rules/global fields above,
         // but each is independently editable per row below -- so they may vary month to month.
         const ov = daCaseRowData[mStr] || {};
-        const hra = Math.round(basic * hraRatePct / 100);
+        const hra = (ov.hra !== undefined) ? ov.hra : Math.round(basic * defaultHraRateForMonth(yy, mm, hraRatePct) / 100);
         const ma = (ov.ma !== undefined) ? ov.ma : ((maRaw === '' || maRaw === null) ? defaultMaForMonth(yy, mm) : (parseFloat(maRaw) || 0));
         const ir = (ov.ir !== undefined) ? ov.ir : ((irRaw === '' || irRaw === null) ? defaultIrForMonth(yy, mm, basicOn1Jan2016_da) : (parseFloat(irRaw) || 0));
         const gpf = (ov.gpf !== undefined) ? ov.gpf : gpfDefault;
@@ -3425,7 +3437,7 @@ function generateDaCaseTable() {
             <tr class="adm-row">
                 <td>Admissible</td><td>${mName}</td>
                 <td>${r.basic.toLocaleString('en-IN')}</td><td>${r.dueDA.toLocaleString('en-IN')}</td>
-                <td>${r.hra.toLocaleString('en-IN')}</td>
+                <td><input class="tbl-input" ${dif('hra', r.hra)}></td>
                 <td><input class="tbl-input" ${dif('ma', r.ma)}></td>
                 <td><input class="tbl-input" ${dif('ir', r.ir)}></td>
                 <td><input class="tbl-input" ${dif('gpf', r.gpf)}></td>
