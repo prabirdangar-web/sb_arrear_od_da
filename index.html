@@ -432,7 +432,8 @@
             </div>
         </div>
         <div class="output-box" style="background-color:#eff6ff;border-left-color:#1d4ed8;">
-            <strong>Fixation Rule Settings:</strong> Functional post promotions grant an extra increment before matching the target scale. Higher scale movements for qualification/upgradations bypass the promotional increment step. Upon promotion, post-promotion annual increment dates are strictly governed with respect to the Date of Promotion (as per ROPA rules): in ROPA-1998, the increment month shifts to the promotion month; in ROPA-2009/2019, if service in the promoted post as on 1st July is less than 6 months (promotion date between 2nd Jan and 30th Jun), the 1st July increment of that year is skipped and granted on 1st July of the next year.
+            <strong>Fixation Rule Settings:</strong> Functional post promotions grant an extra increment before matching the target scale. Higher scale movements for qualification/upgradations bypass the promotional increment step. Upon promotion, post-promotion annual increment dates are strictly governed with respect to the Date of Promotion (as per ROPA rules): in ROPA-1998, the increment month shifts to the promotion month; in ROPA-2009/2019, if service in the promoted post as on 1st July is less than 6 months (promotion date between 2nd Jan and 30th Jun), the 1st July increment of that year is skipped and granted on 1st July of the next year.<br><br>
+            <strong>Same-Date CAS + Promotion Rule:</strong> If the 10-Year, 18-Year or 20-Year CAS/benefit date falls on the exact Date of Promotion, the CAS benefit is first calculated/fixed on the <strong>pre-promotion pay</strong>. The promotion is then applied on the same date as the subsequent fixation event. Thus the Annexure-1 gross/arrear calculation for that CAS benefit uses the pre-promotion pay; the promoted pay applies from the promotion event onward.
         </div>
     </div>
 
@@ -493,6 +494,16 @@
             <div class="fg"><label>Date of Option / DOA (ROPA-2009)</label><input type="date" id="ropa09OptionDate" value="2006-01-01"></div>
             <div class="fg" id="ropa09ManualBandGroup"><label>Initial Band Pay (Excluding GP)</label><input type="number" id="ropa09BandPay" value="13400"></div>
         </div>
+        <div class="output-box" style="background:#ecfdf5;border-left-color:#16a34a;">
+            <strong>ROPA-2009 Rule-II Carry-Forward:</strong>
+            When ROPA-1998 is applicable, the ROPA-2009 opening Band Pay is calculated
+            from the ROPA-1998 Basic Pay as on <strong>01-01-2006</strong>:
+            <strong>Basic × 1.86</strong>, rounded UP to the next Rs.10.
+            The applicable Grade Pay on 01-01-2006 is then added.
+            Example: <strong>Rs.8,050 × 1.86 = Rs.14,973 → Rs.14,980 + GP Rs.4,800 = Rs.19,780</strong>.
+            The manual ROPA-2009 Initial Band Pay is ignored when this carry-forward applies.
+        </div>
+
         <div class="output-box" style="background-color:#fff7ed;border-left-color:#c2410c;">
             <strong>LWP / Notional Increment Rule (G.O. No. 181-SE(B) Dt. 8.10.2009):</strong> Regular annual increments fall on the 1st day of July (01-07-YYYY). Extraordinary Leave Without Pay on medical grounds does not defer increment. Personal LWP defers financial benefit while future 1-July cycle dates stay fixed.
         </div>
@@ -1002,6 +1013,7 @@
                 </div>
 
                 <div class="annex1-passed-line">Passed for RS. <span id="da_disp_passed_num">0</span> [ Rupees <span id="da_disp_passed_words">Zero Only</span> ].</div>
+                <div class="annex1-passed-line" style="font-size:0.95rem;">Actual Claim / Net Payable: RS. <span id="da_disp_actual_claim">0</span> [ Rupees <span id="da_disp_actual_claim_words">Zero Only</span> ].</div>
             </div>
 
             <div>
@@ -1466,11 +1478,22 @@ function addDays(d, n) {
 
 // Reads the "2a. Promotion / Career Advancement / Higher Scale Movement" inputs.
 // Returns null date when the section is not applicable / not filled in.
+// Parse HTML date inputs as LOCAL calendar dates.
+// Using new Date("YYYY-MM-DD") parses as UTC and can become the previous
+// calendar day in India, which incorrectly changes same-day CAS/Promotion
+// ranges (e.g. 06.10.2007 becoming 05.10.2007).
+function parseDateInputLocal(dateInput) {
+    if (!dateInput) return null;
+    const parts = String(dateInput).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 function getPromotionParams() {
     const enabled = document.getElementById('enablePromotion') && document.getElementById('enablePromotion').checked;
     const dateInput = enabled ? val('promotionDate') : '';
     return {
-        date: dateInput ? parseDateInputLocal(dateInput) : null,
+        date: parseDateInputLocal(dateInput),
         targetGp: parseInt(val('promotionTargetGp'), 10),
         evType: enabled ? val('promotionType') : 'none'
     };
@@ -1532,39 +1555,17 @@ function getLwpEffectForYear(entries, year) {
     return null;
 }
 
-// Parses an HTML <input type="date"> value as a LOCAL calendar date.
-// Using new Date("YYYY-MM-DD") creates a UTC timestamp, which can be 5:30
-// hours earlier in India and makes two events on the same calendar date look
-// like different dates. That was causing promotion ranges such as
-// 06.10.2007 to 05.10.2007.
-function parseDateInputLocal(value) {
-    if (!value) return null;
-    const parts = String(value).split('-').map(Number);
-    if (parts.length !== 3 || parts.some(n => !Number.isFinite(n))) return null;
-    const d = new Date(parts[0], parts[1] - 1, parts[2]);
-    return isNaN(d.getTime()) ? null : d;
-}
-
 function finalizeDot(compiledRows, endDate) {
     for (let i = 0; i < compiledRows.length; i++) {
         if (i < compiledRows.length - 1) {
-            const currentDate = compiledRows[i].date;
-            const nextRowDate = compiledRows[i + 1].date;
-            const sameCalendarDate =
-                currentDate.getFullYear() === nextRowDate.getFullYear() &&
-                currentDate.getMonth() === nextRowDate.getMonth() &&
-                currentDate.getDate() === nextRowDate.getDate();
-
-            // Events may come from an HTML date input (UTC midnight) or from
-            // new Date(y,m,d) (local midnight). Treat the same calendar day as
-            // the same effective date, never as a one-day negative interval.
-            if (sameCalendarDate) {
-                compiledRows[i].dot = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+            let nextRowDate = compiledRows[i + 1].date;
+            if (compiledRows[i].date.getTime() === nextRowDate.getTime()) {
+                compiledRows[i].dot = new Date(nextRowDate);
             } else {
                 compiledRows[i].dot = new Date(nextRowDate.getFullYear(), nextRowDate.getMonth(), nextRowDate.getDate() - 1);
             }
         } else {
-            compiledRows[i].dot = new Date(endDate);
+            compiledRows[i].dot = endDate;
         }
     }
 }
@@ -1705,10 +1706,18 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
 
     events.sort((a, b) => {
         if (a.date.getTime() !== b.date.getTime()) return a.date - b.date;
-        if (a.isPromotion) return -1;
-        if (b.isPromotion) return 1;
-        if (a.isMilestone && b.isAnnual) return -1;
-        if (a.isAnnual && b.isMilestone) return 1;
+
+        // SAME-DATE PRIORITY:
+        // A 10/18/20-Year CAS milestone is calculated on the PRE-PROMOTION pay
+        // when the milestone date and promotion date are identical. Promotion is
+        // then applied on that same calendar date as the subsequent event.
+        if (a.isMilestone && b.isPromotion) return -1;
+        if (a.isPromotion && b.isMilestone) return 1;
+
+        // Annual increment remains before a CAS milestone on the same date.
+        if (a.isAnnual && b.isMilestone) return -1;
+        if (a.isMilestone && b.isAnnual) return 1;
+
         return 0;
     });
 
@@ -1771,8 +1780,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             basicDisplay: runningBasicPay.toLocaleString('en-IN'),
             slipHTML: '',
             snapBasicPay: runningBasicPay,
-            snapGp: currentScaleKey,
-            snapScaleKey: currentScaleKey
+            snapGp: currentScaleKey
         });
     });
 
@@ -1780,18 +1788,16 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
     return { rows: compiledRows, finalScaleKey: currentScaleKey };
 }
 
-function getRopa98SnapshotAsOf(rows, initialBasicPay, initialScaleKey, asOfDate) {
+function getRopa98SnapshotAsOf(rows, initialBasicPay, asOfDate) {
     let basic = initialBasicPay;
-    let scaleKey = initialScaleKey;
+    let gp = null;
     for (const row of rows) {
         if (row.date.getTime() <= asOfDate.getTime()) {
             basic = row.snapBasicPay;
-            scaleKey = row.snapScaleKey || scaleKey;
-        } else {
-            break;
-        }
+            if (row.snapGp !== undefined && row.snapGp !== null && row.snapGp !== "") gp = Number(row.snapGp);
+        } else { break; }
     }
-    return { basic, scaleKey };
+    return { basic, gp };
 }
 
 // FULL ROPA-2009 TIMELINE ENGINE
@@ -1902,10 +1908,18 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
 
     events.sort((a, b) => {
         if (a.date.getTime() !== b.date.getTime()) return a.date - b.date;
-        if (a.isPromotion) return -1;
-        if (b.isPromotion) return 1;
+
+        // SAME-DATE PRIORITY:
+        // A 10/18/20-Year CAS milestone is calculated on the PRE-PROMOTION pay
+        // when the milestone date and promotion date are identical. Promotion is
+        // then applied on that same calendar date as the subsequent event.
+        if (a.isMilestone && b.isPromotion) return -1;
+        if (a.isPromotion && b.isMilestone) return 1;
+
+        // Annual increment remains before a CAS milestone on the same date.
         if (a.isAnnual && b.isMilestone) return -1;
         if (a.isMilestone && b.isAnnual) return 1;
+
         return 0;
     });
 
@@ -2114,10 +2128,18 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
 
     events.sort((a, b) => {
         if (a.date.getTime() !== b.date.getTime()) return a.date - b.date;
-        if (a.isPromotion) return -1;
-        if (b.isPromotion) return 1;
+
+        // SAME-DATE PRIORITY:
+        // A 10/18/20-Year CAS milestone is calculated on the PRE-PROMOTION pay
+        // when the milestone date and promotion date are identical. Promotion is
+        // then applied on that same calendar date as the subsequent event.
+        if (a.isMilestone && b.isPromotion) return -1;
+        if (a.isPromotion && b.isMilestone) return 1;
+
+        // Annual increment remains before a CAS milestone on the same date.
         if (a.isAnnual && b.isMilestone) return -1;
         if (a.isMilestone && b.isAnnual) return 1;
+
         return 0;
     });
 
@@ -2261,6 +2283,33 @@ function renderRows(tbodyId, sbTbodyId, rows) {
     });
 }
 
+// When a 10/18/20-Year CAS milestone and promotion fall on the SAME DATE,
+// the CAS benefit must be calculated on the pre-promotion pay. The promotion
+// is effective only after that milestone calculation on the same calendar day.
+// This helper deliberately affects only the exact common date; the following
+// days use the promoted pay normally.
+function getSameDayPrePromotionCasRow(rows, asOfDate) {
+    if (!Array.isArray(rows) || !rows.length || !(asOfDate instanceof Date) || isNaN(asOfDate)) return null;
+
+    const promo = getPromotionParams();
+    if (!promo.date || isNaN(promo.date)) return null;
+
+    const sameDate = promo.date.getFullYear() === asOfDate.getFullYear() &&
+                     promo.date.getMonth() === asOfDate.getMonth() &&
+                     promo.date.getDate() === asOfDate.getDate();
+    if (!sameDate) return null;
+
+    // Find the CAS milestone row occurring on this exact date. Because the
+    // timeline now sorts CAS before promotion, this is the pre-promotion row.
+    return rows.find(r => {
+        if (!(r.date instanceof Date) || isNaN(r.date)) return false;
+        const sameRowDate = r.date.getFullYear() === asOfDate.getFullYear() &&
+                            r.date.getMonth() === asOfDate.getMonth() &&
+                            r.date.getDate() === asOfDate.getDate();
+        return sameRowDate && /^(10 YEARS|18 YEARS|20 YEARS)/.test(String(r.label || ''));
+    }) || null;
+}
+
 // UNIFIED PAY SNAPSHOT LOOKUP ACROSS ALL THREE ROPA ERAS
 function getAdmissibleSnapshotForDate(d) {
     const enable98 = document.getElementById('enableRopa98').checked;
@@ -2273,6 +2322,8 @@ function getAdmissibleSnapshotForDate(d) {
             if (new Date(r.date) <= d) applicable = r;
             else break;
         }
+        const casRow = getSameDayPrePromotionCasRow(window.pfTimeline98, d);
+        if (casRow) applicable = casRow;
         const bVal = parseInt(String(applicable.basicDisplay || applicable.snapBasicPay || 0).replace(/,/g,''), 10) || 0;
         return {
             era: 'ROPA-98',
@@ -2290,6 +2341,8 @@ function getAdmissibleSnapshotForDate(d) {
             if (new Date(r.date) <= d) applicable = r;
             else break;
         }
+        const casRow = getSameDayPrePromotionCasRow(window.pfTimeline09, d);
+        if (casRow) applicable = casRow;
         const bp = applicable.snapBandPay || 0;
         const gp = applicable.snapGp || 0;
         return {
@@ -2308,6 +2361,8 @@ function getAdmissibleSnapshotForDate(d) {
             if (new Date(r.date) <= d) applicable = r;
             else break;
         }
+        const casRow = getSameDayPrePromotionCasRow(window.pfTimeline19, d);
+        if (casRow) applicable = casRow;
         const bVal = parseInt(String(applicable.basicDisplay || applicable.snapBasicPay || 0).replace(/,/g,''), 10) || 0;
         return {
             era: 'ROPA-19',
@@ -2326,11 +2381,11 @@ function processFixationTimeline() {
     const dojInput = val('doj');
     const dor = getDOR();
     if (!dojInput || !dor) return;
-    const doj = parseDateInputLocal(dojInput);
+    const doj = new Date(dojInput);
 
     const ropa19OptionInput = val('ropa19OptionDate');
     if (!ropa19OptionInput) return;
-    const ropa19OptionDate = parseDateInputLocal(ropa19OptionInput);
+    const ropa19OptionDate = new Date(ropa19OptionInput);
 
     const enableRopa98 = document.getElementById('enableRopa98').checked;
     const enableRopa09 = document.getElementById('enableRopa09').checked;
@@ -2352,30 +2407,40 @@ function processFixationTimeline() {
         const ropa98Scale = parseInt(val('ropa98Scale'), 10);
         const ropa98BasicPay = parseInt(val('ropa98BasicPay'), 10);
         if (!ropa98OptionInput || isNaN(ropa98Scale) || isNaN(ropa98BasicPay)) return;
-        const ropa98OptionDate = parseDateInputLocal(ropa98OptionInput);
+        const ropa98OptionDate = new Date(ropa98OptionInput);
         const ropa98EndDate = dor < ROPA98_CUTOFF ? dor : ROPA98_CUTOFF;
 
         const result98 = computeRopa98Timeline(doj, ropa98OptionDate, ropa98Scale, ropa98BasicPay, ropa98EndDate, lwpEntries, promo.date, promo.targetGp, promo.evType);
         ropa98Rows = result98.rows;
 
-        const ropa09OptionInputForSnap = val('ropa09OptionDate');
-        const snapAsOfDate = ropa09OptionInputForSnap ? parseDateInputLocal(ropa09OptionInputForSnap) : ropa98EndDate;
-        const snap98 = getRopa98SnapshotAsOf(ropa98Rows, ropa98BasicPay, ropa98Scale, snapAsOfDate);
+        // ROPA-2009 Rule-II carry-forward:
+        // Take the ROPA-1998 basic pay AS ON 01-01-2006, multiply by 1.86,
+        // and round UP to the next Rs.10.  Do NOT replace this result by the
+        // minimum-entry-pay table.  Then add the Grade Pay applicable on
+        // 01-01-2006.
+        const snapAsOfDate = new Date('2006-01-01T00:00:00');
+        const snap98 = getRopa98SnapshotAsOf(ropa98Rows, ropa98BasicPay, snapAsOfDate);
         const rawBand = snap98.basic * ROPA98_TO_09_FACTOR;
         const multipliedBand = ceilToNext10(rawBand);
-        // IMPORTANT: carry the GP/scale applicable ON the ROPA-09 option date.
-        // Do not use result98.finalScaleKey, because a later promotion (e.g.
-        // 06.10.2007) must not retroactively change the GP on 01.01.2006.
-        ropa09InitialGp = parseInt(snap98.scaleKey, 10);
 
-        const minBandForGp = minEntryPayBand09[ropa09InitialGp];
-        const minEntryApplied = (minBandForGp !== undefined && multipliedBand < minBandForGp);
-        ropa09InitialBand = minEntryApplied ? minBandForGp : multipliedBand;
+        // IMPORTANT: GP for the 01-01-2006 Rule-II carry-forward MUST be the
+        // GP actually applicable on 01-01-2006. Do not use result98.finalScaleKey,
+        // because a later promotion (e.g. 06-10-2007) changes finalScaleKey and
+        // must NOT be carried backward into the 01-01-2006 fixation.
+        ropa09InitialGp = snap98.gp !== null ? Number(snap98.gp) : Number(result98.finalScaleKey);
+
+        // IMPORTANT: Rule-II uses the calculated fitment result directly.
+        // The old minEntryPayBand09 step-up was incorrect for this calculation.
+        ropa09InitialBand = multipliedBand;
         ropa09HasCarry = true;
 
-        carryNote98 = `<strong>Carried Forward into ROPA-2009 (Rule II, WBS(ROPA) Rules 2009):</strong> Notional basic pay as on ${formatDate(snapAsOfDate)} under ROPA-1998 = Rs. ${snap98.basic.toLocaleString('en-IN')} &times; fitment factor 1.86 = Rs. ${rawBand.toFixed(2)} &rarr; rounded up to next Rs. 10 = Rs. ${multipliedBand.toLocaleString('en-IN')}` +
-            (minEntryApplied ? ` &rarr; below Minimum Entry Pay in Pay Band for GP ${ropa09InitialGp.toLocaleString('en-IN')} (Rs. ${minBandForGp.toLocaleString('en-IN')}) &rarr; stepped up to Rs. ${ropa09InitialBand.toLocaleString('en-IN')}` : ``) +
-            ` GP applicable on ${formatDate(snapAsOfDate)} = Rs. ${ropa09InitialGp.toLocaleString('en-IN')}. Pay in Pay Band + Grade Pay = Rs. ${(ropa09InitialBand + ropa09InitialGp).toLocaleString('en-IN')}.`;
+        carryNote98 =
+            `<strong>Carried Forward into ROPA-2009 (Rule II, WBS(ROPA) Rules 2009):</strong> ` +
+            `Notional basic pay as on 01-01-2006 under ROPA-1998 = Rs. ${snap98.basic.toLocaleString('en-IN')} ` +
+            `&times; fitment factor 1.86 = Rs. ${rawBand.toFixed(2)} ` +
+            `&rarr; rounded up to next Rs. 10 = Rs. ${multipliedBand.toLocaleString('en-IN')} ` +
+            `GP applicable on 01-01-2006 = Rs. ${ropa09InitialGp.toLocaleString('en-IN')}. ` +
+            `Pay in Pay Band + Grade Pay = Rs. ${(ropa09InitialBand + ropa09InitialGp).toLocaleString('en-IN')}.`;
     }
 
     // Phase 2: ROPA-2009 (01.04.2009 to 31.12.2019)
@@ -2384,7 +2449,7 @@ function processFixationTimeline() {
         let ropa09Gp = ropa09HasCarry ? ropa09InitialGp : parseInt(val('ropa09GradePay'), 10);
         let ropa09BandPay = ropa09HasCarry ? ropa09InitialBand : parseInt(val('ropa09BandPay'), 10);
         if (!ropa09OptionInput || isNaN(ropa09Gp) || isNaN(ropa09BandPay)) return;
-        const ropa09OptionDate = parseDateInputLocal(ropa09OptionInput);
+        const ropa09OptionDate = new Date(ropa09OptionInput);
         const ropa09EndDate = dor < ROPA09_CUTOFF ? dor : ROPA09_CUTOFF;
 
         const result09 = computeRopa09Timeline(doj, ropa09OptionDate, ropa09Gp, ropa09BandPay, ropa09EndDate, lwpEntries, promo.date, promo.targetGp, promo.evType);
@@ -3256,6 +3321,18 @@ function monthRange(fromStr, toStr) {
 let daCaseRows = [];
 let daCaseRowData = {}; // per-month manual overrides, keyed by "YYYY-MM": {gpf, itax, oth, ma, ir} -- persists across regenerate so GPF/I.Tax/OTH/M.A/I.R. can vary month to month
 
+function ensureDaCaseReady() {
+    // Ensure the DA Case has a usable Basic Pay source before rendering/printing.
+    // If Tab-1 timelines exist, derive segments from them; otherwise retain the
+    // built-in fallback segments used by the DA Case.
+    if (!daBasicRows || daBasicRows.length === 0) {
+        if (typeof autoDeriveDaBasicSegments === 'function') {
+            autoDeriveDaBasicSegments();
+        }
+    }
+    return !!(daBasicRows && daBasicRows.length);
+}
+
 function generateDaCaseTable() {
     const from = val('daFrom'), to = val('daTo');
     const tbody = document.getElementById('daCaseBody');
@@ -3373,12 +3450,6 @@ function generateDaCaseTable() {
         });
         calcBody.innerHTML = calcHtml;
     }
-    const calcTotalRow = document.getElementById('daCalcSheetTotalRow');
-    if (calcTotalRow) {
-        calcTotalRow.innerHTML = `<td colspan="2">G. TOTAL (DUE)</td><td>0</td><td>${sums.arrear.toLocaleString('en-IN')}</td>
-            <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>${sums.duePT.toLocaleString('en-IN')}</td><td>${sums.dueNet.toLocaleString('en-IN')}</td>`;
-    }
-
     // Period split (for two-installment payment, matching the standard DA-case arrear scheme)
     const p1EndFull = val('daPeriod1End') || '2015-12-31';
     const p1EndMonth = p1EndFull.slice(0, 7);
@@ -3395,13 +3466,27 @@ function generateDaCaseTable() {
     const daGpfTotal = sums.gpf;
     const daItaxTotal = sums.it;
     const daOthTotal = sums.oth;
-    const daNetClaim = Math.max(0, sums.dueNet);
+    // ANNEXURE-I accounting: PASSED FOR = GROSS arrear. NET CLAIM / ACTUAL CLAIM
+    // is the gross amount after the full applicable deductions (P.Tax + GPF/CPF + I.Tax + Other).
+    // The previous code used the DA-only difference in NET, which incorrectly cancelled
+    // GPF/I.Tax/Other and therefore could make the passed amount equal to the net amount.
+    const daGrossPassed = Math.max(0, sums.arrear);
+    const daDeductionTotal = Math.max(0, sums.gpf + sums.it + sums.oth + sums.duePT);
+    const daNetClaim = Math.max(0, daGrossPassed - daDeductionTotal);
+
+    const calcTotalRow = document.getElementById('daCalcSheetTotalRow');
+    if (calcTotalRow) {
+        calcTotalRow.innerHTML = `<td colspan="2">GROSS PASSED / NET CLAIM</td><td>0</td><td>${sums.arrear.toLocaleString('en-IN')}</td>
+            <td>0</td><td>0</td><td>${sums.gpf.toLocaleString('en-IN')}</td><td>${sums.it.toLocaleString('en-IN')}</td><td>${sums.oth.toLocaleString('en-IN')}</td><td>${sums.duePT.toLocaleString('en-IN')}</td><td>${daNetClaim.toLocaleString('en-IN')}</td>`;
+    }
+
     const daPtDisplayEl = document.getElementById('daPtDisplay');
     if (daPtDisplayEl) daPtDisplayEl.value = sums.duePT.toLocaleString('en-IN');
 
     window._daSums = Object.assign({}, sums, {
         p1Arrear, p2Arrear, inst1Amt, inst2Amt,
-        gpf: daGpfTotal, itax: daItaxTotal, oth: daOthTotal, pt: sums.duePT, netClaim: daNetClaim
+        gpf: daGpfTotal, itax: daItaxTotal, oth: daOthTotal, pt: sums.duePT,
+        grossPassed: daGrossPassed, deductionTotal: daDeductionTotal, netClaim: daNetClaim
     });
 
     const box = document.getElementById('daSummaryBox');
@@ -3421,7 +3506,7 @@ function generateDaCaseTable() {
             I.Tax (total over period, may vary month to month): ₹ ${daItaxTotal.toLocaleString('en-IN')} &nbsp;|&nbsp;
             Other (total over period, may vary month to month): ₹ ${daOthTotal.toLocaleString('en-IN')} &nbsp;|&nbsp;
             P.Tax (Auto, total Due): ₹ ${sums.duePT.toLocaleString('en-IN')} &nbsp;|&nbsp;
-            <strong>Net Claim (all components, Due Basic+D.A+H.R.A+M.A+IR&minus;GPF&minus;IT&minus;OTH&minus;PT): ₹ ${daNetClaim.toLocaleString('en-IN')}</strong>`;
+            <strong>GROSS PASSED: ₹ ${daGrossPassed.toLocaleString('en-IN')}</strong> &nbsp;|&nbsp; <strong>DEDUCTIONS (GPF + I.Tax + Other + P.Tax): ₹ ${daDeductionTotal.toLocaleString('en-IN')}</strong> &nbsp;|&nbsp; <strong>ACTUAL CLAIM / NET PAYABLE: ₹ ${daNetClaim.toLocaleString('en-IN')}</strong>`;
     }
 
     updateDaAnnex1Preview();
@@ -3463,10 +3548,10 @@ function updateDaAnnex1Preview() {
     set('da_cell_hra', '0');
     set('da_cell_ma', '0');
     set('da_cell_ir', '0');
-    set('da_cell_gross', s.arrear.toLocaleString('en-IN'));
+    set('da_cell_gross', s.grossPassed.toLocaleString('en-IN'));
     // C.P.F/G.P.F here is the Due (arrear) GPF, same as Basic/HRA/M.A/I.R above -- 0 for a
     // pure D.A. case, since GPF itself does not change between Admissible and Drawn.
-    set('da_cell_gpf', '0');
+    set('da_cell_gpf', s.gpf.toLocaleString('en-IN'));
 
     // "To be credited to" section: ONLY G. TOTAL (DUE) row values are allowed here --
     // GPF / I.Tax / Other are 0 in the Due row (they don't differ between Admissible and
@@ -3480,8 +3565,11 @@ function updateDaAnnex1Preview() {
     set('da_cell_other_credited', '0');
     set('da_cell_net_claim', s.netClaim.toLocaleString('en-IN'));
 
-    set('da_disp_passed_num', s.netClaim);
-    set('da_disp_passed_words', `${numberToWords(s.netClaim)} Only`);
+    // Passed for = GROSS; Actual Claim / Net Payable = GROSS - deductions.
+    set('da_disp_passed_num', s.grossPassed);
+    set('da_disp_passed_words', `${numberToWords(s.grossPassed)} Only`);
+    set('da_disp_actual_claim', s.netClaim);
+    set('da_disp_actual_claim_words', `${numberToWords(s.netClaim)} Only`);
 
     set('da_box_staff', `${emp} ; ${desig}`);
     set('da_box_school', school);
@@ -3490,7 +3578,8 @@ function updateDaAnnex1Preview() {
 
 // ---- DA CASE ANNEXURE (printable, portrait) ----
 function docDaAnnexure() {
-    if (!window._daSums) generateDaCaseTable();
+    ensureDaCaseReady();
+    generateDaCaseTable();
     const s = window._daSums || { drawnDA: 0, dueDA: 0, arrear: 0, p1Arrear: 0, p2Arrear: 0, inst1Amt: 0, inst2Amt: 0, hra: 0, ma: 0, gpf: 0, itax: 0, pt: 0, duePT: 0, dueNet: 0, netClaim: 0 };
     const school = val('daSchoolName') || val('schoolName');
     const emp = val('daEmpName') || val('staffName');
@@ -3509,7 +3598,7 @@ function docDaAnnexure() {
             <tr style="background:#dbe4f3;"><th style="border:1px solid #000; padding:6px;">Particulars</th><th style="border:1px solid #000; padding:6px;">Amount (₹)</th></tr>
             <tr><td style="border:1px solid #000; padding:6px;">Total D.A. Drawn</td><td style="border:1px solid #000; padding:6px; text-align:right;">${s.drawnDA.toLocaleString('en-IN')}</td></tr>
             <tr><td style="border:1px solid #000; padding:6px;">Total D.A. Payable / Admissible</td><td style="border:1px solid #000; padding:6px; text-align:right;">${s.dueDA.toLocaleString('en-IN')}</td></tr>
-            <tr style="font-weight:bold;"><td style="border:1px solid #000; padding:6px;">Net D.A. Arrear Claimed</td><td style="border:1px solid #000; padding:6px; text-align:right;">${s.arrear.toLocaleString('en-IN')}</td></tr>
+            <tr style="font-weight:bold;"><td style="border:1px solid #000; padding:6px;">Gross D.A. Arrear / Passed Amount</td><td style="border:1px solid #000; padding:6px; text-align:right;">${s.arrear.toLocaleString('en-IN')}</td></tr>
             <tr><td style="border:1px solid #000; padding:6px;">Period-1 Arrear (up to ${fmtDMY(val('daPeriod1End'))})</td><td style="border:1px solid #000; padding:6px; text-align:right;">${s.p1Arrear.toLocaleString('en-IN')}</td></tr>
             <tr><td style="border:1px solid #000; padding:6px;">Period-2 Arrear (thereafter)</td><td style="border:1px solid #000; padding:6px; text-align:right;">${s.p2Arrear.toLocaleString('en-IN')}</td></tr>
             <tr><td style="border:1px solid #000; padding:6px;">Installment-1 Payable in ${val('daInst1Label')} (${val('daInst1Pct')}%)</td><td style="border:1px solid #000; padding:6px; text-align:right;">${s.inst1Amt.toLocaleString('en-IN')}</td></tr>
@@ -3530,17 +3619,19 @@ function docDaAnnexure() {
             </tr>
             <tr>
                 <td style="border:1px solid #000; padding:6px;">0</td>
-                <td style="border:1px solid #000; padding:6px;">${s.arrear.toLocaleString('en-IN')}</td>
+                <td style="border:1px solid #000; padding:6px;">${s.grossPassed.toLocaleString('en-IN')}</td>
                 <td style="border:1px solid #000; padding:6px;">0</td>
                 <td style="border:1px solid #000; padding:6px;">0</td>
-                <td style="border:1px solid #000; padding:6px;">0</td>
-                <td style="border:1px solid #000; padding:6px;">0</td>
+                <td style="border:1px solid #000; padding:6px;">${(s.gpf||0).toLocaleString('en-IN')}</td>
+                <td style="border:1px solid #000; padding:6px;">${(s.itax||0).toLocaleString('en-IN')}</td>
                 <td style="border:1px solid #000; padding:6px;">${(s.duePT||0).toLocaleString('en-IN')}</td>
-                <td style="border:1px solid #000; padding:6px; font-weight:bold;">${(s.dueNet !== undefined ? s.dueNet : s.arrear).toLocaleString('en-IN')}</td>
+                <td style="border:1px solid #000; padding:6px; font-weight:bold;">${s.netClaim.toLocaleString('en-IN')}</td>
             </tr>
         </table>
 
-        <div class="annex1-passed-line" style="margin-top:10px; font-weight:bold;">Passed for RS. ${(s.netClaim !== undefined ? s.netClaim : s.arrear).toLocaleString('en-IN')} [ Rupees ${numberToWords(s.netClaim !== undefined ? s.netClaim : s.arrear)} Only ].</div>
+        <div class="annex1-passed-line" style="margin-top:10px; font-weight:bold;">Passed for RS. ${(s.grossPassed !== undefined ? s.grossPassed : s.arrear).toLocaleString('en-IN')} [ Rupees ${numberToWords(s.grossPassed !== undefined ? s.grossPassed : s.arrear)} Only ].</div>
+        <div style="margin-top:8px; font-weight:bold;">Less: GPF/CPF ₹ ${(s.gpf||0).toLocaleString('en-IN')} &nbsp; | &nbsp; I.Tax ₹ ${(s.itax||0).toLocaleString('en-IN')} &nbsp; | &nbsp; Other ₹ ${(s.oth||0).toLocaleString('en-IN')} &nbsp; | &nbsp; P.Tax ₹ ${(s.duePT||0).toLocaleString('en-IN')}</div>
+        <div style="margin-top:5px; font-weight:bold; font-size:1rem;">Actual Claim / Net Payable: RS. ${(s.netClaim||0).toLocaleString('en-IN')} [ Rupees ${numberToWords(s.netClaim||0)} Only ].</div>
         <div style="font-size:0.85rem; margin-top:12px; text-align:justify;">
             <b>Certified that</b> the above D.A. arrear has been worked out on the Basic Pay admissible for each month during
             the claim period, comparing the D.A. rate actually drawn with the D.A. rate payable/admissible as per the
@@ -3658,15 +3749,15 @@ function docDaCalcSheet() {
         } else {
             pageTableRowsHtml += `
             <tr style="font-weight:bold; background:#cbd5e1; color:#000;">
-                <td colspan="2" style="text-align:left;">G. TOTAL (DUE)</td>
-                <td>${runningTotals.basic.toLocaleString('en-IN')}</td>
-                <td>${runningTotals.dueDA.toLocaleString('en-IN')}</td>
-                <td>${runningTotals.hra.toLocaleString('en-IN')}</td>
-                <td>${runningTotals.ma.toLocaleString('en-IN')}</td>
-                <td>${runningTotals.gpf.toLocaleString('en-IN')}</td>
-                <td>${runningTotals.it.toLocaleString('en-IN')}</td>
-                <td>${runningTotals.duePT.toLocaleString('en-IN')}</td>
-                <td>${runningTotals.dueNet.toLocaleString('en-IN')}</td>
+                <td colspan="2" style="text-align:left;">GROSS PASSED / NET CLAIM</td>
+                <td>0</td>
+                <td>${(window._daSums && window._daSums.grossPassed !== undefined ? window._daSums.grossPassed : runningTotals.dueDA).toLocaleString('en-IN')}</td>
+                <td>0</td>
+                <td>0</td>
+                <td>${(window._daSums ? window._daSums.gpf : runningTotals.gpf).toLocaleString('en-IN')}</td>
+                <td>${(window._daSums ? window._daSums.itax : runningTotals.it).toLocaleString('en-IN')}</td>
+                <td>${(window._daSums ? window._daSums.duePT : runningTotals.duePT).toLocaleString('en-IN')}</td>
+                <td>${(window._daSums && window._daSums.netClaim !== undefined ? window._daSums.netClaim : runningTotals.dueNet).toLocaleString('en-IN')}</td>
             </tr>`;
         }
 
@@ -3748,9 +3839,15 @@ async function exportDaCaseExcel() {
     ws1.addRow(['I.Tax (total over period, may vary month to month)', s.itax]);
     ws1.addRow(['Other (total over period, may vary month to month)', s.oth]);
     ws1.addRow(['P.Tax (Auto, total Due)', s.duePT || s.pt]);
-    ws1.addRow(['Net Claim (all components, Due)', s.netClaim]);
+    ws1.addRow(['Gross Passed Amount', s.grossPassed !== undefined ? s.grossPassed : s.arrear]);
+    ws1.addRow(['Less: GPF / CPF', s.gpf]);
+    ws1.addRow(['Less: I.Tax', s.itax]);
+    ws1.addRow(['Less: Other Deduction', s.oth]);
+    ws1.addRow(['Less: P.Tax', s.duePT || s.pt]);
+    ws1.addRow(['Actual Claim / Net Payable', s.netClaim]);
     ws1.addRow([]);
-    ws1.addRow(['Passed for Rs.', s.netClaim, `Rupees ${numberToWords(s.netClaim)} Only`]);
+    ws1.addRow(['Passed for Rs. (GROSS)', s.grossPassed !== undefined ? s.grossPassed : s.arrear, `Rupees ${numberToWords(s.grossPassed !== undefined ? s.grossPassed : s.arrear)} Only`]);
+    ws1.addRow(['Actual Claim / Net Payable', s.netClaim, `Rupees ${numberToWords(s.netClaim)} Only`]);
 
     const ws2 = workbook.addWorksheet('DA CASE CALCULATION');
     ws2.addRow(['Sl', 'Month', 'Status', 'Basic Pay', 'D.A', 'H.R.A', 'M.A', 'GPF', 'I.T', 'P.T', 'NET']);
@@ -3759,7 +3856,7 @@ async function exportDaCaseExcel() {
         ws2.addRow(['', '', 'Drawn', r.basic, r.drawnDA, r.hra, r.ma, r.gpf, r.it, r.drPT, r.drNet]);
         ws2.addRow(['', '', 'Due', 0, r.arrear, 0, 0, 0, 0, r.duePT, r.dueNet]);
     });
-    ws2.addRow(['', '', 'G. TOTAL (DUE)', 0, s.arrear, 0, 0, 0, 0, s.duePT, s.dueNet]);
+    ws2.addRow(['', '', 'GROSS PASSED / NET CLAIM', 0, s.grossPassed !== undefined ? s.grossPassed : s.arrear, 0, 0, s.gpf, s.itax, s.duePT, s.netClaim]);
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -4268,7 +4365,7 @@ function showDoc(type) {
     }
 
     if (type === 'annex1') content = document.getElementById('annex1VisualCard').outerHTML;
-    else if (type === 'daannex1') { if (!window._daSums) generateDaCaseTable(); content = document.getElementById('daAnnex1VisualCard').outerHTML; }
+    else if (type === 'daannex1') { ensureDaCaseReady(); generateDaCaseTable(); updateDaAnnex1Preview(); content = document.getElementById('daAnnex1VisualCard').outerHTML; }
     else if (type === 'annex') content = docAnnex();
     else if (type === 'cover') content = docCover();
     else if (type === 'fl') content = docFL();
@@ -4278,7 +4375,7 @@ function showDoc(type) {
     else if (type === 'spouse') content = docSpouseCert();
     else if (type === 'decl') content = docDecl();
     else if (type === 'correction') content = docCorrection();
-    else if (type === 'daannex') content = docDaAnnexure();
+    else if (type === 'daannex') { ensureDaCaseReady(); generateDaCaseTable(); content = docDaAnnexure(); }
     else if (type === 'dacalc') content = docDaCalcSheet();
     else if (type === 'checklist') content = `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; padding:10px;">
