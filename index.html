@@ -545,7 +545,7 @@
         <div class="table-wrap">
             <table id="dashboardTable98">
                 <thead>
-                    <tr><th>Effective Date</th><th>Date of Termination</th><th>Scale (&rarr; GP)</th><th>Basic Pay</th><th>Event / Reason / Remarks</th></tr>
+                    <tr><th>Effective Date</th><th>Date of Termination</th><th>Scale of Pay</th><th>Basic Pay</th><th>Event / Reason / Remarks</th></tr>
                 </thead>
                 <tbody id="payTableBody98">
                     <tr><td colspan="5" style="text-align: center; color: #64748b; padding: 15px;">Click "Generate Pay Tables" to populate values.</td></tr>
@@ -1105,7 +1105,7 @@
                 <tr>
                     <th style="border:1px solid #000; padding:4px;">Effective Date</th>
                     <th style="border:1px solid #000; padding:4px;">Date of Termination</th>
-                    <th style="border:1px solid #000; padding:4px;">Scale (&rarr; GP)</th>
+                    <th style="border:1px solid #000; padding:4px;">Scale of Pay</th>
                     <th style="border:1px solid #000; padding:4px;">Basic Pay</th>
                     <th style="border:1px solid #000; padding:4px;">Event / Reason / Remarks</th>
                 </tr>
@@ -1203,6 +1203,14 @@ const ROPA09_CUTOFF = new Date(2019, 11, 31);
 const ROPA98_CUTOFF = new Date(2009, 2, 31); // 31.03.2009 Cutoff ALWAYS
 
 function ceilToNext10(value) { return Math.ceil(value / 10) * 10; }
+
+// Returns the exact ROPA-1998 pay scale range (e.g. "5500-11075") for a given
+// Grade-Pay-mapped scale key, derived from matrixData98's min/max cells.
+function ropa98ScaleRangeStr(scaleKey) {
+    const ladder = matrixData98[scaleKey];
+    if (!ladder || !ladder.length) return `GP ${scaleKey}`;
+    return `${ladder[0]}-${ladder[ladder.length - 1]}`;
+}
 
 // TAB SWITCHER
 function switchTab(tabId) {
@@ -1774,7 +1782,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
         compiledRows.push({
             date: ev.date,
             label: remarksText,
-            scaleStr: `Old Scale &rarr; GP ${currentScaleKey}`,
+            scaleStr: `Rs. ${ropa98ScaleRangeStr(currentScaleKey)}`,
             trackCol: '',
             gpDisplay: '',
             basicDisplay: runningBasicPay.toLocaleString('en-IN'),
