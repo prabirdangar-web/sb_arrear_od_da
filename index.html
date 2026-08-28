@@ -2541,7 +2541,25 @@ function syncFixationToArrear() {
     }
 }
 
-function ptSlab(gross) {
+// Profession Tax slab is date-sensitive: a NEW slab takes effect for any month
+// of Oct-2026 or later. Pass the (y, m) of the salary/arrear month so the
+// correct slab is applied; if no date is supplied, the OLD (pre-Oct-2026) slab
+// is used as a safe fallback for any legacy caller.
+function isNewPtSlabMonth(y, m) {
+    if (y === undefined || m === undefined) return false;
+    return new Date(y, m - 1, 1) >= new Date(2026, 9, 1); // Oct-2026 (month index 9) onward
+}
+
+function ptSlab(gross, y, m) {
+    if (isNewPtSlabMonth(y, m)) {
+        // New Profession Tax slab effective from Oct-2026
+        if (gross <= 20000) return 0;
+        if (gross <= 30000) return 100;
+        if (gross <= 50000) return 140;
+        if (gross <= 100000) return 170;
+        return 208;
+    }
+    // Old Profession Tax slab (up to Sep-2026)
     if (gross <= 10000) return 0;
     if (gross <= 15000) return 110;
     if (gross <= 25000) return 130;
@@ -2654,13 +2672,13 @@ function computeRow(row) {
     const admDA = Math.round(row.admBasic * da);
     const admHRA = Math.round(row.admBasic * hraR);
     const admGross = row.admBasic + admDA + admHRA + admMA + admIR;
-    const admPT = ptSlab(admGross);
+    const admPT = ptSlab(admGross, row.y, row.m);
     const admNet = admGross - row.admGPF - row.admIT - admOTH - admPT;
 
     const drDA = Math.round(row.drBasic * da);
     const drHRA = Math.round(row.drBasic * hraR);
     const drGross = row.drBasic + drDA + drHRA + drMA + drIR;
-    const drPT = ptSlab(drGross);
+    const drPT = ptSlab(drGross, row.y, row.m);
     const drNet = drGross - row.drGPF - row.drIT - drOTH - drPT;
 
     const dueBasic = row.admBasic - row.drBasic;
@@ -3397,8 +3415,8 @@ function generateDaCaseTable() {
 
         const admGross = basic + dueDA + hra + ma + ir;
         const drGross = basic + drawnDA + hra + ma + ir;
-        const admPT = ptSlab(admGross);
-        const drPT = ptSlab(drGross);
+        const admPT = ptSlab(admGross, yy, mm);
+        const drPT = ptSlab(drGross, yy, mm);
         const admNet = admGross - gpf - itax - oth - admPT;
         const drNet = drGross - gpf - itax - oth - drPT;
 
