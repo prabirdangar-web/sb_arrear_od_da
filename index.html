@@ -658,10 +658,7 @@
         </select>
         <button type="button" class="btn-sync" onclick="refreshSavedRecordsList()">Refresh List</button>
         <button type="button" class="btn-main" onclick="loadSelectedRecordFromDropdown()">Load Selected</button>
-        <button type="button" class="btn-del" style="padding:10px 18px; font-size:0.9rem;" onclick="startNewRecord()">+ New Record</button>
     </div>
-
-    <div id="activeRecordBanner" class="output-box" style="display:none; border-left-color: var(--green);"></div>
 
     <h3>8. Month-Wise Arrear Table</h3>
     <div id="arrearTableWrap" class="table-wrap">
@@ -1213,9 +1210,16 @@ let firebaseAuthReady = new Promise((resolve, reject) => {
 });
 
 async function ensureFirebaseAuth() {
-    // This arrear tool can operate without Firebase Authentication.
-    // The Firestore rule for this document does not require request.auth.
-    return auth.currentUser || null;
+    // Wait for Firebase authentication startup so Save/Load/List do not race
+    // Firestore before auth.currentUser is available.
+    try {
+        if (auth.currentUser) return auth.currentUser;
+        const user = await firebaseAuthReady;
+        return user || auth.currentUser || null;
+    } catch (err) {
+        console.warn('Firebase authentication unavailable:', err);
+        return auth.currentUser || null;
+    }
 }
 
 // This tool stores ALL staff records inside ONE document, matching the same
@@ -1257,49 +1261,10 @@ function applyFormFields(data) {
 
 // One Firestore document per (School + Staff) combination, so different
 // staff members' arrear dossiers are saved/loaded independently.
-//
-// FIX (Sept 2026): the docId used to be recomputed from the current
-// School/Staff Name fields on EVERY save and EVERY load. That meant any
-// edit to those fields after the first save (fixing a typo, adding a
-// missing surname, extra spacing, etc.) silently produced a DIFFERENT
-// docId -- the old record stayed in the database under the old id, and
-// "Load Saved Data (this Staff)" would then report "not found" even
-// though a save had genuinely succeeded moments earlier.
-//
-// activeRecordId locks the id in once a record has been saved or loaded
-// in this session, so further edits + saves keep updating the SAME
-// database record instead of silently creating a new one.
-let activeRecordId = null;
-
 function getRecordDocId() {
-    if (activeRecordId) return activeRecordId;
     const staff = (val('staffName') || 'unknown_staff').trim();
     const school = (val('schoolName') || 'unknown_school').trim();
     return `${school}__${staff}`.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
-}
-
-// Shows the currently-locked record id on screen so it's always obvious
-// which database record Save/Load are pointing at.
-function updateActiveRecordBanner() {
-    const el = document.getElementById('activeRecordBanner');
-    if (!el) return;
-    if (activeRecordId) {
-        el.style.display = 'block';
-        el.innerHTML = `\u2713 Active record: <b>"${activeRecordId}"</b> &mdash; Save/Load now stay locked to this record even if you edit the School/Staff Name fields. Click "+ New Record" to start a different staff record.`;
-    } else {
-        el.style.display = 'none';
-        el.innerHTML = '';
-    }
-}
-
-// Deliberately unlocks the record id so the NEXT save creates/targets a
-// fresh record based on whatever is currently typed in School/Staff Name.
-// Does not clear the on-screen form fields -- clear/edit those yourself
-// before entering the new staff's data.
-function startNewRecord() {
-    activeRecordId = null;
-    updateActiveRecordBanner();
-    alert('Started a new record. The next "Save All Data to Database" will create/target a record based on the School and Staff Name fields as currently typed.');
 }
 
 function buildFullRecord() {
@@ -4635,10 +4600,16 @@ async function saveFullArrearDataToDB() {
         if (user && user.uid) payload.lastSavedByUid = user.uid;
 
         await ARREAR_DOC_REF.set(payload, { merge: true });
-        activeRecordId = docId; // lock this id so later edits+saves update THIS record, not a new one
-        updateActiveRecordBanner();
-        alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\n(Saved as record: "${docId}")`);
-        refreshSavedRecordsList();
+
+        // Verify the record can immediately be read back, then refresh the list.
+        const verifySnap = await ARREAR_DOC_REF.get();
+        const verifyRecords = (verifySnap.exists && verifySnap.data().records) ? verifySnap.data().records : {};
+        if (!verifyRecords[docId]) {
+            throw new Error(`Save verification failed: record "${docId}" was not found after Firestore write.`);
+        }
+
+        await refreshSavedRecordsList(docId);
+        alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\nStaff record is now available in the Saved Staff Records list.\n(Saved as record: "${docId}")`);
     } catch (err) {
         console.error('Firestore save failed:', err);
         const code = err && err.code ? `\nFirebase code: ${err.code}` : '';
@@ -4668,8 +4639,6 @@ async function loadFullArrearDataFromDB(explicitDocId) {
 }
 
 function applyLoadedRecord(docId, record) {
-    activeRecordId = docId; // lock this id so later edits+saves update THIS record
-    updateActiveRecordBanner();
     applyFormFields(record.fields);
 
     lwpRows = record.lwpRows || [];
@@ -4705,27 +4674,39 @@ function applyLoadedRecord(docId, record) {
 // currently stored inside the single /tfhs/arrearOdDaSystem document, showing
 // the Staff Name / School (and when it was saved) so it's readable even though
 // the underlying Firestore key is a normalized slug.
-async function refreshSavedRecordsList() {
+async function refreshSavedRecordsList(selectDocId = '') {
     const dropdown = document.getElementById('savedRecordsDropdown');
     if (!dropdown) return;
-    dropdown.innerHTML = '<option value="">Loading...</option>';
+    const previousValue = dropdown.value;
+    dropdown.innerHTML = '<option value="">Loading staff records...</option>';
+
     try {
         await ensureFirebaseAuth();
         const snap = await ARREAR_DOC_REF.get();
-        const allRecords = (snap.exists && snap.data().records) ? snap.data().records : {};
-        const ids = Object.keys(allRecords);
 
-        if (ids.length === 0) {
-            dropdown.innerHTML = '<option value="">-- No saved records found --</option>';
+        if (!snap.exists) {
+            dropdown.innerHTML = '<option value="">-- No saved staff records found --</option>';
             return;
         }
 
-        // Newest-saved first
+        const data = snap.data() || {};
+        const allRecords = (data.records && typeof data.records === 'object') ? data.records : {};
+        const ids = Object.keys(allRecords);
+
+        if (ids.length === 0) {
+            dropdown.innerHTML = '<option value="">-- No saved staff records found --</option>';
+            return;
+        }
+
         ids.sort((a, b) => {
             const ta = allRecords[a] && allRecords[a].savedAt ? new Date(allRecords[a].savedAt).getTime() : 0;
             const tb = allRecords[b] && allRecords[b].savedAt ? new Date(allRecords[b].savedAt).getTime() : 0;
-            return tb - ta;
+            return (tb || 0) - (ta || 0);
         });
+
+        const esc = (v) => String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
         dropdown.innerHTML = '<option value="">-- Select a saved staff record --</option>' +
             ids.map(id => {
@@ -4736,11 +4717,15 @@ async function refreshSavedRecordsList() {
                 const desig = f.designation || '';
                 const savedAtStr = r.savedAt ? new Date(r.savedAt).toLocaleString() : 'unknown time';
                 const label = `${staff}${desig ? ' ; ' + desig : ''} - ${school} (saved ${savedAtStr})`;
-                return `<option value="${id.replace(/"/g, '&quot;')}">${label.replace(/</g, '&lt;')}</option>`;
+                return `<option value="${esc(id)}">${esc(label)}</option>`;
             }).join('');
+
+        const wanted = selectDocId || previousValue;
+        if (wanted && ids.includes(wanted)) dropdown.value = wanted;
     } catch (err) {
         console.error('Failed to refresh saved records list:', err);
-        dropdown.innerHTML = '<option value="">-- Error loading list (see console) --</option>';
+        dropdown.innerHTML = '<option value="">-- Error loading staff list --</option>';
+        alert(`Could not load the Saved Staff Records list.\n${err.message}`);
     }
 }
 
@@ -4825,7 +4810,9 @@ window.addEventListener('DOMContentLoaded', function () {
     renderLwpTable();
     autoDeriveDaBasicSegments();
     syncSharedFields();
-    refreshSavedRecordsList();
+    ensureFirebaseAuth().then(() => refreshSavedRecordsList()).catch(err => {
+        console.error('Initial staff-list load failed:', err);
+    });
 });
 </script>
 
