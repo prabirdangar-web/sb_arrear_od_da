@@ -330,6 +330,110 @@
         .annex-page-sheet { border: none !important; padding: 0 !important; margin: 0 !important; page-break-after: always; break-after: page; }
         .annex-page-sheet:last-child { page-break-after: auto; break-after: auto; }
     }
+
+    /* ===== LEFT SIDEBAR / COMMON STAFF PANEL ===== */
+    .workspace {
+        display: grid;
+        grid-template-columns: 330px minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+        margin-top: 10px;
+    }
+    .left-sidebar {
+        position: sticky;
+        top: 78px;
+        max-height: calc(100vh - 95px);
+        overflow-y: auto;
+        background: linear-gradient(180deg,#f8fafc 0%,#eef2ff 100%);
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 5px 16px rgba(15,23,42,.08);
+    }
+    .left-sidebar h4 {
+        margin: 0 -12px 10px;
+        padding: 10px 12px;
+        color: #fff;
+        background: #1e3a8a;
+        border-radius: 11px 11px 0 0;
+        font-size: .98rem;
+    }
+    .side-section {
+        background:#fff;
+        border:1px solid #dbe3ee;
+        border-radius:9px;
+        padding:10px;
+        margin-bottom:10px;
+    }
+    .side-section-title {
+        font-weight:800;
+        color:#1e3a8a;
+        font-size:.82rem;
+        margin-bottom:8px;
+        border-bottom:1px solid #e2e8f0;
+        padding-bottom:5px;
+    }
+    .side-field { margin-bottom:8px; }
+    .side-field:last-child { margin-bottom:0; }
+    .side-field label { display:block; margin-bottom:4px; font-size:.76rem; }
+    .side-field input, .side-field select {
+        width:100%;
+        box-sizing:border-box;
+        padding:7px 8px;
+        font-size:.82rem;
+    }
+    .side-note {
+        font-size:.72rem;
+        color:#64748b;
+        line-height:1.35;
+        margin-top:5px;
+    }
+    .side-checklist {
+        max-height:420px;
+        overflow:auto;
+    }
+    .side-check-row {
+        display:grid;
+        grid-template-columns: 1fr 58px;
+        gap:6px;
+        align-items:center;
+        padding:6px 2px;
+        border-bottom:1px solid #eef2f7;
+    }
+    .side-check-row:last-child { border-bottom:0; }
+    .side-check-row span {
+        font-size:.72rem;
+        line-height:1.25;
+        color:#334155;
+    }
+    .side-check-row select {
+        width:100%;
+        padding:5px;
+        font-size:.74rem;
+    }
+    .side-actions { display:flex; gap:6px; flex-wrap:wrap; }
+    .side-actions button { flex:1 1 100px; padding:7px 8px; font-size:.76rem; }
+    .workspace-main { min-width:0; }
+    .sidebar-toggle {
+        display:none;
+        width:100%;
+        margin-bottom:8px;
+        background:#334155;
+    }
+    @media (max-width: 1050px) {
+        .workspace { grid-template-columns: 280px minmax(0,1fr); gap:12px; }
+    }
+    @media (max-width: 800px) {
+        .workspace { display:block; }
+        .left-sidebar {
+            position:relative;
+            top:auto;
+            max-height:none;
+            margin-bottom:12px;
+        }
+        .sidebar-toggle { display:block; }
+        .left-sidebar.collapsed { display:none; }
+    }
 </style>
 </head>
 <body>
@@ -362,6 +466,93 @@
     </div>
 </div>
 
+
+<button type="button" class="sidebar-toggle" onclick="toggleLeftSidebar()">☰ Common Staff / Document Panel</button>
+<div class="workspace">
+<aside class="left-sidebar" id="leftSidebar">
+    <h4>Common Staff &amp; Document Panel</h4>
+
+    <div class="side-section">
+        <div class="side-section-title">A. Staff Identity</div>
+        <div class="side-field">
+            <label>Staff Name</label>
+            <input id="sideStaffName" type="text" placeholder="Name of staff">
+        </div>
+        <div class="side-field">
+            <label>Designation</label>
+            <input id="sideDesignation" type="text" placeholder="Designation">
+        </div>
+        <div class="side-field">
+            <label>Sex / Gender</label>
+            <select id="sideSex">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+            </select>
+        </div>
+        <div class="side-field">
+            <label>Marital Status</label>
+            <select id="maritalStatus">
+                <option value="Married">Married</option>
+                <option value="Unmarried">Unmarried</option>
+                <option value="Divorced">Divorced</option>
+                <option value="Widowed">Widowed</option>
+                <option value="Separated">Separated</option>
+                <option value="Not Specified">Not Specified</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="side-section">
+        <div class="side-section-title">B. Spouse Details</div>
+        <div class="side-field">
+            <label>Spouse Name</label>
+            <input id="spouseName" type="text" placeholder="Enter spouse name">
+        </div>
+        <div class="side-field">
+            <label>Spouse Status</label>
+            <select id="spouseStatus">
+                <option value="In Government Service">In Government Service</option>
+                <option value="In Government / Local Body Service">In Government / Local Body Service</option>
+                <option value="In Private Service">In Private Service</option>
+                <option value="Self-Employed">Self-Employed</option>
+                <option value="Housewife / Homemaker">Housewife / Homemaker</option>
+                <option value="Not Employed">Not Employed</option>
+                <option value="Retired">Retired</option>
+                <option value="Other">Other</option>
+                <option value="Not Applicable">Not Applicable</option>
+            </select>
+        </div>
+        <div class="side-note">Use “Housewife / Homemaker” or “Not Employed” where the spouse has no service. For an employed spouse, select the applicable service status.</div>
+    </div>
+
+    <div class="side-section">
+        <div class="side-section-title">C. Document Checklist — Excel Source (Section 9)</div>
+        <div class="side-checklist">
+            <div class="side-check-row"><span>1. Detail Forwarding Letter of HOI</span><select id="check1"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>2. Application of Applicant</span><select id="check2"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>3. Attested photocopy of all approvals</span><select id="check3"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>4. Comparative Pay Structure</span><select id="check4"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>5. Attested photocopy of updated Service Book with updated Leave Account and B.Ed. details, if applicable</span><select id="check5"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>6. Attested photocopy of all IPF (ROPA-98, 09 &amp; 19)</span><select id="check6"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>7. Photocopy of B.Ed. exam schedule, certificate and marksheet</span><select id="check7"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>8. Salary requisition for starting month, previous month, last month and following month of arrear claim</span><select id="check8"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>9. Copy of M.C. Resolution / Administrator's Order</span><select id="check9"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>10. Three copies of Annexure-1 duly filled in</span><select id="check10"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>11. Acquittance Roll for the arrear period</span><select id="check11"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>12. Non-Drawal Certificate</span><select id="check12"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>13. Certificate of reason for delay (if applicable)</span><select id="check13"><option>Y</option><option>N</option></select></div>
+        </div>
+    </div>
+
+    <div class="side-section">
+        <div class="side-section-title">D. Quick Actions</div>
+        <div class="side-actions">
+            <button type="button" class="btn-main" onclick="syncSidebarFields()">Sync to Main Form</button>
+            <button type="button" class="btn-doc" onclick="showDoc('checklist')">Preview Checklist</button>
+        </div>
+    </div>
+</aside>
+<main class="workspace-main">
 <!-- ==================== TAB 1: PAYABLE PAY & FIXATION ARREAR SYSTEM ==================== -->
 <div id="tabPayable" class="tab-content active">
 
@@ -389,7 +580,7 @@
             <div class="fg"><label>Name of Staff</label><input id="staffName" value="PARTHA KUMAR PATRA" onchange="syncSharedFields()"></div>
             <div class="fg"><label>Designation</label><input id="designation" value="ASSISTANT TEACHER" onchange="syncSharedFields()"></div>
             <div class="fg"><label>Qualification</label><input id="qualification" value="M.Sc., B.Ed." onchange="syncSharedFields()"></div>
-            <div class="fg"><label>Sex / Gender</label>
+            <div class="fg main-sex-field" style="display:none;"><label>Sex / Gender</label>
                 <select id="staffSex" onchange="updateAll()">
                     <option value="Male" selected>Male</option>
                     <option value="Female">Female</option>
@@ -1353,6 +1544,87 @@ function ropa98ScaleRangeStr(scaleKey) {
     if (!ladder || !ladder.length) return `GP ${scaleKey}`;
     return `${ladder[0]}-${ladder[ladder.length - 1]}`;
 }
+
+
+// ===== COMMON LEFT SIDEBAR =====
+function toggleLeftSidebar() {
+    const el = document.getElementById('leftSidebar');
+    if (el) el.classList.toggle('collapsed');
+}
+
+function syncSidebarFields() {
+    const map = [
+        ['sideStaffName','staffName'],
+        ['sideDesignation','designation'],
+        ['sideSex','staffSex']
+    ];
+    map.forEach(([from,to]) => {
+        const a=document.getElementById(from), b=document.getElementById(to);
+        if(a && b) b.value=a.value;
+    });
+    updateAll();
+    calculateDOR();
+    if (typeof syncSharedFields === 'function') syncSharedFields();
+    updateSpouseFieldState();
+}
+
+function syncMainToSidebar() {
+    const map = [
+        ['staffName','sideStaffName'],
+        ['designation','sideDesignation'],
+        ['staffSex','sideSex']
+    ];
+    map.forEach(([from,to]) => {
+        const a=document.getElementById(from), b=document.getElementById(to);
+        if(a && b) b.value=a.value;
+    });
+    updateSpouseFieldState();
+}
+
+function updateSpouseFieldState() {
+    const marital = document.getElementById('maritalStatus');
+    const spouse = document.getElementById('spouseName');
+    const status = document.getElementById('spouseStatus');
+    if (!marital || !spouse || !status) return;
+    const single = ['Unmarried','Divorced','Widowed','Separated'].includes(marital.value);
+    spouse.disabled = single;
+    status.disabled = single;
+    if (single) {
+        spouse.value = '';
+        status.value = 'Not Applicable';
+    }
+}
+
+function getSpouseWords() {
+    const sex = String(val('staffSex') || '').toUpperCase();
+    const female = ['FEMALE','F','WOMAN','GIRL'].includes(sex);
+    const spouseName = val('spouseName') || '';
+    const spouseStatus = val('spouseStatus') || '';
+    const marital = val('maritalStatus') || '';
+    return { female, spouseName, spouseStatus, marital };
+}
+
+function spouseEmploymentSentence() {
+    const s = getSpouseWords();
+    if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
+        return 'The spouse declaration is not applicable.';
+    }
+    if (!s.spouseStatus || s.spouseStatus === 'Housewife / Homemaker' || s.spouseStatus === 'Not Employed') {
+        return `${s.female ? 'Her husband' : 'His wife'} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.`;
+    }
+    const n = s.spouseName ? ` (${excelProperCase(s.spouseName)})` : '';
+    return `${s.female ? 'Her husband' : 'His wife'}${n} is/was reported as "${s.spouseStatus}".`;
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    syncMainToSidebar();
+    ['maritalStatus','spouseName','spouseStatus'].forEach(id=>{
+        const el=document.getElementById(id);
+        if(el) el.addEventListener('change', updateSpouseFieldState);
+        if(el && id==='spouseName') el.addEventListener('input', updateSpouseFieldState);
+    });
+    updateSpouseFieldState();
+});
 
 // TAB SWITCHER
 function switchTab(tabId) {
@@ -4286,7 +4558,7 @@ function docSpouseCert() {
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.6; padding:10px;">
         <div style="font-weight:bold; margin-bottom:15px;">Certified that :</div>
         <div style="text-align:justify; margin-bottom:12px;">1. ${excelProperCase(val('staffName'))}, ${val('staffDesignationForSpouse') || ''} has been serving as an approved ${val('designation')} in this institution w.e.f. ${fmtDMY(val('dojSchool'))}. ${val('previousSchool') ? `Previously served in ${val('previousSchool')} from ${fmtDMY(val('prevJoinDate'))} to ${fmtDMY(val('dojSchool'))}.` : ''} ${p.HeShe} total continuous approved service up to date has been verified and found eligible for the grant of ${val('yearsCompleted')} years’ Career Advancement Benefit under ROPA-2019.</div>
-        <div style="text-align:justify; margin-bottom:12px;">2. ${p.husbandWife} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.</div>
+        <div style="text-align:justify; margin-bottom:12px;">2. ${spouseEmploymentSentence()} ${getSpouseWords().spouseName ? `Spouse Name: <strong>${excelProperCase(getSpouseWords().spouseName)}</strong>.` : ''}</div>
         <div style="text-align:justify; margin-bottom:12px;">3. The House Rent Allowance drawn by ${p.himHer} during the entire service period has been within the prescribed limit as per the prevailing Grant-in-aid Rules.</div>
     </div>`;
 }
@@ -4300,7 +4572,7 @@ function docDecl() {
         <div>I, ${titleName}, ${excelProperCase(val('designation'))} of ${excelProperCase(val('schoolName'))}, do hereby solemnly declare as follows :</div>
         <p>1. I have been serving as ${val('designation')} in this school continuously w.e.f. ${fmtDMY(val('dojSchool'))}.</p>
         <p>2. That I have completed ${val('yearsCompleted')} years of continuous service in this institution as on ${fmtDMY(val('benefitDate'))} and am eligible for the Career Advancement Benefit under ROPA-2019.</p>
-        <p>3. That ${p.husbandWife.toLowerCase()} is/was not engaged in any service under the Government of India, any State Government, Undertaking, Statutory or Local Body, or any Educational Institution at any place or at any time.</p>
+        <p>3. That ${spouseEmploymentSentence()} ${getSpouseWords().spouseName ? `Spouse Name: ${excelProperCase(getSpouseWords().spouseName)}.` : ''}</p>
         <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules.</p>
         <p>5. That all the information provided above is true and correct to the best of my knowledge and belief, and I undertake that in case of any discrepancy, I shall be responsible for the consequences.</p>
         <div style="margin-top:15px;">Date: ___________<br>Place: ___________</div>
@@ -4611,30 +4883,36 @@ function showDoc(type) {
     else if (type === 'daannex') { ensureDaCaseReady(); generateDaCaseTable(); content = docDaAnnexure(); }
     else if (type === 'dacalc') content = docDaCalcSheet();
     else if (type === 'checklist') content = `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; padding:10px;">
-        <div style="font-size:0.9rem;">
-            NAME OF SCHOOL:- ${val('schoolName')}<br>
-            SUB-DIVISION:- ${val('subDivision')}<br>
-            BLOCK: ${val('block')}<br>
-            CONTACT NO OF HOI: ${val('hoiContact')}
+    <div style="font-family:'Times New Roman',Times,serif;color:#000;padding:12px;">
+        <div style="text-align:center;font-weight:bold;font-size:1.15rem;margin:10px 0;text-decoration:underline;">CHECK LIST FOR ARREAR BILL</div>
+        <div style="text-align:center;margin-bottom:12px;">
+            <b>${excelProperCase(val('schoolName'))}</b><br>
+            Sub-Division: ${val('subDivision')} &nbsp; | &nbsp; Block: ${val('block')} &nbsp; | &nbsp; HOI Contact: ${val('hoiContact')}
         </div>
-        <div style="text-align:center; font-weight:bold; font-size:1.15rem; margin:15px 0 10px; text-decoration:underline;">CHECK LIST FOR ARREAR BILL</div>
-        <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-            <thead>
-                <tr style="background:#e2e8f0; color:#000;">
-                    <th style="border:1px solid #000; padding:6px; text-align:left;">Papers / Documents</th>
-                    <th style="border:1px solid #000; padding:6px; text-align:center; width:120px;">Submitted (Y/N)</th>
-                </tr>
-            </thead>
+        <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+            <thead><tr><th style="border:1px solid #000;padding:6px;">Papers / Documents submitted</th><th style="border:1px solid #000;padding:6px;width:90px;">Y / N</th></tr></thead>
             <tbody>
-                <tr><td style="border:1px solid #000; padding:5px;">1. DETAIL FORWARDING LETTER OF HOI</td><td style="border:1px solid #000; padding:5px; text-align:center;">Y</td></tr>
-                <tr><td style="border:1px solid #000; padding:5px;">2. APPLICATION OF APPLICANT</td><td style="border:1px solid #000; padding:5px; text-align:center;">Y</td></tr>
-                <tr><td style="border:1px solid #000; padding:5px;">3. ATTESTED PHOTOCOPY OF ALL APPROVALS</td><td style="border:1px solid #000; padding:5px; text-align:center;">Y</td></tr>
-                <tr><td style="border:1px solid #000; padding:5px;">4. COMPARATIVE PAY STRUCTURE</td><td style="border:1px solid #000; padding:5px; text-align:center;">Y</td></tr>
-                <tr><td style="border:1px solid #000; padding:5px;">5. ATTESTED PHOTOCOPY OF UPDATED SERVICE BOOK WITH LEAVE A/C</td><td style="border:1px solid #000; padding:5px; text-align:center;">Y</td></tr>
-                <tr><td style="border:1px solid #000; padding:5px;">6. THREE COPIES OF ANNEXURE-I DULY FILLED IN</td><td style="border:1px solid #000; padding:5px; text-align:center;">Y</td></tr>
+                ${[
+                    'DETAIL FORWARDING LETTER OF HOI',
+                    'APPLICATION OF APPLICANT',
+                    'ATTESTED PHOTOCOPY OF ALL APPROVALS',
+                    'COMPARATIVE PAY STRUCTURE',
+                    'ATTESTED PHOTOCOPY OF UPDATED SERVICE BOOK WITH UPDATED LEAVE ACCOUNT AND B.ED DETAILS MUST BE MENTIONED IF APPLICABLE.',
+                    'ATTESTED PHOTOCOPY OF ALL IPF (ROPA,98,09 & 19).',
+                    'PHOTOCOPY OF B.ED EXAM SCHEDULE, CERTIFICATE, MARKSHEET',
+                    'PHOTOCOPY OF SALARY REQUISITION FOR THE STARTING MONTH OF ARREAR AND PREVIOUS MONTH, LAST MONTH AND FOLLOWING MONTH UPTO WHICH ARREAR IS CLAIMED.',
+                    "COPY OF M.C RESOLUTION/ ADMINISTRATOR'S ORDER.",
+                    'THREE COPIES OF ANNEXURE-1 DULY FILLED IN.',
+                    'ACQUITTANCE ROLL FOR THE ARREAR PERIOD.',
+                    'NON DRAWAL CERTIFICATE.',
+                    'CERTIFICATE OF REASON FOR DELAY (IF APPLICABLE)'
+                ].map((txt,i)=>`<tr><td style="border:1px solid #000;padding:6px;text-align:left;">${i+1}. ${txt}</td><td style="border:1px solid #000;padding:6px;text-align:center;font-weight:bold;">${val('check'+(i+1)) || 'Y'}</td></tr>`).join('')}
             </tbody>
         </table>
+        <div style="margin-top:25px;display:flex;justify-content:space-between;text-align:center;">
+            <div>____________________________<br>Signature of HOI with date and seal</div>
+            <div>____________________________<br>Signature of DA</div>
+        </div>
     </div>`;
 
     document.getElementById('printArea').innerHTML = content;
@@ -4729,6 +5007,7 @@ async function loadFullArrearDataFromDB(explicitDocId) {
 
 function applyLoadedRecord(docId, record) {
     applyFormFields(record.fields);
+    syncMainToSidebar();
 
     lwpRows = record.lwpRows || [];
     lwpRowSeq = lwpRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
