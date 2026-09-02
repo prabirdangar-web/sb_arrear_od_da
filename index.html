@@ -2779,37 +2779,21 @@ function defaultMaForMonth(y, m) {
     return (d < new Date(2020, 0, 1)) ? 300 : 500;
 }
 
-// H.R.A. calculation rules.
-// ROPA-2019: from 01-01-2020, HRA = 12% of revised Basic Pay, subject to a
-// maximum of Rs.12,000/month. For the application's payroll convention, the
-// calculated amount is rounded UP to the next Rs.10. Manual Fixed HRA bypasses
-// the automatic calculation and uses the amount entered by the user.
-// Before ROPA-2019, the existing period/rate logic is retained.
+// H.R.A. calculation rule.
+// Automatic HRA is calculated strictly as: HRA = round(DA * 12%, 0).
+// Here DA means the actual monthly D.A. amount for that row/month.
+// Manual Fixed HRA bypasses the automatic formula and uses the amount entered.
+// The same rule is used for ROPA-2019 and the other generated arrear/OD/DA rows.
 function defaultHraRateForMonth(y, m, fallbackPct) {
-    const d = new Date(y, m - 1, 1);
-    if (d >= new Date(2008, 3, 1) && d <= new Date(2009, 2, 1)) return 15;
-    return fallbackPct;
+    return 12;
 }
 
-function roundHraNext10(amount) {
-    const n = Number(amount) || 0;
-    if (n <= 0) return 0;
-    return Math.ceil(n / 10) * 10;
-}
-
-function isRopa2019HraMonth(y, m) {
-    return new Date(y, m - 1, 1) >= new Date(2020, 0, 1);
-}
-
-function calculateHraAmount(basic, y, m, ratePct, mode, fixedAmount) {
+function calculateHraAmount(daAmount, y, m, ratePct, mode, fixedAmount) {
     if (String(mode || 'auto').toLowerCase() === 'manual') {
         return Math.max(0, Math.round(Number(fixedAmount) || 0));
     }
-    const raw = isRopa2019HraMonth(y, m)
-        ? (Number(basic) || 0) * 0.12
-        : (Number(basic) || 0) * ((Number(ratePct) || 0) / 100);
-    const rounded = roundHraNext10(raw);
-    return isRopa2019HraMonth(y, m) ? Math.min(rounded, 12000) : rounded;
+    const da = Number(daAmount) || 0;
+    return Math.max(0, Math.round(da * 0.12));
 }
 
 // I.R. (Interim Relief) default: 10% of Basic Pay as on 01-01-2016 (Grade Pay in full),
@@ -2836,13 +2820,13 @@ function computeRow(row) {
     const drOTH = row.drOTH || 0;
 
     const admDA = Math.round(row.admBasic * da);
-    const admHRA = (row.admHRAOverride !== undefined) ? row.admHRAOverride : calculateHraAmount(row.admBasic, row.y, row.m, hraRatePct, hraMode, hraFixed);
+    const admHRA = (row.admHRAOverride !== undefined) ? row.admHRAOverride : calculateHraAmount(admDA, row.y, row.m, hraRatePct, hraMode, hraFixed);
     const admGross = row.admBasic + admDA + admHRA + admMA + admIR;
     const admPT = ptSlab(admGross, row.y, row.m);
     const admNet = admGross - row.admGPF - row.admIT - admOTH - admPT;
 
     const drDA = Math.round(row.drBasic * da);
-    const drHRA = (row.drHRAOverride !== undefined) ? row.drHRAOverride : calculateHraAmount(row.drBasic, row.y, row.m, hraRatePct, hraMode, hraFixed);
+    const drHRA = (row.drHRAOverride !== undefined) ? row.drHRAOverride : calculateHraAmount(drDA, row.y, row.m, hraRatePct, hraMode, hraFixed);
     const drGross = row.drBasic + drDA + drHRA + drMA + drIR;
     const drPT = ptSlab(drGross, row.y, row.m);
     const drNet = drGross - row.drGPF - row.drIT - drOTH - drPT;
@@ -3109,9 +3093,9 @@ function autoSyncOverdrawnFromTab1() {
             let hraFixed = num('hraFixed');
 
             let drDA = Math.round(drBasic * daR);
-            let drHRA = calculateHraAmount(drBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
+            let drHRA = calculateHraAmount(drDA, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
             let admDA = Math.round(admBasic * daR);
-            let admHRA = calculateHraAmount(admBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
+            let admHRA = calculateHraAmount(admDA, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
 
             let defMA_range = defaultMaForMonth(y, m);
             let defIR_range = defaultIrForMonth(y, m, basicOn1Jan2016_od);
@@ -3181,11 +3165,11 @@ function addOverdrawnRow() {
 
         drPayBand = defaultDrPB; drGradePay = defaultDrGP;
         drDA = Math.round((defaultDrPB + defaultDrGP) * daPct);
-        drHRA = calculateHraAmount(defaultDrPB + defaultDrGP, y, mm, defaultHraRateForMonth(y, mm, num('hraRate')), val('hraMode') || 'auto', num('hraFixed'));
+        drHRA = calculateHraAmount(drDA, y, mm, defaultHraRateForMonth(y, mm, num('hraRate')), val('hraMode') || 'auto', num('hraFixed'));
         drMA = defMA;
         admPayBand = admPB; admGradePay = admGP;
         admDA = Math.round((admPB + admGP) * daPct);
-        admHRA = calculateHraAmount(admPB + admGP, y, mm, defaultHraRateForMonth(y, mm, num('hraRate')), val('hraMode') || 'auto', num('hraFixed'));
+        admHRA = calculateHraAmount(admDA, y, mm, defaultHraRateForMonth(y, mm, num('hraRate')), val('hraMode') || 'auto', num('hraFixed'));
         admMA = defMA;
         remarksText = snap ? `Auto-fetched Admissible Pay from generated ${snap.era} Table` : '';
     }
@@ -3576,7 +3560,7 @@ function generateDaCaseTable() {
         // GPF, I.Tax, Other, M.A. and I.R. all default per the rules/global fields above,
         // but each is independently editable per row below -- so they may vary month to month.
         const ov = daCaseRowData[mStr] || {};
-        const hra = (ov.hra !== undefined) ? ov.hra : calculateHraAmount(basic, yy, mm, defaultHraRateForMonth(yy, mm, hraRatePct), hraMode, hraFixed);
+        const hra = (ov.hra !== undefined) ? ov.hra : calculateHraAmount(dueDA, yy, mm, defaultHraRateForMonth(yy, mm, hraRatePct), hraMode, hraFixed);
         const ma = (ov.ma !== undefined) ? ov.ma : ((maRaw === '' || maRaw === null) ? defaultMaForMonth(yy, mm) : (parseFloat(maRaw) || 0));
         const ir = (ov.ir !== undefined) ? ov.ir : ((irRaw === '' || irRaw === null) ? defaultIrForMonth(yy, mm, basicOn1Jan2016_da) : (parseFloat(irRaw) || 0));
         const gpf = (ov.gpf !== undefined) ? ov.gpf : gpfDefault;
