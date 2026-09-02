@@ -4650,9 +4650,15 @@ function docSpouseCert() {
         if(s.spouseServiceSince) bits.push(`since ${fmtDMY(s.spouseServiceSince)}`);
         spouseLine = `${rel}${s.spouseName ? ` <strong>${excelProperCase(s.spouseName)}</strong>` : ''} ${bits.join(' ')}${bits.length ? '.' : `is/was in ${s.spouseStatus}.`}`;
     }
-    const bothHra = spouseNotApplicable
+    // Joint-HRA wording must appear only when the spouse is actually in service.
+    // For unmarried/divorced/separated/deceased cases, use the single compact N.A. wording.
+    // For a spouse who is housewife/not employed/retired, do not say 'drawn by both of them'.
+    const spouseInService = !spouseNotApplicable && !['Housewife / Homemaker','Not Employed','Retired','Deceased',''].includes(s.spouseStatus);
+    const bothHra = spouseNotApplicable || s.spouseStatus === 'Deceased'
         ? 'Joint HRA drawn: N.A.'
-        : 'House Rent drawn by both of them is as per GA rules and within the prescribed limit throughout their service.';
+        : spouseInService
+            ? 'House Rent drawn by both of them is as per GA rules and within the prescribed limit throughout their service.'
+            : 'House Rent drawn by me is as per GA rules and within the prescribed limit throughout my service.';
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.98rem; line-height:1.65; padding:18px 24px;">
         <div style="font-weight:bold; margin-bottom:18px;">Certified that</div>
@@ -4667,8 +4673,13 @@ function docDecl() {
     const s = getSpouseWords();
     const titleName = `${p.title} ${excelProperCase(val('staffName'))}`;
     const relation = p.female ? 'husband' : 'wife';
+    // Keep the same spouse applicability test used by the Spouse Certificate.
+    // This must be local to docDecl(); otherwise widow/deceased cases can throw
+    // ReferenceError when paragraph 4 is rendered.
+    const spouseNotApplicable = ['Unmarried','Divorced','Separated'].includes(s.marital)
+        || ['N.A.','Not Applicable'].includes(s.spouseStatus);
     let spouseDeclaration;
-    if (['Unmarried','Divorced','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable' || s.spouseStatus === 'N.A.') {
+    if (spouseNotApplicable) {
         const maritalText = s.marital || 'Not Specified';
         spouseDeclaration = `That my marital status is <strong>${excelProperCase(maritalText)}</strong>. Spouse details: <strong>N.A.</strong>`;
     } else if (['Housewife / Homemaker','Not Employed',''].includes(s.spouseStatus)) {
@@ -4692,7 +4703,7 @@ function docDecl() {
         <p>1. I have been serving as ${excelProperCase(val('designation'))} in this school continuously w.e.f. ${fmtDMY(val('dojSchool'))}.</p>
         <p>2. That I have completed ${val('yearsCompleted')} years of continuous service in this institution as on ${fmtDMY(val('benefitDate'))} and am eligible for the Career Advancement Benefit under ROPA-2019.</p>
         <p>3. ${spouseDeclaration}</p>
-        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules. ${spouseNotApplicable ? '<strong>Joint HRA drawn: N.A.</strong>' : 'House Rent drawn by both of us is as per GA rules and within the prescribed limit throughout our service.'}</p>
+        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules. ${((spouseNotApplicable || s.spouseStatus === 'Deceased')) ? '<strong>Joint HRA drawn: N.A.</strong>' : ((!['Housewife / Homemaker','Not Employed','Retired','Deceased',''].includes(s.spouseStatus)) ? 'House Rent drawn by both of us is as per GA rules and within the prescribed limit throughout our service.' : 'House Rent drawn by me is as per GA rules and within the prescribed limit throughout my service.')}</p>
         <p>5. That all the information provided above is true and correct to the best of my knowledge and belief, and I undertake that in case of any discrepancy, I shall be responsible for the consequences.</p>
         <div style="margin-top:22px;">Date: ___________<br>Place: ___________</div>
         <div style="margin-top:22px;">Signature of Employee: ____________________<br><br>Name: ${val('staffName').toUpperCase()}<br>Designation: ${val('designation')}</div>
