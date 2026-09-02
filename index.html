@@ -658,7 +658,10 @@
         </select>
         <button type="button" class="btn-sync" onclick="refreshSavedRecordsList()">Refresh List</button>
         <button type="button" class="btn-main" onclick="loadSelectedRecordFromDropdown()">Load Selected</button>
+        <button type="button" class="btn-del" style="padding:10px 18px; font-size:0.9rem;" onclick="startNewRecord()">+ New Record</button>
     </div>
+
+    <div id="activeRecordBanner" class="output-box" style="display:none; border-left-color: var(--green);"></div>
 
     <h3>8. Month-Wise Arrear Table</h3>
     <div id="arrearTableWrap" class="table-wrap">
@@ -1254,10 +1257,49 @@ function applyFormFields(data) {
 
 // One Firestore document per (School + Staff) combination, so different
 // staff members' arrear dossiers are saved/loaded independently.
+//
+// FIX (Sept 2026): the docId used to be recomputed from the current
+// School/Staff Name fields on EVERY save and EVERY load. That meant any
+// edit to those fields after the first save (fixing a typo, adding a
+// missing surname, extra spacing, etc.) silently produced a DIFFERENT
+// docId -- the old record stayed in the database under the old id, and
+// "Load Saved Data (this Staff)" would then report "not found" even
+// though a save had genuinely succeeded moments earlier.
+//
+// activeRecordId locks the id in once a record has been saved or loaded
+// in this session, so further edits + saves keep updating the SAME
+// database record instead of silently creating a new one.
+let activeRecordId = null;
+
 function getRecordDocId() {
+    if (activeRecordId) return activeRecordId;
     const staff = (val('staffName') || 'unknown_staff').trim();
     const school = (val('schoolName') || 'unknown_school').trim();
     return `${school}__${staff}`.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
+}
+
+// Shows the currently-locked record id on screen so it's always obvious
+// which database record Save/Load are pointing at.
+function updateActiveRecordBanner() {
+    const el = document.getElementById('activeRecordBanner');
+    if (!el) return;
+    if (activeRecordId) {
+        el.style.display = 'block';
+        el.innerHTML = `\u2713 Active record: <b>"${activeRecordId}"</b> &mdash; Save/Load now stay locked to this record even if you edit the School/Staff Name fields. Click "+ New Record" to start a different staff record.`;
+    } else {
+        el.style.display = 'none';
+        el.innerHTML = '';
+    }
+}
+
+// Deliberately unlocks the record id so the NEXT save creates/targets a
+// fresh record based on whatever is currently typed in School/Staff Name.
+// Does not clear the on-screen form fields -- clear/edit those yourself
+// before entering the new staff's data.
+function startNewRecord() {
+    activeRecordId = null;
+    updateActiveRecordBanner();
+    alert('Started a new record. The next "Save All Data to Database" will create/target a record based on the School and Staff Name fields as currently typed.');
 }
 
 function buildFullRecord() {
@@ -4593,6 +4635,8 @@ async function saveFullArrearDataToDB() {
         if (user && user.uid) payload.lastSavedByUid = user.uid;
 
         await ARREAR_DOC_REF.set(payload, { merge: true });
+        activeRecordId = docId; // lock this id so later edits+saves update THIS record, not a new one
+        updateActiveRecordBanner();
         alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\n(Saved as record: "${docId}")`);
         refreshSavedRecordsList();
     } catch (err) {
@@ -4624,6 +4668,8 @@ async function loadFullArrearDataFromDB(explicitDocId) {
 }
 
 function applyLoadedRecord(docId, record) {
+    activeRecordId = docId; // lock this id so later edits+saves update THIS record
+    updateActiveRecordBanner();
     applyFormFields(record.fields);
 
     lwpRows = record.lwpRows || [];
