@@ -6,6 +6,11 @@
 <title>Unified ROPA Pay Fixation, Arrear Dossier & Over Drawn Refund System</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 
+<!-- Firebase (compat SDK -- keeps everything usable from plain global functions,
+     matching the rest of this file's non-module script style) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+
 <style id="printPageStyle">
     @media print {
         @page { size: A4 portrait; margin: 12mm 10mm; }
@@ -641,6 +646,7 @@
     <div class="btn-row">
         <button class="btn-main" onclick="generateArrearTable()">1. Calculate Arrear &amp; Refresh</button>
         <button class="btn-print" onclick="saveFullArrearDataToDB()">2. Save All Data to Database</button>
+        <button class="btn-sync" onclick="loadFullArrearDataFromDB()">2b. Load Saved Data (this Staff)</button>
         <button class="btn-excel" onclick="exportFullWorkbookExcel()">3. Export Full 12-Sheet Excel Workbook</button>
     </div>
 
@@ -1150,6 +1156,62 @@
 </div>
 
 <script>
+// ===================== FIREBASE INIT (Firestore persistence) =====================
+const firebaseConfig = {
+    apiKey: "AIzaSyCiqQFsnbSi6eCgUI_W3NTybzIkRmCI_54",
+    authDomain: "tfhs-portal.firebaseapp.com",
+    projectId: "tfhs-portal",
+    storageBucket: "tfhs-portal.firebasestorage.app",
+    messagingSenderId: "316041012204",
+    appId: "1:316041012204:web:04ee8b19374c60f63716c9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const ARREAR_RECORDS_COLLECTION = 'arrearRecords';
+
+// Generic collector: every labelled input/select/textarea inside .container,
+// keyed by its id. Checkboxes store their checked state; everything else
+// stores .value. This avoids having to hand-list every field id in the form
+// (and stays correct if fields are added/removed later).
+function collectFormFields() {
+    const data = {};
+    document.querySelectorAll('.container input[id], .container select[id], .container textarea[id]').forEach(el => {
+        if (el.type === 'checkbox') data[el.id] = el.checked;
+        else data[el.id] = el.value;
+    });
+    return data;
+}
+
+function applyFormFields(data) {
+    if (!data) return;
+    Object.keys(data).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!data[id];
+        else el.value = data[id];
+    });
+}
+
+// One Firestore document per (School + Staff) combination, so different
+// staff members' arrear dossiers are saved/loaded independently.
+function getRecordDocId() {
+    const staff = (val('staffName') || 'unknown_staff').trim();
+    const school = (val('schoolName') || 'unknown_school').trim();
+    return `${school}__${staff}`.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
+}
+
+function buildFullRecord() {
+    return {
+        fields: collectFormFields(),
+        lwpRows: lwpRows,
+        arrearRows: arrearRows,
+        odRows: odRows,
+        daBasicRows: daBasicRows,
+        daCaseRowData: daCaseRowData,
+        savedAt: new Date().toISOString()
+    };
+}
+
 // DYNAMIC PRINT ORIENTATION SWITCHER
 function setPrintOrientation(orientation) {
     let style = document.getElementById('printPageStyle');
@@ -4456,7 +4518,63 @@ function closeModal() {
 }
 
 async function saveFullArrearDataToDB() {
-    alert("Full Arrear Record and Month-wise Logs successfully saved to Database!");
+    const docId = getRecordDocId();
+    try {
+        const record = buildFullRecord();
+        await db.collection(ARREAR_RECORDS_COLLECTION).doc(docId).set(record);
+        alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\n(Saved as record: "${docId}")`);
+    } catch (err) {
+        console.error('Firestore save failed:', err);
+        alert(`Error saving to Database:\n${err.message}\n\n(Record id attempted: "${docId}")`);
+    }
+}
+
+// Loads a previously saved record for the CURRENT School + Staff Name (as typed
+// in the form right now) back into every field, the LWP/Arrear/Overdrawn/DA
+// tables, and re-renders everything so the page looks exactly as it did when saved.
+async function loadFullArrearDataFromDB() {
+    const docId = getRecordDocId();
+    try {
+        const snap = await db.collection(ARREAR_RECORDS_COLLECTION).doc(docId).get();
+        if (!snap.exists) {
+            alert(`No saved record found for "${docId}".\nCheck the School Name and Staff Name match a previously saved record exactly.`);
+            return;
+        }
+        const record = snap.data();
+
+        applyFormFields(record.fields);
+
+        lwpRows = record.lwpRows || [];
+        lwpRowSeq = lwpRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+
+        arrearRows = record.arrearRows || [];
+
+        odRows = record.odRows || [];
+        odSeq = odRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 0);
+
+        daBasicRows = record.daBasicRows || [];
+        daBasicSeq = daBasicRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+
+        daCaseRowData = record.daCaseRowData || {};
+
+        // Re-render every dynamic section and dependent UI state
+        renderLwpTable();
+        renderDashboardTable();
+        renderOdTable();
+        renderDaBasicTable();
+        calculateDOR();
+        togglePromotionSection();
+        toggleRopa98Section();
+        toggleRopa09Section();
+        updateAll();
+        generateArrearTable();
+        generateDaCaseTable();
+
+        alert(`Loaded saved record: "${docId}"\n(Last saved: ${record.savedAt ? new Date(record.savedAt).toLocaleString() : 'unknown'})`);
+    } catch (err) {
+        console.error('Firestore load failed:', err);
+        alert(`Error loading from Database:\n${err.message}\n\n(Record id attempted: "${docId}")`);
+    }
 }
 
 async function exportFullWorkbookExcel() {
