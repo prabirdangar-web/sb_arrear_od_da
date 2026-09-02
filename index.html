@@ -299,7 +299,7 @@
     .chl-note { font-size: 0.7rem; margin-top: 16px; }
 
     /* MODAL */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 999; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 5000; }
     .modal-overlay.active { display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 30px 10px; }
     .modal-box { background: #fff; max-width: 1150px; width: 100%; border-radius: 8px; padding: 0; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
     .modal-toolbar { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; background: #f1f5f9; border-bottom: 1px solid var(--border-color); border-radius: 8px 8px 0 0; }
@@ -511,9 +511,14 @@
         <div class="side-field">
             <label>Spouse Status</label>
             <select id="spouseStatus">
-                <option value="In Government Service">In Government Service</option>
-                <option value="In Government / Local Body Service">In Government / Local Body Service</option>
-                <option value="In Private Service">In Private Service</option>
+                <option value="In Service">In Service</option>
+                <option value="Government of India Service">Government of India Service</option>
+                <option value="State Government Service">State Government Service</option>
+                <option value="Government Undertaking">Government Undertaking</option>
+                <option value="Statutory Body">Statutory Body</option>
+                <option value="Local Body">Local Body</option>
+                <option value="Educational Institution">Educational Institution</option>
+                <option value="Private Service">Private Service</option>
                 <option value="Self-Employed">Self-Employed</option>
                 <option value="Housewife / Homemaker">Housewife / Homemaker</option>
                 <option value="Not Employed">Not Employed</option>
@@ -522,7 +527,23 @@
                 <option value="Not Applicable">Not Applicable</option>
             </select>
         </div>
-        <div class="side-note">Use “Housewife / Homemaker” or “Not Employed” where the spouse has no service. For an employed spouse, select the applicable service status.</div>
+        <div class="side-field spouse-service-field">
+            <label>Spouse Designation</label>
+            <input id="spouseDesignation" type="text" placeholder="e.g. Assistant Teacher">
+        </div>
+        <div class="side-field spouse-service-field">
+            <label>Spouse Office / Institution</label>
+            <input id="spouseOffice" type="text" placeholder="Office / Institution name">
+        </div>
+        <div class="side-field spouse-service-field">
+            <label>Spouse Department</label>
+            <input id="spouseDepartment" type="text" placeholder="Department / Organisation">
+        </div>
+        <div class="side-field spouse-service-field">
+            <label>Spouse Service Since</label>
+            <input id="spouseServiceSince" type="date">
+        </div>
+        <div class="side-note">For an employed/in-service spouse, enter designation, office/institution, department and service-start date where available. These details are used in the Spouse Certificate and Declaration.</div>
     </div>
 
     <div class="side-section">
@@ -567,6 +588,7 @@
             <div class="fg"><label>District</label><input id="district" value="BANKURA" onchange="syncSharedFields()"></div>
             <div class="fg"><label>HOI Mobile No.</label><input id="hoiContact" value="9434654678 / 9933035811" onchange="syncSharedFields()"></div>
             <div class="fg"><label>School Email ID</label><input id="schoolEmail" value="highschooltaldangrafulmati@gmail.com" onchange="syncSharedFields()"></div>
+            <div class="fg"><label>Department</label><input id="departmentName" value="Secondary School Education, Govt. of West Bengal" onchange="syncSharedFields()"></div>
             <div class="fg"><label>DI of Schools (Addressee)</label><input id="diOffice" value="The District Inspector of Schools (S.E.), Bankura" onchange="syncSharedFields()"></div>
             <div class="fg"><label>DI Office PO &amp; District</label><input id="diAddress" value="P.O. &amp; District: Bankura" onchange="syncSharedFields()"></div>
             <div class="fg"><label>Date of 1st Grant-in-Aid</label><input type="date" id="gia1Date" value="1980-01-01" onchange="updateAll()"></div>
@@ -1593,15 +1615,35 @@ function updateSpouseFieldState() {
         spouse.value = '';
         status.value = 'Not Applicable';
     }
+    const employed = !single && !['Housewife / Homemaker','Not Employed','Retired','Not Applicable',''].includes(status.value);
+    document.querySelectorAll('.spouse-service-field').forEach(el => {
+        el.style.display = employed ? '' : 'none';
+    });
+    ['spouseDesignation','spouseOffice','spouseDepartment','spouseServiceSince'].forEach(id => {
+        const el=document.getElementById(id);
+        if (el) el.disabled = !employed;
+    });
 }
 
 function getSpouseWords() {
     const sex = String(val('staffSex') || '').toUpperCase();
     const female = ['FEMALE','F','WOMAN','GIRL'].includes(sex);
-    const spouseName = val('spouseName') || '';
-    const spouseStatus = val('spouseStatus') || '';
-    const marital = val('maritalStatus') || '';
-    return { female, spouseName, spouseStatus, marital };
+    return {
+        female,
+        spouseName: val('spouseName') || '',
+        spouseStatus: val('spouseStatus') || '',
+        marital: val('maritalStatus') || '',
+        spouseDesignation: val('spouseDesignation') || '',
+        spouseOffice: val('spouseOffice') || '',
+        spouseDepartment: val('spouseDepartment') || '',
+        spouseServiceSince: val('spouseServiceSince') || ''
+    };
+}
+
+function spouseRelationLabel() {
+    const s=getSpouseWords();
+    if (!s.spouseName) return '';
+    return s.female ? `w/o ${excelProperCase(s.spouseName)}` : `w/o ${excelProperCase(s.spouseName)}`;
 }
 
 function spouseEmploymentSentence() {
@@ -1609,16 +1651,24 @@ function spouseEmploymentSentence() {
     if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
         return 'The spouse declaration is not applicable.';
     }
-    if (!s.spouseStatus || s.spouseStatus === 'Housewife / Homemaker' || s.spouseStatus === 'Not Employed') {
-        return `${s.female ? 'Her husband' : 'His wife'} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.`;
+    const relation = s.female ? 'Her husband' : 'His wife';
+    if (s.spouseStatus === 'Housewife / Homemaker' || s.spouseStatus === 'Not Employed' || !s.spouseStatus) {
+        return `${relation} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.`;
     }
-    const n = s.spouseName ? ` (${excelProperCase(s.spouseName)})` : '';
-    return `${s.female ? 'Her husband' : 'His wife'}${n} is/was reported as "${s.spouseStatus}".`;
+    if (s.spouseStatus === 'Retired') {
+        return `${relation}${s.spouseName ? `, ${excelProperCase(s.spouseName)},` : ''} is/was retired from service.`;
+    }
+    const parts=[];
+    if (s.spouseDesignation) parts.push(`serving as ${excelProperCase(s.spouseDesignation)}`);
+    if (s.spouseOffice) parts.push(`in ${excelProperCase(s.spouseOffice)}`);
+    if (s.spouseDepartment) parts.push(`under ${excelProperCase(s.spouseDepartment)}`);
+    if (s.spouseServiceSince) parts.push(`since ${fmtDMY(s.spouseServiceSince)}`);
+    return parts.length ? `${relation} is ${parts.join(' ')}.` : `${relation} is/was in ${s.spouseStatus}.`;
 }
 
 document.addEventListener('DOMContentLoaded', function(){
     syncMainToSidebar();
-    ['maritalStatus','spouseName','spouseStatus'].forEach(id=>{
+    ['maritalStatus','spouseName','spouseStatus','spouseDesignation','spouseOffice','spouseDepartment','spouseServiceSince'].forEach(id=>{
         const el=document.getElementById(id);
         if(el) el.addEventListener('change', updateSpouseFieldState);
         if(el && id==='spouseName') el.addEventListener('input', updateSpouseFieldState);
@@ -4554,29 +4604,75 @@ function docNonDrawal() {
 
 function docSpouseCert() {
     const p = excelSexWords();
+    const s = getSpouseWords();
+    const name = excelProperCase(val('staffName'));
+    const desig = excelProperCase(val('designation'));
+    const school = excelProperCase(val('schoolName'));
+    const address = val('schoolAddress') || '';
+    const department = val('departmentName') || 'Secondary School Education, Govt. of West Bengal';
+    const doj = fmtDMY(val('dojSchool'));
+    const dorObj = getDOR();
+    const dor = dorObj ? formatDate(dorObj) : '';
+    const relation = s.spouseName ? `<strong>${p.female ? 'Smt.' : 'Sri'} ${name} ${p.female ? 'w/o' : 'w/o'} ${excelProperCase(s.spouseName)}</strong>` : `<strong>${p.female ? 'Smt.' : 'Sri'} ${name}</strong>`;
+    let spouseLine = '';
+    if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
+        spouseLine = '';
+    } else if (['Housewife / Homemaker','Not Employed',''].includes(s.spouseStatus)) {
+        spouseLine = `${p.female ? 'Her husband' : 'His wife'} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.`;
+    } else if (s.spouseStatus === 'Retired') {
+        spouseLine = `${p.female ? 'Her husband' : 'His wife'} ${s.spouseName ? `<strong>${excelProperCase(s.spouseName)}</strong> ` : ''}is/was retired from service.`;
+    } else {
+        const rel = p.female ? 'Her husband' : 'His wife';
+        const bits=[];
+        if(s.spouseDesignation) bits.push(`serving as ${excelProperCase(s.spouseDesignation)}`);
+        if(s.spouseOffice) bits.push(`in ${excelProperCase(s.spouseOffice)}`);
+        if(s.spouseDepartment) bits.push(`under ${excelProperCase(s.spouseDepartment)}`);
+        if(s.spouseServiceSince) bits.push(`since ${fmtDMY(s.spouseServiceSince)}`);
+        spouseLine = `${rel}${s.spouseName ? ` <strong>${excelProperCase(s.spouseName)}</strong>` : ''} ${bits.join(' ')}${bits.length ? '.' : `is/was in ${s.spouseStatus}.`}`;
+    }
+    const bothHra = s.spouseName && !['Unmarried','Divorced','Widowed','Separated','Not Applicable'].includes(s.marital)
+        ? 'House Rent drawn by both of them is as per GA rules and within the prescribed limit throughout their service.'
+        : `House Rent Allowance drawn by ${p.himHer} is as per GA rules and within the prescribed limit throughout ${p.hisHer} service.`;
     return `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.6; padding:10px;">
-        <div style="font-weight:bold; margin-bottom:15px;">Certified that :</div>
-        <div style="text-align:justify; margin-bottom:12px;">1. ${excelProperCase(val('staffName'))}, ${val('staffDesignationForSpouse') || ''} has been serving as an approved ${val('designation')} in this institution w.e.f. ${fmtDMY(val('dojSchool'))}. ${val('previousSchool') ? `Previously served in ${val('previousSchool')} from ${fmtDMY(val('prevJoinDate'))} to ${fmtDMY(val('dojSchool'))}.` : ''} ${p.HeShe} total continuous approved service up to date has been verified and found eligible for the grant of ${val('yearsCompleted')} years’ Career Advancement Benefit under ROPA-2019.</div>
-        <div style="text-align:justify; margin-bottom:12px;">2. ${spouseEmploymentSentence()} ${getSpouseWords().spouseName ? `Spouse Name: <strong>${excelProperCase(getSpouseWords().spouseName)}</strong>.` : ''}</div>
-        <div style="text-align:justify; margin-bottom:12px;">3. The House Rent Allowance drawn by ${p.himHer} during the entire service period has been within the prescribed limit as per the prevailing Grant-in-aid Rules.</div>
+    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.98rem; line-height:1.65; padding:18px 24px;">
+        <div style="font-weight:bold; margin-bottom:18px;">Certified that</div>
+        <p style="text-align:justify; margin:0 0 18px;">${relation} is serving as an approved ${desig} in ${school}; ${address} under the department of ${department} since ${doj} ${dor ? `and to be retired on ${dor}` : ''}.</p>
+        ${spouseLine ? `<p style="text-align:justify; margin:0 0 18px;">${spouseLine}</p>` : ''}
+        <p style="text-align:justify; margin:0; font-weight:bold;">${bothHra}</p>
     </div>`;
 }
 
 function docDecl() {
     const p = excelSexWords();
+    const s = getSpouseWords();
     const titleName = `${p.title} ${excelProperCase(val('staffName'))}`;
+    const relation = p.female ? 'husband' : 'wife';
+    let spouseDeclaration;
+    if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
+        spouseDeclaration = 'Spouse declaration is not applicable.';
+    } else if (['Housewife / Homemaker','Not Employed',''].includes(s.spouseStatus)) {
+        spouseDeclaration = `That my ${relation} is/was not engaged in any service under the Government of India, any State Government, Undertaking, Statutory or Local Body, or any Educational Institution at any place or at any time.`;
+    } else if (s.spouseStatus === 'Retired') {
+        spouseDeclaration = `That my ${relation}${s.spouseName ? `, ${excelProperCase(s.spouseName)},` : ''} is/was retired from service.`;
+    } else {
+        const bits=[];
+        if(s.spouseDesignation) bits.push(`serving as ${excelProperCase(s.spouseDesignation)}`);
+        if(s.spouseOffice) bits.push(`in ${excelProperCase(s.spouseOffice)}`);
+        if(s.spouseDepartment) bits.push(`under ${excelProperCase(s.spouseDepartment)}`);
+        if(s.spouseServiceSince) bits.push(`since ${fmtDMY(s.spouseServiceSince)}`);
+        spouseDeclaration = bits.length ? `That my ${relation}${s.spouseName ? `, ${excelProperCase(s.spouseName)},` : ''} is ${bits.join(' ')}.` : `That my ${relation} is/was in ${s.spouseStatus}.`;
+    }
     return `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.92rem; line-height:1.55; padding:10px;">
-        <div style="text-align:center; font-weight:bold; font-size:1.1rem; text-decoration:underline; margin-bottom:15px;">DECLARATION REGARDING HRA &amp; NON EMPLOYMENT OF SPOUSE</div>
-        <div>I, ${titleName}, ${excelProperCase(val('designation'))} of ${excelProperCase(val('schoolName'))}, do hereby solemnly declare as follows :</div>
-        <p>1. I have been serving as ${val('designation')} in this school continuously w.e.f. ${fmtDMY(val('dojSchool'))}.</p>
+    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.98rem; line-height:1.65; padding:18px 24px;">
+        <div style="text-align:center; font-weight:bold; font-size:1.1rem; text-decoration:underline; margin-bottom:18px;">DECLARATION REGARDING HRA &amp; NON EMPLOYMENT OF SPOUSE</div>
+        <p>I, ${titleName}, ${excelProperCase(val('designation'))} of ${excelProperCase(val('schoolName'))}, do hereby solemnly declare as follows:</p>
+        <p>1. I have been serving as ${excelProperCase(val('designation'))} in this school continuously w.e.f. ${fmtDMY(val('dojSchool'))}.</p>
         <p>2. That I have completed ${val('yearsCompleted')} years of continuous service in this institution as on ${fmtDMY(val('benefitDate'))} and am eligible for the Career Advancement Benefit under ROPA-2019.</p>
-        <p>3. That ${spouseEmploymentSentence()} ${getSpouseWords().spouseName ? `Spouse Name: ${excelProperCase(getSpouseWords().spouseName)}.` : ''}</p>
-        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules.</p>
+        <p>3. ${spouseDeclaration}</p>
+        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules. ${s.spouseName && !['Unmarried','Divorced','Widowed','Separated','Not Applicable'].includes(s.marital) ? 'House Rent drawn by both of us is as per GA rules and within the prescribed limit throughout our service.' : ''}</p>
         <p>5. That all the information provided above is true and correct to the best of my knowledge and belief, and I undertake that in case of any discrepancy, I shall be responsible for the consequences.</p>
-        <div style="margin-top:15px;">Date: ___________<br>Place: ___________</div>
-        <div style="margin-top:15px;">Signature of Employee: ____________________<br><br>Name: ${val('staffName').toUpperCase()}<br>Designation: ${val('designation')}</div>
+        <div style="margin-top:22px;">Date: ___________<br>Place: ___________</div>
+        <div style="margin-top:22px;">Signature of Employee: ____________________<br><br>Name: ${val('staffName').toUpperCase()}<br>Designation: ${val('designation')}</div>
     </div>`;
 }
 
