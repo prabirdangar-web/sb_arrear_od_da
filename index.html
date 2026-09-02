@@ -9,6 +9,7 @@
 <!-- Firebase (compat SDK -- keeps everything usable from plain global functions,
      matching the rest of this file's non-module script style) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 
 <style id="printPageStyle">
@@ -1167,7 +1168,21 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const ARREAR_RECORDS_COLLECTION = 'arrearRecords';
+const auth = firebase.auth();
+
+// Your Firestore rules require request.auth != null on writes. This page has
+// no login screen, so we sign in anonymously in the background -- this still
+// satisfies "request.auth != null" without needing a password/email flow.
+// (Requires Anonymous sign-in to be enabled: Firebase Console -> Authentication
+// -> Sign-in method -> Anonymous -> Enable.)
+let firebaseAuthReady = auth.signInAnonymously().catch(err => {
+    console.error('Anonymous sign-in failed:', err);
+});
+
+// This tool stores ALL staff records inside ONE document, matching the same
+// single-document-per-tool pattern used by the rest of /tfhs (staffPattern,
+// salaryPortal, etc.) -- "records" is a map keyed by a School__Staff id.
+const ARREAR_DOC_REF = db.collection('tfhs').doc('arrearOdDaSystem');
 
 // Generic collector: every labelled input/select/textarea inside .container,
 // keyed by its id. Checkboxes store their checked state; everything else
@@ -4520,12 +4535,20 @@ function closeModal() {
 async function saveFullArrearDataToDB() {
     const docId = getRecordDocId();
     try {
+        await firebaseAuthReady; // ensure signed in (rules require request.auth != null)
         const record = buildFullRecord();
-        await db.collection(ARREAR_RECORDS_COLLECTION).doc(docId).set(record);
+
+        // Dot-path update: only this staff's key inside "records" is touched --
+        // other staff records already saved in the same document are preserved.
+        const payload = {};
+        payload[`records.${docId}`] = record;
+        payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
+        await ARREAR_DOC_REF.set(payload, { merge: true });
         alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\n(Saved as record: "${docId}")`);
     } catch (err) {
         console.error('Firestore save failed:', err);
-        alert(`Error saving to Database:\n${err.message}\n\n(Record id attempted: "${docId}")`);
+        alert(`Error saving to Database:\n${err.message}\n\n(Record id attempted: "${docId}")\n\nIf this says "permission-denied", make sure Anonymous sign-in is enabled in the Firebase Console (Authentication -> Sign-in method) and that the Firestore Rules for /tfhs/arrearOdDaSystem have been published.`);
     }
 }
 
@@ -4535,12 +4558,13 @@ async function saveFullArrearDataToDB() {
 async function loadFullArrearDataFromDB() {
     const docId = getRecordDocId();
     try {
-        const snap = await db.collection(ARREAR_RECORDS_COLLECTION).doc(docId).get();
-        if (!snap.exists) {
+        const snap = await ARREAR_DOC_REF.get();
+        const allRecords = (snap.exists && snap.data().records) ? snap.data().records : {};
+        const record = allRecords[docId];
+        if (!record) {
             alert(`No saved record found for "${docId}".\nCheck the School Name and Staff Name match a previously saved record exactly.`);
             return;
         }
-        const record = snap.data();
 
         applyFormFields(record.fields);
 
