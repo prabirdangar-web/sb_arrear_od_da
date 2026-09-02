@@ -651,6 +651,15 @@
         <button class="btn-excel" onclick="exportFullWorkbookExcel()">3. Export Full 12-Sheet Excel Workbook</button>
     </div>
 
+    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <label style="min-width:0; margin:0;">Saved Staff Records (Database):</label>
+        <select id="savedRecordsDropdown" style="min-width:280px; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px;">
+            <option value="">-- Click "Refresh List" to load saved records --</option>
+        </select>
+        <button type="button" class="btn-sync" onclick="refreshSavedRecordsList()">Refresh List</button>
+        <button type="button" class="btn-main" onclick="loadSelectedRecordFromDropdown()">Load Selected</button>
+    </div>
+
     <h3>8. Month-Wise Arrear Table</h3>
     <div id="arrearTableWrap" class="table-wrap">
         <table id="dashboardArrearTable">
@@ -1170,19 +1179,64 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// Your Firestore rules require request.auth != null on writes. This page has
-// no login screen, so we sign in anonymously in the background -- this still
-// satisfies "request.auth != null" without needing a password/email flow.
-// (Requires Anonymous sign-in to be enabled: Firebase Console -> Authentication
-// -> Sign-in method -> Anonymous -> Enable.)
-let firebaseAuthReady = auth.signInAnonymously().catch(err => {
-    console.error('Anonymous sign-in failed:', err);
+// ================= FIREBASE AUTH READY =================
+// Firestore rules should use request.auth != null.  This page has no visible
+// login form, so it uses Firebase Anonymous Authentication in the background.
+// IMPORTANT: Authentication -> Sign-in method -> Anonymous must be ENABLED,
+// and this GitHub Pages domain must be listed under Authentication -> Settings
+// -> Authorized domains.
+let firebaseAuthReady = new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn, value) => {
+        if (!settled) {
+            settled = true;
+            fn(value);
+        }
+    };
+
+    const unsubscribe = auth.onAuthStateChanged(user => {
+        if (user) {
+            console.log('Firebase Auth ready. UID:', user.uid, 'anonymous:', !!user.isAnonymous);
+            unsubscribe();
+            finish(resolve, user);
+        }
+    });
+
+    auth.signInAnonymously().catch(err => {
+        console.error('Anonymous sign-in failed:', err);
+        unsubscribe();
+        finish(reject, err);
+    });
 });
+
+async function ensureFirebaseAuth() {
+    try {
+        const user = await firebaseAuthReady;
+        if (!user || !auth.currentUser) {
+            throw new Error('Firebase Authentication did not create a signed-in user.');
+        }
+        return user;
+    } catch (err) {
+        const code = err && err.code ? `\nFirebase code: ${err.code}` : '';
+        throw new Error((err && err.message ? err.message : String(err)) + code +
+            '\n\nCheck Firebase Console -> Authentication -> Sign-in method -> Anonymous = Enabled,\n' +
+            'and Authentication -> Settings -> Authorized domains contains prabirdangar-web.github.io.');
+    }
+}
 
 // This tool stores ALL staff records inside ONE document, matching the same
 // single-document-per-tool pattern used by the rest of /tfhs (staffPattern,
 // salaryPortal, etc.) -- "records" is a map keyed by a School__Staff id.
 const ARREAR_DOC_REF = db.collection('tfhs').doc('arrearOdDaSystem');
+
+// Auth/Firestore startup diagnostic. This does not save or modify any record.
+window.firebaseDatabaseReady = firebaseAuthReady.then(user => {
+    console.log('TFHS Arrear DB ready:', { uid: user.uid, path: 'tfhs/arrearOdDaSystem' });
+    return user;
+}).catch(err => {
+    console.error('TFHS Firebase startup error:', err);
+    return null;
+});
 
 // Generic collector: every labelled input/select/textarea inside .container,
 // keyed by its id. Checkboxes store their checked state; everything else
@@ -4535,7 +4589,9 @@ function closeModal() {
 async function saveFullArrearDataToDB() {
     const docId = getRecordDocId();
     try {
-        await firebaseAuthReady; // ensure signed in (rules require request.auth != null)
+        // Do not silently continue if authentication failed. Firestore rules need
+        // request.auth != null and otherwise the write is guaranteed to fail.
+        const user = await ensureFirebaseAuth();
         const record = buildFullRecord();
 
         // Dot-path update: only this staff's key inside "records" is touched --
@@ -4543,62 +4599,119 @@ async function saveFullArrearDataToDB() {
         const payload = {};
         payload[`records.${docId}`] = record;
         payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        payload.lastSavedByUid = user.uid;
 
         await ARREAR_DOC_REF.set(payload, { merge: true });
         alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\n(Saved as record: "${docId}")`);
+        refreshSavedRecordsList();
     } catch (err) {
         console.error('Firestore save failed:', err);
-        alert(`Error saving to Database:\n${err.message}\n\n(Record id attempted: "${docId}")\n\nIf this says "permission-denied", make sure Anonymous sign-in is enabled in the Firebase Console (Authentication -> Sign-in method) and that the Firestore Rules for /tfhs/arrearOdDaSystem have been published.`);
+        const code = err && err.code ? `\nFirebase code: ${err.code}` : '';
+        alert(`Error saving to Database:\n${err.message}${code}\n\nRecord id attempted: "${docId}"\n\nIf Firebase code is "permission-denied", publish the Firestore Rules shown in the instructions supplied with this updated file. If the code is "auth/operation-not-allowed", enable Anonymous sign-in in Firebase Authentication.`);
     }
 }
 
 // Loads a previously saved record for the CURRENT School + Staff Name (as typed
 // in the form right now) back into every field, the LWP/Arrear/Overdrawn/DA
 // tables, and re-renders everything so the page looks exactly as it did when saved.
-async function loadFullArrearDataFromDB() {
-    const docId = getRecordDocId();
+async function loadFullArrearDataFromDB(explicitDocId) {
+    const docId = explicitDocId || getRecordDocId();
     try {
+        await ensureFirebaseAuth();
         const snap = await ARREAR_DOC_REF.get();
         const allRecords = (snap.exists && snap.data().records) ? snap.data().records : {};
         const record = allRecords[docId];
         if (!record) {
-            alert(`No saved record found for "${docId}".\nCheck the School Name and Staff Name match a previously saved record exactly.`);
+            alert(`No saved record found for "${docId}".\nCheck the School Name and Staff Name match a previously saved record exactly, or use the "Saved Staff Records" dropdown below to pick from the list.`);
             return;
         }
-
-        applyFormFields(record.fields);
-
-        lwpRows = record.lwpRows || [];
-        lwpRowSeq = lwpRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
-
-        arrearRows = record.arrearRows || [];
-
-        odRows = record.odRows || [];
-        odSeq = odRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 0);
-
-        daBasicRows = record.daBasicRows || [];
-        daBasicSeq = daBasicRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
-
-        daCaseRowData = record.daCaseRowData || {};
-
-        // Re-render every dynamic section and dependent UI state
-        renderLwpTable();
-        renderDashboardTable();
-        renderOdTable();
-        renderDaBasicTable();
-        calculateDOR();
-        togglePromotionSection();
-        toggleRopa98Section();
-        toggleRopa09Section();
-        updateAll();
-        generateArrearTable();
-        generateDaCaseTable();
-
-        alert(`Loaded saved record: "${docId}"\n(Last saved: ${record.savedAt ? new Date(record.savedAt).toLocaleString() : 'unknown'})`);
+        applyLoadedRecord(docId, record);
     } catch (err) {
         console.error('Firestore load failed:', err);
         alert(`Error loading from Database:\n${err.message}\n\n(Record id attempted: "${docId}")`);
     }
+}
+
+function applyLoadedRecord(docId, record) {
+    applyFormFields(record.fields);
+
+    lwpRows = record.lwpRows || [];
+    lwpRowSeq = lwpRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+
+    arrearRows = record.arrearRows || [];
+
+    odRows = record.odRows || [];
+    odSeq = odRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 0);
+
+    daBasicRows = record.daBasicRows || [];
+    daBasicSeq = daBasicRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+
+    daCaseRowData = record.daCaseRowData || {};
+
+    // Re-render every dynamic section and dependent UI state
+    renderLwpTable();
+    renderDashboardTable();
+    renderOdTable();
+    renderDaBasicTable();
+    calculateDOR();
+    togglePromotionSection();
+    toggleRopa98Section();
+    toggleRopa09Section();
+    updateAll();
+    generateArrearTable();
+    generateDaCaseTable();
+
+    alert(`Loaded saved record: "${docId}"\n(Last saved: ${record.savedAt ? new Date(record.savedAt).toLocaleString() : 'unknown'})`);
+}
+
+// Populates the "Saved Staff Records (Database)" dropdown with every record
+// currently stored inside the single /tfhs/arrearOdDaSystem document, showing
+// the Staff Name / School (and when it was saved) so it's readable even though
+// the underlying Firestore key is a normalized slug.
+async function refreshSavedRecordsList() {
+    const dropdown = document.getElementById('savedRecordsDropdown');
+    if (!dropdown) return;
+    dropdown.innerHTML = '<option value="">Loading...</option>';
+    try {
+        await ensureFirebaseAuth();
+        const snap = await ARREAR_DOC_REF.get();
+        const allRecords = (snap.exists && snap.data().records) ? snap.data().records : {};
+        const ids = Object.keys(allRecords);
+
+        if (ids.length === 0) {
+            dropdown.innerHTML = '<option value="">-- No saved records found --</option>';
+            return;
+        }
+
+        // Newest-saved first
+        ids.sort((a, b) => {
+            const ta = allRecords[a] && allRecords[a].savedAt ? new Date(allRecords[a].savedAt).getTime() : 0;
+            const tb = allRecords[b] && allRecords[b].savedAt ? new Date(allRecords[b].savedAt).getTime() : 0;
+            return tb - ta;
+        });
+
+        dropdown.innerHTML = '<option value="">-- Select a saved staff record --</option>' +
+            ids.map(id => {
+                const r = allRecords[id] || {};
+                const f = r.fields || {};
+                const staff = f.staffName || '(no name)';
+                const school = f.schoolName || '(no school)';
+                const desig = f.designation || '';
+                const savedAtStr = r.savedAt ? new Date(r.savedAt).toLocaleString() : 'unknown time';
+                const label = `${staff}${desig ? ' ; ' + desig : ''} - ${school} (saved ${savedAtStr})`;
+                return `<option value="${id.replace(/"/g, '&quot;')}">${label.replace(/</g, '&lt;')}</option>`;
+            }).join('');
+    } catch (err) {
+        console.error('Failed to refresh saved records list:', err);
+        dropdown.innerHTML = '<option value="">-- Error loading list (see console) --</option>';
+    }
+}
+
+async function loadSelectedRecordFromDropdown() {
+    const dropdown = document.getElementById('savedRecordsDropdown');
+    const docId = dropdown ? dropdown.value : '';
+    if (!docId) { alert('Please select a saved staff record from the dropdown first.'); return; }
+    await loadFullArrearDataFromDB(docId);
 }
 
 async function exportFullWorkbookExcel() {
@@ -4675,6 +4788,7 @@ window.addEventListener('DOMContentLoaded', function () {
     renderLwpTable();
     autoDeriveDaBasicSegments();
     syncSharedFields();
+    refreshSavedRecordsList();
 });
 </script>
 
