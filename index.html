@@ -344,6 +344,24 @@
     <button class="tab-btn ref-tab" onclick="switchTab('tabDaCase')" data-tab="tabDaCase" style="background:#7c3aed; color:#fff;">3. DA Case (Auto Arrear Calculation)</button>
 </div>
 
+<!-- TOP ACTION / SAVED STAFF BAR -->
+<div class="top-action-area" style="position:sticky; top:0; z-index:1000; background:#fff; padding:8px 0 10px; border-bottom:1px solid var(--border-color); margin-bottom:12px;">
+    <div class="btn-row" style="margin:0 0 10px 0;">
+        <button class="btn-main" type="button" onclick="generateArrearTable()">1. Calculate Arrear &amp; Refresh</button>
+        <button class="btn-print" type="button" onclick="saveFullArrearDataToDB()">2. Save All Data to Database</button>
+        <button class="btn-sync" type="button" onclick="loadFullArrearDataFromDB()">2b. Load Saved Data (this Staff)</button>
+        <button class="btn-excel" type="button" onclick="exportFullWorkbookExcel()">3. Export Full 12-Sheet Excel Workbook</button>
+    </div>
+    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:0;">
+        <label style="min-width:0; margin:0;">Saved Staff Records (Database):</label>
+        <select id="savedRecordsDropdown" style="min-width:280px; flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px;">
+            <option value="">-- Click "Refresh List" to load saved records --</option>
+        </select>
+        <button type="button" class="btn-sync" onclick="refreshSavedRecordsList()">Refresh List</button>
+        <button type="button" class="btn-main" onclick="loadSelectedRecordFromDropdown()">Load Selected</button>
+    </div>
+</div>
+
 <!-- ==================== TAB 1: PAYABLE PAY & FIXATION ARREAR SYSTEM ==================== -->
 <div id="tabPayable" class="tab-content active">
 
@@ -645,23 +663,7 @@
         </div>
     </div>
 
-    <!-- 8. ACTION BUTTONS & MONTH-WISE ARREAR TABLE -->
-    <div class="btn-row">
-        <button class="btn-main" onclick="generateArrearTable()">1. Calculate Arrear &amp; Refresh</button>
-        <button class="btn-print" onclick="saveFullArrearDataToDB()">2. Save All Data to Database</button>
-        <button class="btn-sync" onclick="loadFullArrearDataFromDB()">2b. Load Saved Data (this Staff)</button>
-        <button class="btn-excel" onclick="exportFullWorkbookExcel()">3. Export Full 12-Sheet Excel Workbook</button>
-    </div>
-
-    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <label style="min-width:0; margin:0;">Saved Staff Records (Database):</label>
-        <select id="savedRecordsDropdown" style="min-width:280px; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px;">
-            <option value="">-- Click "Refresh List" to load saved records --</option>
-        </select>
-        <button type="button" class="btn-sync" onclick="refreshSavedRecordsList()">Refresh List</button>
-        <button type="button" class="btn-main" onclick="loadSelectedRecordFromDropdown()">Load Selected</button>
-    </div>
-
+    <!-- 8. MONTH-WISE ARREAR TABLE -->
     <h3>8. Month-Wise Arrear Table</h3>
     <div id="arrearTableWrap" class="table-wrap">
         <table id="dashboardArrearTable">
