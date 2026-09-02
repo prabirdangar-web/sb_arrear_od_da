@@ -4649,7 +4649,8 @@ function docDecl() {
     const relation = p.female ? 'husband' : 'wife';
     let spouseDeclaration;
     if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
-        spouseDeclaration = 'Spouse declaration is not applicable.';
+        const maritalText = s.marital || 'Not Specified';
+        spouseDeclaration = `That my marital status is <strong>${excelProperCase(maritalText)}</strong>. Accordingly, spouse details are not applicable: <strong>Spouse Name: Not Applicable; Spouse Status: Not Applicable; Spouse Designation: Not Applicable; Spouse Office / Institution: Not Applicable; Spouse Department: Not Applicable; Spouse Service Since: Not Applicable.</strong>`;
     } else if (['Housewife / Homemaker','Not Employed',''].includes(s.spouseStatus)) {
         spouseDeclaration = `That my ${relation} is/was not engaged in any service under the Government of India, any State Government, Undertaking, Statutory or Local Body, or any Educational Institution at any place or at any time.`;
     } else if (s.spouseStatus === 'Retired') {
