@@ -4162,81 +4162,108 @@ function printChallan() {
 function docCover() {
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; padding:20px;">
-        <div style="text-align:right; font-size:0.9rem; font-weight:bold; color:blue; text-decoration:underline;">E-mail: ${val('schoolEmail')}</div>
-        <div style="text-align:center; font-size:1.1rem; font-weight:bold; margin-top:5px;">Mob No of Headmaster : ${val('hoiContact')}</div>
-        <div style="text-align:center; font-size:1.4rem; font-weight:bold; margin-top:15px; letter-spacing:0.5px;">${val('schoolName').toUpperCase()}</div>
+        <div style="text-align:right; font-size:0.9rem; font-weight:bold; text-decoration:underline;">E-mail: ${val('schoolEmail')}</div>
+        <div style="text-align:center; font-size:0.9rem; font-weight:bold; margin-top:5px;">Mob No of the ${val('hoiStatus') || 'Headmaster'} : ${val('hoiContact')}</div>
+        <div style="text-align:center; font-size:1.4rem; font-weight:bold; margin-top:15px;">${val('schoolName').toUpperCase()}</div>
         <div style="text-align:center; font-size:1rem; font-weight:bold; margin-top:5px;">${val('schoolAddress').toUpperCase()}</div>
-        <div style="text-align:center; font-size:1.2rem; font-weight:bold; margin-top:10px;">SUB DIVISION : ${val('subDivision').toUpperCase()}</div>
-
+        <div style="text-align:center; font-size:1.05rem; font-weight:bold; margin-top:10px;">SUB DIVISION : ${val('subDivision').toUpperCase()}</div>
         <div style="border:2px solid #000; margin:40px auto 10px; padding:25px; max-width:800px; text-align:center; line-height:1.8;">
             <div style="font-size:1.25rem; font-weight:bold; text-decoration:underline;">Subject: ARREAR BILL</div>
-            <div style="font-size:1.15rem; font-weight:bold; text-decoration:underline; margin-top:5px;">[PERIOD ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} ]</div>
-            <div style="font-size:1rem; font-weight:bold; margin-top:15px; text-transform:uppercase;">DUE TO THE DELAYED APPROVAL OF THE ${val('yearsCompleted')}-YEAR BENEFIT FIXATION IN FAVOUR OF</div>
+            <div style="font-size:1.15rem; font-weight:bold; text-decoration:underline; margin-top:5px;">[PERIOD_${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} ]</div>
+            <div style="font-size:1rem; font-weight:bold; margin-top:15px; text-transform:uppercase;">DUE TO THE DELAYED APPROVAL OF THE ${val('yearsCompleted')}-YEARS BENEFIT FIXATION IN FAVOUR OF</div>
             <div style="font-size:1.2rem; font-weight:bold; margin-top:15px;">${val('staffName').toUpperCase()} ; ${val('designation').toUpperCase()}</div>
         </div>
     </div>`;
 }
 
-function docFL() {
-    const isMale = val('staffSex') === 'Male';
-    const pronounHis = isMale ? 'his' : 'her';
-    const monthUpdated = MONTH_NAMES[new Date(val('salaryUpdatedFrom')+'T00:00:00').getMonth()] + ' ' + new Date(val('salaryUpdatedFrom')+'T00:00:00').getFullYear();
 
+function excelProperCase(value) {
+    return String(value ?? '').toLowerCase().replace(/\b([a-z])/g, m => m.toUpperCase());
+}
+function excelSexWords() {
+    const sex = String(val('staffSex') || '').trim().toUpperCase();
+    const female = sex === 'FEMALE' || sex === 'F' || sex === 'WOMAN' || sex === 'GIRL';
+    return {
+        female,
+        hisHer: female ? 'her' : 'his',
+        himHer: female ? 'her' : 'him',
+        heShe: female ? 'she' : 'he',
+        HeShe: female ? 'She' : 'He',
+        husbandWife: female ? 'Her husband' : 'His wife',
+        title: female ? 'Mrs.' : 'Sri'
+    };
+}
+
+function docFL() {
+    const p = excelSexWords();
+    const name = val('staffName');
+    const designation = val('designation');
+    const school = val('schoolName');
+    const period = `${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}`;
+    const completionDate = val('serviceCompletionDate') ? fmtDMY(val('serviceCompletionDate')) : '';
+    const benefitDate = val('benefitDate') ? fmtDMY(val('benefitDate')) : '';
+    const salaryFrom = val('salaryUpdatedFrom') ? new Date(val('salaryUpdatedFrom') + 'T00:00:00') : null;
+    const salaryMonth = salaryFrom && !isNaN(salaryFrom) ? MONTH_NAMES[salaryFrom.getMonth()] + ' ' + salaryFrom.getFullYear() : '';
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.5; padding:10px;">
         <div>To</div>
         <div style="font-weight:bold;">${val('diOffice')}</div>
         <div>${val('diAddress')}</div>
-
         <div style="margin-top:15px; font-weight:bold;">
-            <u>Sub: Submission of arrear salary bill in respect of ${val('staffName')} ; ${val('designation')} for payment of arrear salary on account of grant of ${val('yearsCompleted')} years' continuous service benefit under ROPA-2019.</u>
+            <u>Sub: Submission of arrear salary bill in respect of ${excelProperCase(name)} ; ${excelProperCase(designation)} for payment of arrear salary on account of grant of ${val('yearsCompleted')} years’ continuous service benefit under ROPA-2019.</u>
         </div>
-
         <div style="margin-top:12px;">Sir,</div>
         <p style="text-align:justify; text-indent:30px; margin:8px 0;">
-            I do hereby submit the necessary supporting documents along with the arrear bill in the specific format for the period ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} for payment of the same in favour of ${val('staffName')}, ${val('designation')}, who has completed ${val('yearsCompleted')} years of continuous service in this school on ${fmtDMY(val('serviceCompletionDate'))}.
+            I do hereby submit the necessary supporting documents along with the arrear bill in the specific format for the period ${period} for payment of the same in favour of ${excelProperCase(name)}, ${designation}, who has completed ${val('yearsCompleted')} years of continuous service in this school on ${completionDate}.
         </p>
         <p style="text-align:justify; text-indent:30px; margin:8px 0;">
-            The Career Advancement benefit under ROPA-2019 has been duly approved by your office vide Memo No. ${val('approvalMemo')}, with fixation allowed w.e.f. ${fmtDMY(val('benefitDate'))} as per ${pronounHis} option. Admissible salary as per the revised fixation has been paid from the month of ${monthUpdated}, but payment for the period ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} remains due, as salary up to that period was drawn in pre-revised pay.
+            The Career Advancement benefit under ROPA-2019 has been duly approved by your office vide Memo No. ${val('approvalMemo')}, with fixation allowed w.e.f. ${benefitDate} as per ${p.hisHer} option. Admissible salary as per the revised fixation has been paid from the month of ${salaryMonth}, but payment for the period ${period} remains due, as salary up to that period was drawn in pre-revised pay.
         </p>
         <p style="text-align:justify; text-indent:30px; margin:8px 0;">
             Please arrange and do the needful at your earliest by which the said arrear salary may be paid in favour of the concerned incumbent.
         </p>
-
         <div style="display:flex; justify-content:space-between; margin-top:20px; font-weight:bold;">
-            <div>With thanks</div>
-            <div>Yours faithfully.</div>
+            <div>With thanks</div><div>Yours faithfully.</div>
         </div>
     </div>`;
 }
 
 function docApp() {
+    const p = excelSexWords();
+    const name = val('staffName'), designation = val('designation'), school = val('schoolName');
+    const period = `${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}`;
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.5; padding:10px;">
-        <div>To<br><strong>The Administrator</strong><br>Through<br><strong>The Headmaster</strong><br><strong>${val('schoolName')}</strong></div>
+        <div>To<br><strong>The Administrator</strong><br>Through<br><strong>The Headmaster</strong><br><strong>${excelProperCase(school)}</strong><br><strong>${val('schoolAddress')}</strong></div>
         <div style="margin-top:15px; font-weight:bold;"><u>Subject: Request for payment of Arrear Salary on account of ${val('yearsCompleted')} Years Continuous Service</u></div>
         <div style="margin-top:12px;">Respected Sir,</div>
         <p style="text-align:justify; text-indent:30px; margin:10px 0;">
-            I, ${val('staffName')}, ${val('designation')} of this school, do hereby submit this application for payment of my arrear salary for the period from ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} on account of completion of ${val('yearsCompleted')} years of continuous service in this school.
+            I, ${excelProperCase(name)}, ${designation} of this school, do hereby submit this application for payment of my arrear salary for the period from ${period}. The Career Advancement benefit for completion of ${val('yearsCompleted')} Yrs continuous and satisfactory service under ROPA-2019 has been duly approved with effect from ${fmtDMY(val('benefitDate'))}, from the end of the DI/S(SE), Bankura and the admissible salary as per revised fixation is yet to be paid for the above-mentioned period due to Late approval of fixation for the said benefit.
+        </p>
+        <p style="text-align:justify; text-indent:30px; margin:10px 0;">
+            In view of the above, I request you to kindly arrange for taking necessary steps for sanction and payment of the said arrear salary.
         </p>
         <div style="display:flex; justify-content:space-between; margin-top:25px; font-weight:bold;">
-            <div>Thanking you,</div>
-            <div>Yours faithfully,<br><br><strong>${val('staffName').toUpperCase()}</strong></div>
+            <div>Thanking you,</div><div>Yours faithfully,<br><br><strong>${name.toUpperCase()} ; ${designation.toUpperCase()}</strong></div>
         </div>
     </div>`;
 }
 
 function docAdmn() {
-    const isMale = val('staffSex') === 'Male';
-    const pronounHis = isMale ? 'his' : 'her';
-    const pronounHe = isMale ? 'He' : 'She';
-
+    const p = excelSexWords();
+    const name = excelProperCase(val('staffName')), designation = val('designation');
+    const period = `${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}`;
+    const completion = val('serviceCompletionDate') ? fmtDMY(val('serviceCompletionDate')) : fmtDMY(val('benefitDate'));
+    const benefit = fmtDMY(val('benefitDate'));
+    const salaryFrom = val('salaryUpdatedFrom') ? fmtDMY(val('salaryUpdatedFrom')) : '';
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.92rem; line-height:1.5; padding:10px;">
-        <div style="text-align:center; font-weight:bold; font-size:1.15rem; text-decoration:underline; margin-bottom:10px;">HOI Report</div>
-        <p style="text-align:justify;">${val('staffName')}; ${val('designation')} of this school has submitted an application for payment of ${pronounHis} Arrear Salary for the period from ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}. ${pronounHe} has completed ${val('yearsCompleted')} years of continuous service in this school on ${fmtDMY(val('benefitDate'))}.</p>
+        <div style="text-align:center; font-weight:bold; font-size:1.15rem; text-decoration:underline;">HOI Report</div>
+        <div style="margin-top:10px;">Report No._ _ _ _ _ _ _ _ _ _ _ _ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:_ _ _ _ _ _ _ _ _ _ _ _</div>
+        <p style="text-align:justify; margin-top:15px;">${name}; ${designation} of this school has submitted an application for payment of ${p.hisHer} Arrear Salary for the period from ${period}. ${p.HeShe} has completed ${val('yearsCompleted')} years of continuous service in this school on ${completion}, and the benefit of Career Advancement for completion of ${val('yearsCompleted')} years of continuous service under ROPA-2019 has been duly approved by the D.I./S(S.E.), Bankura vide Memo No. ${val('approvalMemo')}. As per ${p.hisHer} option, the fixation benefit has been approved with effect from ${benefit} by the D.I./S(S.E.), Bankura, and admissible salary as per the revised fixation has been drawn from the month of ${salaryFrom}. However, payment of ${p.hisHer} salary as per revised pay for the period from ${period} falls due, as salary up to the preceding month had been drawn in the pre-revised pay. ${p.HeShe} approval of ${val('yearsCompleted')} years’ benefit, fixation papers, and other related documents are being placed for taking necessary arrangements so that the said arrear salary may be paid in ${p.hisHer} favour.</p>
         <div style="text-align:center; font-weight:bold; font-size:1.15rem; text-decoration:underline; margin:25px 0 10px;">Administrator Order</div>
-        <p style="text-align:justify;">On the basis of the report submitted by the HOI, the arrear bill for the period from ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} is hereby approved and passed for submission.</p>
+        <div>Order No._ _ _ _ _ _ _ _ _ _ _ _ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:_ _ _ _ _ _ _ _ _ _ _ _</div>
+        <p style="text-align:justify; margin-top:15px;">On the basis of the report submitted by the Head of the Institution and the application of ${name} ; ${designation} of this school regarding payment of arrear salary for the period from ${period}, it is hereby stated that ${name} has completed ${val('yearsCompleted')} years of continuous service in this school as on ${completion}. The benefit of Career Advancement for completion of ${val('yearsCompleted')} years of continuous service has been duly approved by the D.I./S(S.E.), Bankura vide Memo No. ${val('approvalMemo')}. As per ${p.hisHer} option, the fixation benefit under ROPA-2019 has been allowed with effect from ${benefit} by the D.I./S(S.E.), Bankura. However, due to late approval for availing the benefit of ${val('yearsCompleted')} years fixation from the end of D.I./S(S.E.), Bankura, ${p.hisHer} admissible salary as per the revised pay has been drawn from ${salaryFrom} and the arrear salary for the period from ${period} remains unpaid. Now, the arrear bill for the said period is hereby approved and passed for submission of the relevant papers to the office of the D.I./S(S.E.), Bankura for necessary action.</p>
     </div>`;
 }
 
@@ -4244,28 +4271,40 @@ function docNonDrawal() {
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.5; padding:10px;">
         <div>To<br><strong>${val('diOffice')}</strong><br>${val('diAddress')}</div>
-        <div style="margin-top:20px; font-weight:bold;"><u>Sub:- Non-drawal certificate of arrear salary bill for the period ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} in favour of ${val('staffName')}.</u></div>
+        <div style="margin-top:20px; font-weight:bold;"><u>Sub:- Non-drawal certificate of arrear salary bill for the period ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} in favour of ${excelProperCase(val('staffName'))}.</u></div>
         <div style="margin-top:20px; font-weight:bold;">Certified that</div>
         <p style="text-align:justify; text-indent:30px; margin:15px 0;">
-            The arrear bill amount being submitted for the period from ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} has not been claimed or drawn previously for payment in favour of ${val('staffName')}, ${val('designation')} of this school.
+            The arrear bill amount being submitted for the period from ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} has not been claimed or drawn previously for payment in favour of ${excelProperCase(val('staffName'))}, ${val('designation')} of this school, on account of grant of Career Advancement Benefit for completion of ${val('yearsCompleted')} years of continuous service under ROPA-2019.
         </p>
+        <div style="display:flex; justify-content:space-between; margin-top:25px; font-weight:bold;"><div>With thanks</div><div>Yours faithfully.</div></div>
     </div>`;
 }
 
 function docSpouseCert() {
+    const p = excelSexWords();
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.6; padding:10px;">
         <div style="font-weight:bold; margin-bottom:15px;">Certified that :</div>
-        <div style="text-align:justify; margin-bottom:12px;">1. ${val('staffName')} has been serving as an approved ${val('designation')} in this institution w.e.f. ${fmtDMY(val('dojSchool'))}.</div>
-        <div style="text-align:justify; margin-bottom:12px;">2. His/Her spouse is/was not engaged in any service under the Government of India or any State Government.</div>
+        <div style="text-align:justify; margin-bottom:12px;">1. ${excelProperCase(val('staffName'))}, ${val('staffDesignationForSpouse') || ''} has been serving as an approved ${val('designation')} in this institution w.e.f. ${fmtDMY(val('dojSchool'))}. ${val('previousSchool') ? `Previously served in ${val('previousSchool')} from ${fmtDMY(val('prevJoinDate'))} to ${fmtDMY(val('dojSchool'))}.` : ''} ${p.HeShe} total continuous approved service up to date has been verified and found eligible for the grant of ${val('yearsCompleted')} years’ Career Advancement Benefit under ROPA-2019.</div>
+        <div style="text-align:justify; margin-bottom:12px;">2. ${p.husbandWife} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.</div>
+        <div style="text-align:justify; margin-bottom:12px;">3. The House Rent Allowance drawn by ${p.himHer} during the entire service period has been within the prescribed limit as per the prevailing Grant-in-aid Rules.</div>
     </div>`;
 }
 
 function docDecl() {
+    const p = excelSexWords();
+    const titleName = `${p.title} ${excelProperCase(val('staffName'))}`;
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.92rem; line-height:1.55; padding:10px;">
         <div style="text-align:center; font-weight:bold; font-size:1.1rem; text-decoration:underline; margin-bottom:15px;">DECLARATION REGARDING HRA &amp; NON EMPLOYMENT OF SPOUSE</div>
-        <div>I, ${val('staffName')}, ${val('designation')} of ${val('schoolName')}, do hereby solemnly declare that all information provided is true and correct.</div>
+        <div>I, ${titleName}, ${excelProperCase(val('designation'))} of ${excelProperCase(val('schoolName'))}, do hereby solemnly declare as follows :</div>
+        <p>1. I have been serving as ${val('designation')} in this school continuously w.e.f. ${fmtDMY(val('dojSchool'))}.</p>
+        <p>2. That I have completed ${val('yearsCompleted')} years of continuous service in this institution as on ${fmtDMY(val('benefitDate'))} and am eligible for the Career Advancement Benefit under ROPA-2019.</p>
+        <p>3. That ${p.husbandWife.toLowerCase()} is/was not engaged in any service under the Government of India, any State Government, Undertaking, Statutory or Local Body, or any Educational Institution at any place or at any time.</p>
+        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules.</p>
+        <p>5. That all the information provided above is true and correct to the best of my knowledge and belief, and I undertake that in case of any discrepancy, I shall be responsible for the consequences.</p>
+        <div style="margin-top:15px;">Date: ___________<br>Place: ___________</div>
+        <div style="margin-top:15px;">Signature of Employee: ____________________<br><br>Name: ${val('staffName').toUpperCase()}<br>Designation: ${val('designation')}</div>
     </div>`;
 }
 
