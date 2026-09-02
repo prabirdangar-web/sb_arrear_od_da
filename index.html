@@ -1188,11 +1188,14 @@ const auth = firebase.auth();
 let firebaseAuthReady = new Promise((resolve, reject) => {
     let settled = false;
     const finish = (fn, value) => {
-        if (!settled) {
-            settled = true;
-            fn(value);
-        }
+        if (!settled) { settled = true; fn(value); }
     };
+
+    // Reuse an existing Firebase session whenever possible.
+    if (auth.currentUser) {
+        finish(resolve, auth.currentUser);
+        return;
+    }
 
     const unsubscribe = auth.onAuthStateChanged(user => {
         if (user) {
@@ -1210,15 +1213,19 @@ let firebaseAuthReady = new Promise((resolve, reject) => {
 });
 
 async function ensureFirebaseAuth() {
-    // Wait for Firebase authentication startup so Save/Load/List do not race
-    // Firestore before auth.currentUser is available.
+    if (auth.currentUser) return auth.currentUser;
     try {
-        if (auth.currentUser) return auth.currentUser;
         const user = await firebaseAuthReady;
-        return user || auth.currentUser || null;
+        if (!user) throw new Error('Firebase Authentication did not return a signed-in user.');
+        return user;
     } catch (err) {
-        console.warn('Firebase authentication unavailable:', err);
-        return auth.currentUser || null;
+        const e = new Error(
+            (err && err.code === 'auth/operation-not-allowed')
+                ? 'Firebase Anonymous Authentication is disabled for this project. Enable Anonymous sign-in in Firebase Authentication, then reload this page.'
+                : (err && err.message ? err.message : 'Firebase Authentication failed.')
+        );
+        e.code = err && err.code ? err.code : 'auth/failed-precondition';
+        throw e;
     }
 }
 
@@ -4586,34 +4593,57 @@ function closeModal() {
 
 async function saveFullArrearDataToDB() {
     const docId = getRecordDocId();
+    if (!docId || docId === '__') {
+        alert('Please enter School Name and Staff Name before saving.');
+        return;
+    }
+
     try {
-        // Do not silently continue if authentication failed. Firestore rules need
-        // request.auth != null and otherwise the write is guaranteed to fail.
         const user = await ensureFirebaseAuth();
         const record = buildFullRecord();
 
-        // Dot-path update: only this staff's key inside "records" is touched --
-        // other staff records already saved in the same document are preserved.
-        const payload = {};
-        payload[`records.${docId}`] = record;
-        payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-        if (user && user.uid) payload.lastSavedByUid = user.uid;
+        // Update the records map atomically. Using a transaction avoids the
+        // dynamic-field-path problem and also prevents two browser tabs from
+        // overwriting each other's staff records.
+        await db.runTransaction(async transaction => {
+            const snap = await transaction.get(ARREAR_DOC_REF);
+            const data = snap.exists ? (snap.data() || {}) : {};
+            const existingRecords = (data.records && typeof data.records === 'object')
+                ? data.records : {};
+            const records = Object.assign({}, existingRecords);
+            records[docId] = record;
 
-        await ARREAR_DOC_REF.set(payload, { merge: true });
+            transaction.set(ARREAR_DOC_REF, {
+                records: records,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                lastSavedByUid: user.uid
+            }, { merge: true });
+        });
 
-        // Verify the record can immediately be read back, then refresh the list.
-        const verifySnap = await ARREAR_DOC_REF.get();
-        const verifyRecords = (verifySnap.exists && verifySnap.data().records) ? verifySnap.data().records : {};
-        if (!verifyRecords[docId]) {
-            throw new Error(`Save verification failed: record "${docId}" was not found after Firestore write.`);
+        // Ask Firestore for the server copy, not a stale browser cache.
+        const verifySnap = await ARREAR_DOC_REF.get({ source: 'server' });
+        const verifyData = verifySnap.exists ? (verifySnap.data() || {}) : {};
+        const verifyRecords = (verifyData.records && typeof verifyData.records === 'object')
+            ? verifyData.records : {};
+
+        if (!Object.prototype.hasOwnProperty.call(verifyRecords, docId)) {
+            throw new Error(`Firestore write completed, but server verification could not find record "${docId}". This usually means another browser/tab overwrote the parent document or the deployed page is not the same version.`);
         }
 
         await refreshSavedRecordsList(docId);
-        alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\nStaff record is now available in the Saved Staff Records list.\n(Saved as record: "${docId}")`);
+        alert(`Successfully saved to Database.\n\nStaff: ${val('staffName') || '(no name)'}\nSchool: ${val('schoolName') || '(no school)'}\nRecord ID: ${docId}\n\nThe staff record is now in Saved Staff Records.`);
     } catch (err) {
         console.error('Firestore save failed:', err);
         const code = err && err.code ? `\nFirebase code: ${err.code}` : '';
-        alert(`Error saving to Database:\n${err.message}${code}\n\nRecord id attempted: "${docId}"\n\nIf Firebase code is "permission-denied", publish the Firestore Rules shown in the instructions supplied with this updated file. If the code is "auth/operation-not-allowed", enable Anonymous sign-in in Firebase Authentication.`);
+        let advice = '';
+        if (err && err.code === 'permission-denied') {
+            advice = '\n\nFirestore Rules must allow request.auth != null for /tfhs/arrearOdDaSystem.';
+        } else if (err && (err.code === 'auth/operation-not-allowed' || err.code === 'auth/failed-precondition')) {
+            advice = '\n\nEnable Anonymous sign-in in Firebase Authentication, or sign in with a Firebase-supported account before using Save.';
+        } else if (err && err.code === 'auth/invalid-api-key') {
+            advice = '\n\nThe Firebase Web API key/project configuration is invalid or restricted.';
+        }
+        alert(`Error saving to Database:\n${err.message || err}${code}${advice}\n\nRecord id attempted: "${docId}"`);
     }
 }
 
@@ -4624,7 +4654,7 @@ async function loadFullArrearDataFromDB(explicitDocId) {
     const docId = explicitDocId || getRecordDocId();
     try {
         await ensureFirebaseAuth();
-        const snap = await ARREAR_DOC_REF.get();
+        const snap = await ARREAR_DOC_REF.get({ source: 'server' });
         const allRecords = (snap.exists && snap.data().records) ? snap.data().records : {};
         const record = allRecords[docId];
         if (!record) {
@@ -4682,7 +4712,7 @@ async function refreshSavedRecordsList(selectDocId = '') {
 
     try {
         await ensureFirebaseAuth();
-        const snap = await ARREAR_DOC_REF.get();
+        const snap = await ARREAR_DOC_REF.get({ source: 'server' });
 
         if (!snap.exists) {
             dropdown.innerHTML = '<option value="">-- No saved staff records found --</option>';
