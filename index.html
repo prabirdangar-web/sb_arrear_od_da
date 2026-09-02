@@ -1210,18 +1210,9 @@ let firebaseAuthReady = new Promise((resolve, reject) => {
 });
 
 async function ensureFirebaseAuth() {
-    try {
-        const user = await firebaseAuthReady;
-        if (!user || !auth.currentUser) {
-            throw new Error('Firebase Authentication did not create a signed-in user.');
-        }
-        return user;
-    } catch (err) {
-        const code = err && err.code ? `\nFirebase code: ${err.code}` : '';
-        throw new Error((err && err.message ? err.message : String(err)) + code +
-            '\n\nCheck Firebase Console -> Authentication -> Sign-in method -> Anonymous = Enabled,\n' +
-            'and Authentication -> Settings -> Authorized domains contains prabirdangar-web.github.io.');
-    }
+    // This arrear tool can operate without Firebase Authentication.
+    // The Firestore rule for this document does not require request.auth.
+    return auth.currentUser || null;
 }
 
 // This tool stores ALL staff records inside ONE document, matching the same
@@ -4599,7 +4590,7 @@ async function saveFullArrearDataToDB() {
         const payload = {};
         payload[`records.${docId}`] = record;
         payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-        payload.lastSavedByUid = user.uid;
+        if (user && user.uid) payload.lastSavedByUid = user.uid;
 
         await ARREAR_DOC_REF.set(payload, { merge: true });
         alert(`Full Arrear Record and Month-wise Logs successfully saved to Database!\n(Saved as record: "${docId}")`);
