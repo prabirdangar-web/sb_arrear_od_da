@@ -523,6 +523,7 @@
                 <option value="Housewife / Homemaker">Housewife / Homemaker</option>
                 <option value="Not Employed">Not Employed</option>
                 <option value="Retired">Retired</option>
+                <option value="Deceased">Deceased</option>
                 <option value="Other">Other</option>
                 <option value="Not Applicable">Not Applicable</option>
             </select>
@@ -1608,17 +1609,33 @@ function updateSpouseFieldState() {
     const spouse = document.getElementById('spouseName');
     const status = document.getElementById('spouseStatus');
     if (!marital || !spouse || !status) return;
-    const single = ['Unmarried','Divorced','Widowed','Separated'].includes(marital.value);
+    const single = ['Unmarried','Divorced','Separated'].includes(marital.value);
+    const widowed = marital.value === 'Widowed';
     spouse.disabled = single;
     status.disabled = single;
     if (single) {
-        spouse.value = '';
-        status.value = 'Not Applicable';
+        spouse.value = 'N.A.';
+        status.value = 'N.A.';
+        ['spouseDesignation','spouseOffice','spouseDepartment','spouseServiceSince'].forEach(id => {
+            const el=document.getElementById(id);
+            if (el) { el.value='N.A.'; el.disabled=true; }
+        });
+    } else if (widowed) {
+        spouse.disabled = false;
+        status.disabled = false;
+        if (!spouse.value || spouse.value === 'N.A.') spouse.value = '';
+        if (!status.value || status.value === 'N.A.' || status.value === 'Not Applicable') status.value = 'Deceased';
     }
-    const employed = !single && !['Housewife / Homemaker','Not Employed','Retired','Not Applicable',''].includes(status.value);
+    const employed = !single && !widowed && !['Housewife / Homemaker','Not Employed','Retired','Deceased','N.A.','Not Applicable',''].includes(status.value);
     document.querySelectorAll('.spouse-service-field').forEach(el => {
         el.style.display = employed ? '' : 'none';
     });
+    if (widowed) {
+        ['spouseDesignation','spouseOffice','spouseDepartment','spouseServiceSince'].forEach(id => {
+            const el=document.getElementById(id);
+            if (el) { el.value='N.A.'; el.disabled=true; }
+        });
+    }
     ['spouseDesignation','spouseOffice','spouseDepartment','spouseServiceSince'].forEach(id => {
         const el=document.getElementById(id);
         if (el) el.disabled = !employed;
@@ -1643,13 +1660,13 @@ function getSpouseWords() {
 function spouseRelationLabel() {
     const s=getSpouseWords();
     if (!s.spouseName) return '';
-    return s.female ? `w/o ${excelProperCase(s.spouseName)}` : `w/o ${excelProperCase(s.spouseName)}`;
+    return s.female ? `w/o ${excelProperCase(s.spouseName)}` : `h/o ${excelProperCase(s.spouseName)}`;
 }
 
 function spouseEmploymentSentence() {
     const s = getSpouseWords();
     if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
-        return 'The spouse declaration is not applicable.';
+        return 'Joint HRA drawn: N.A.';
     }
     const relation = s.female ? 'Her husband' : 'His wife';
     if (s.spouseStatus === 'Housewife / Homemaker' || s.spouseStatus === 'Not Employed' || !s.spouseStatus) {
@@ -4615,10 +4632,13 @@ function docSpouseCert() {
     const dor = dorObj ? formatDate(dorObj) : '';
     const relation = s.spouseName ? `<strong>${p.female ? 'Smt.' : 'Sri'} ${name} ${p.female ? 'w/o' : 'w/o'} ${excelProperCase(s.spouseName)}</strong>` : `<strong>${p.female ? 'Smt.' : 'Sri'} ${name}</strong>`;
     let spouseLine = '';
-    if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
-        spouseLine = '';
+    const spouseNotApplicable = ['Unmarried','Divorced','Separated'].includes(s.marital) || ['N.A.','Not Applicable'].includes(s.spouseStatus);
+    if (spouseNotApplicable) {
+        spouseLine = 'Joint HRA drawn: N.A.';
     } else if (['Housewife / Homemaker','Not Employed',''].includes(s.spouseStatus)) {
         spouseLine = `${p.female ? 'Her husband' : 'His wife'} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.`;
+    } else if (s.spouseStatus === 'Deceased') {
+        spouseLine = `${p.female ? 'Her husband' : 'His wife'}${s.spouseName ? `, <strong>${excelProperCase(s.spouseName)}</strong>,` : ''} is deceased. Joint HRA drawn: N.A.`;
     } else if (s.spouseStatus === 'Retired') {
         spouseLine = `${p.female ? 'Her husband' : 'His wife'} ${s.spouseName ? `<strong>${excelProperCase(s.spouseName)}</strong> ` : ''}is/was retired from service.`;
     } else {
@@ -4630,9 +4650,9 @@ function docSpouseCert() {
         if(s.spouseServiceSince) bits.push(`since ${fmtDMY(s.spouseServiceSince)}`);
         spouseLine = `${rel}${s.spouseName ? ` <strong>${excelProperCase(s.spouseName)}</strong>` : ''} ${bits.join(' ')}${bits.length ? '.' : `is/was in ${s.spouseStatus}.`}`;
     }
-    const bothHra = s.spouseName && !['Unmarried','Divorced','Widowed','Separated','Not Applicable'].includes(s.marital)
-        ? 'House Rent drawn by both of them is as per GA rules and within the prescribed limit throughout their service.'
-        : `House Rent Allowance drawn by ${p.himHer} is as per GA rules and within the prescribed limit throughout ${p.hisHer} service.`;
+    const bothHra = spouseNotApplicable
+        ? 'Joint HRA drawn: N.A.'
+        : 'House Rent drawn by both of them is as per GA rules and within the prescribed limit throughout their service.';
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.98rem; line-height:1.65; padding:18px 24px;">
         <div style="font-weight:bold; margin-bottom:18px;">Certified that</div>
@@ -4648,11 +4668,13 @@ function docDecl() {
     const titleName = `${p.title} ${excelProperCase(val('staffName'))}`;
     const relation = p.female ? 'husband' : 'wife';
     let spouseDeclaration;
-    if (['Unmarried','Divorced','Widowed','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable') {
+    if (['Unmarried','Divorced','Separated'].includes(s.marital) || s.spouseStatus === 'Not Applicable' || s.spouseStatus === 'N.A.') {
         const maritalText = s.marital || 'Not Specified';
-        spouseDeclaration = `That my marital status is <strong>${excelProperCase(maritalText)}</strong>. Accordingly, spouse details are not applicable: <strong>Spouse Name: Not Applicable; Spouse Status: Not Applicable; Spouse Designation: Not Applicable; Spouse Office / Institution: Not Applicable; Spouse Department: Not Applicable; Spouse Service Since: Not Applicable.</strong>`;
+        spouseDeclaration = `That my marital status is <strong>${excelProperCase(maritalText)}</strong>. Spouse details: <strong>N.A.</strong>`;
     } else if (['Housewife / Homemaker','Not Employed',''].includes(s.spouseStatus)) {
         spouseDeclaration = `That my ${relation} is/was not engaged in any service under the Government of India, any State Government, Undertaking, Statutory or Local Body, or any Educational Institution at any place or at any time.`;
+    } else if (s.spouseStatus === 'Deceased') {
+        spouseDeclaration = `That my ${relation}${s.spouseName ? `, ${excelProperCase(s.spouseName)},` : ''} is deceased. Joint HRA drawn: N.A.`;
     } else if (s.spouseStatus === 'Retired') {
         spouseDeclaration = `That my ${relation}${s.spouseName ? `, ${excelProperCase(s.spouseName)},` : ''} is/was retired from service.`;
     } else {
@@ -4670,7 +4692,7 @@ function docDecl() {
         <p>1. I have been serving as ${excelProperCase(val('designation'))} in this school continuously w.e.f. ${fmtDMY(val('dojSchool'))}.</p>
         <p>2. That I have completed ${val('yearsCompleted')} years of continuous service in this institution as on ${fmtDMY(val('benefitDate'))} and am eligible for the Career Advancement Benefit under ROPA-2019.</p>
         <p>3. ${spouseDeclaration}</p>
-        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules. ${s.spouseName && !['Unmarried','Divorced','Widowed','Separated','Not Applicable'].includes(s.marital) ? 'House Rent drawn by both of us is as per GA rules and within the prescribed limit throughout our service.' : ''}</p>
+        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules. ${spouseNotApplicable ? '<strong>Joint HRA drawn: N.A.</strong>' : 'House Rent drawn by both of us is as per GA rules and within the prescribed limit throughout our service.'}</p>
         <p>5. That all the information provided above is true and correct to the best of my knowledge and belief, and I undertake that in case of any discrepancy, I shall be responsible for the consequences.</p>
         <div style="margin-top:22px;">Date: ___________<br>Place: ___________</div>
         <div style="margin-top:22px;">Signature of Employee: ____________________<br><br>Name: ${val('staffName').toUpperCase()}<br>Designation: ${val('designation')}</div>
