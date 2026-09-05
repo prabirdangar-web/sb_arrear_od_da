@@ -456,6 +456,16 @@
         <button class="btn-sync" type="button" onclick="loadFullArrearDataFromDB()">2b. Load Saved Data (this Staff)</button>
         <button class="btn-excel" type="button" onclick="exportFullWorkbookExcel()">3. Export Full 12-Sheet Excel Workbook</button>
     </div>
+    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        <label style="min-width:0; margin:0; font-weight:700; color:#1e293b;">JSON Import / Export:</label>
+        <span style="font-size:0.78rem; color:#64748b; min-width:0;">Single = this staff only &nbsp;|&nbsp; Bulk = every saved staff record</span>
+        <button type="button" class="btn-doc" onclick="exportSingleRecordJSON()">Export Single (JSON)</button>
+        <button type="button" class="btn-sync" onclick="triggerImportSingle()">Import Single (JSON)</button>
+        <input type="file" id="importSingleFileInput" accept="application/json,.json" style="display:none" onchange="handleImportSingleFile(event)">
+        <button type="button" class="btn-challan" onclick="exportBulkRecordsJSON()">Export Bulk / All (JSON)</button>
+        <button type="button" class="btn-challan" onclick="triggerImportBulk()">Import Bulk / All (JSON)</button>
+        <input type="file" id="importBulkFileInput" accept="application/json,.json" style="display:none" onchange="handleImportBulkFile(event)">
+    </div>
     <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:0;">
         <label style="min-width:0; margin:0;">Saved Staff Records (Database):</label>
         <select id="savedRecordsDropdown" style="min-width:280px; flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px;">
@@ -5296,6 +5306,147 @@ async function exportOverdrawnExcel() {
     link.href = URL.createObjectURL(blob);
     link.download = `OVER_DRAWN_REFUND_${(val('odEmpName')||'STAFF').replace(/\s+/g,'_')}.xlsx`;
     link.click();
+}
+
+// ===================== JSON IMPORT / EXPORT (SINGLE STAFF + BULK/ALL) =====================
+// "Single" works entirely on the record currently shown on screen (no DB read
+// needed to export; loads straight into the form on import).
+// "Bulk" reads/writes the WHOLE `records` map inside the single Firestore
+// document (tfhs/arrearOdDaSystem), so it covers every saved staff at once.
+
+function downloadJSONFile(obj, filename) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+}
+
+// ---- SINGLE EXPORT: current on-screen staff -> one .json file ----
+function exportSingleRecordJSON() {
+    const docId = getRecordDocId();
+    const record = buildFullRecord();
+    const payload = {
+        type: 'ARREAR_SINGLE_RECORD',
+        exportedAt: new Date().toISOString(),
+        docId: docId,
+        record: record
+    };
+    const staffTag = (val('staffName') || 'staff').trim().replace(/\s+/g, '_') || 'staff';
+    downloadJSONFile(payload, `ARREAR_SINGLE_${staffTag}_${docId}.json`);
+}
+
+// ---- SINGLE IMPORT: one .json file -> loaded straight into the form ----
+function triggerImportSingle() {
+    const el = document.getElementById('importSingleFileInput');
+    if (el) el.click();
+}
+
+function handleImportSingleFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            let docId, record;
+            if (parsed && parsed.type === 'ARREAR_SINGLE_RECORD' && parsed.record) {
+                docId = parsed.docId || 'imported_record';
+                record = parsed.record;
+            } else if (parsed && parsed.fields) {
+                // Also accept a raw record object (e.g. one entry copied out of a bulk file)
+                docId = 'imported_record';
+                record = parsed;
+            } else {
+                throw new Error('This does not look like a single-staff Arrear JSON export.');
+            }
+            applyLoadedRecord(docId, record);
+        } catch (err) {
+            console.error('Single import failed:', err);
+            alert(`Could not import file:\n${err.message}`);
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
+// ---- BULK EXPORT: every saved staff record in the Database -> one .json file ----
+async function exportBulkRecordsJSON() {
+    try {
+        await ensureFirebaseAuth();
+        const snap = await ARREAR_DOC_REF.get({ source: 'server' });
+        const allRecords = (snap.exists && snap.data().records) ? snap.data().records : {};
+        const ids = Object.keys(allRecords);
+        if (ids.length === 0) {
+            alert('No saved staff records found in the Database to export.');
+            return;
+        }
+        const payload = {
+            type: 'ARREAR_BULK_RECORDS',
+            exportedAt: new Date().toISOString(),
+            count: ids.length,
+            records: allRecords
+        };
+        downloadJSONFile(payload, `ARREAR_BULK_ALL_STAFF_${ids.length}_${new Date().toISOString().slice(0, 10)}.json`);
+    } catch (err) {
+        console.error('Bulk export failed:', err);
+        alert(`Could not export all staff records:\n${err.message}`);
+    }
+}
+
+// ---- BULK IMPORT: a .json file with many records -> merged into the Database ----
+function triggerImportBulk() {
+    const el = document.getElementById('importBulkFileInput');
+    if (el) el.click();
+}
+
+function handleImportBulkFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+        try {
+            const parsed = JSON.parse(e.target.result);
+            let incoming;
+            if (parsed && parsed.type === 'ARREAR_BULK_RECORDS' && parsed.records && typeof parsed.records === 'object') {
+                incoming = parsed.records;
+            } else if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && !parsed.fields) {
+                // Also accept a bare { docId: record, ... } map with no wrapper
+                incoming = parsed;
+            } else {
+                throw new Error('This does not look like a bulk/all-staff Arrear JSON export.');
+            }
+            const ids = Object.keys(incoming);
+            if (ids.length === 0) throw new Error('No staff records found inside this file.');
+
+            const proceed = confirm(
+                `This file contains ${ids.length} staff record(s).\n\n` +
+                `Importing will ADD these to the shared Database. Any existing record ` +
+                `with the same Staff+School ID will be OVERWRITTEN; every other existing ` +
+                `record is left untouched.\n\nContinue?`
+            );
+            if (!proceed) return;
+
+            await ensureFirebaseAuth();
+            const snap = await ARREAR_DOC_REF.get({ source: 'server' });
+            const existing = (snap.exists && snap.data().records) ? snap.data().records : {};
+            const merged = Object.assign({}, existing, incoming);
+
+            await ARREAR_DOC_REF.set({ records: merged }, { merge: true });
+            await refreshSavedRecordsList();
+            alert(`Successfully imported ${ids.length} staff record(s) into the Database.`);
+        } catch (err) {
+            console.error('Bulk import failed:', err);
+            alert(`Could not import file:\n${err.message}`);
+        } finally {
+            event.target.value = '';
+        }
+    };
+    reader.readAsText(file);
 }
 
 window.addEventListener('DOMContentLoaded', function () {
