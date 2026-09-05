@@ -3139,14 +3139,18 @@ function defaultMaForMonth(y, m) {
 // H.R.A. calculation rule.
 // Up to 31-03-2009 (ROPA-98 period, as generated in the Pay Table): flat 15% of
 // Basic Pay by rule, regardless of the field below.
-// 01-04-2009 to 31-12-2019 (ROPA-2009 era, "pre-ROPA-2019"): HRA = round(Basic Pay
-// * the user-entered "H.R.A. Rate (%) – pre-ROPA-2019" field, e.g. 15% / 12% / 6%
+// 01-04-2009 to 31-12-2009 (ROPA-2009 era, immediately after the pay revision):
+// flat 15% of the (new) ROPA-2009 Basic Pay by rule -- the ROPA-2019 12%/manual-field
+// rule below does NOT apply to this window.
+// 01-01-2010 to 31-12-2019 ("pre-ROPA-2019"): HRA = round(Basic Pay * the
+// user-entered "H.R.A. Rate (%) – pre-ROPA-2019" field, e.g. 15% / 12% / 6%
 // depending on the school's town/municipality classification).
 // ROPA-2019 onward (from 01-01-2020): flat 12% by rule, regardless of the field above.
 // Manual Fixed HRA bypasses all of the above and uses the amount entered.
 function defaultHraRateForMonth(y, m, fallbackPct) {
     const d = new Date(y, m - 1, 1);
     if (d <= new Date(2009, 2, 1)) return 15;
+    if (d <= new Date(2009, 11, 1)) return 15;
     if (d >= new Date(2020, 0, 1)) return 12;
     const pct = Number(fallbackPct);
     return Number.isFinite(pct) ? pct : 12;
