@@ -466,6 +466,11 @@
         <button type="button" class="btn-challan" onclick="triggerImportBulk()">Import Bulk / All (JSON)</button>
         <input type="file" id="importBulkFileInput" accept="application/json,.json" style="display:none" onchange="handleImportBulkFile(event)">
     </div>
+    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        <label style="min-width:0; margin:0; font-weight:700; color:#1e293b;">Import from Pay Fixation / Service Book Tool:</label>
+        <span style="font-size:0.78rem; color:#64748b; min-width:0;">Pulls Staff Name, School, Designation, DOB, DOJ, Promotion &amp; ROPA-98/09/19 fixation fields for every staff saved in that tool. Other data (Leave, Arrear, Over Drawn, DA rows) is left untouched.</span>
+        <button type="button" class="btn-sync" onclick="importAllStaffFromRopaFixation()">Import All Staff (Matching Fields)</button>
+    </div>
     <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:0;">
         <label style="min-width:0; margin:0;">Saved Staff Records (Database):</label>
         <select id="savedRecordsDropdown" style="min-width:280px; flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px;">
@@ -5372,6 +5377,124 @@ function handleImportSingleFile(event) {
         }
     };
     reader.readAsText(file);
+}
+
+// ---- IMPORT ALL STAFF FROM THE PAY FIXATION / SERVICE BOOK TOOL (cross-tool, live Firestore) ----
+// The Pay Fixation tool ('sb.html') stores every teacher's data in one document:
+//   tfhs/ropaPayFixation  ->  { records: { "TEACHER NAME": { fields: {...}, ... }, ... } }
+// Only the field ids that genuinely exist as inputs in BOTH tools are pulled across, so
+// nothing specific to the fixation timeline (periods/ML entries/transfers) or specific to
+// this Arrear tool (Leave, Arrear, Over Drawn, DA rows) is touched.
+const ROPA_FIXATION_DOC_REF = db.collection('tfhs').doc('ropaPayFixation');
+const ROPA_IMPORT_MATCH_FIELDS = [
+    'staffName', 'schoolName', 'designation', 'dob', 'doj',
+    'enablePromotion', 'promotionType', 'promotionDate', 'promotionTargetGp',
+    'enableRopa98', 'ropa98Scale', 'ropa98BasicPay', 'ropa98OptionDate',
+    'enableRopa09', 'ropa09GradePay', 'ropa09BandPay', 'ropa09OptionDate',
+    'ropa19GradePayManual', 'ropa19BasicPayManual', 'ropa19OptionDate'
+];
+
+async function importAllStaffFromRopaFixation() {
+    try {
+        await ensureFirebaseAuth();
+        const ropaSnap = await ROPA_FIXATION_DOC_REF.get({ source: 'server' });
+        const ropaRecords = (ropaSnap.exists && ropaSnap.data().records && typeof ropaSnap.data().records === 'object')
+            ? ropaSnap.data().records : {};
+        const ropaKeys = Object.keys(ropaRecords);
+
+        if (ropaKeys.length === 0) {
+            alert('No staff records were found in the Pay Fixation / Service Book tool\'s database (tfhs/ropaPayFixation).');
+            return;
+        }
+
+        // Build the list of { docId, staffName, schoolName, matchedFields } to import,
+        // skipping any teacher record with no usable Staff Name.
+        const fallbackSchool = val('schoolName') || '';
+        const toImport = [];
+        ropaKeys.forEach(key => {
+            const src = ropaRecords[key] || {};
+            const srcFields = src.fields || {};
+            const staffName = (srcFields.staffName || src.staffName || key || '').trim();
+            if (!staffName) return;
+            const schoolName = (srcFields.schoolName || fallbackSchool || '').trim();
+
+            const matched = {};
+            ROPA_IMPORT_MATCH_FIELDS.forEach(id => {
+                if (Object.prototype.hasOwnProperty.call(srcFields, id)) matched[id] = srcFields[id];
+            });
+            // Make sure the two identity fields are always present so the record can be
+            // found again under "Saved Staff Records" even if they were somehow blank.
+            matched.staffName = staffName;
+            matched.schoolName = schoolName;
+
+            const docId = `${schoolName}__${staffName}`.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
+            toImport.push({ docId, staffName, schoolName, matched });
+        });
+
+        if (toImport.length === 0) {
+            alert('No staff with a usable name were found to import.');
+            return;
+        }
+
+        const proceed = confirm(
+            `Found ${toImport.length} staff record(s) in the Pay Fixation / Service Book tool.\n\n` +
+            `For each one, only these matching fields will be copied in:\n` +
+            `Staff Name, School, Designation, DOB, DOJ, Promotion details, and ROPA-98/09/19 fixation fields.\n\n` +
+            `- If a staff+school record already exists here, only those fields are updated; ` +
+            `Leave, Arrear, Over Drawn and DA data already saved for them is left untouched.\n` +
+            `- If no record exists yet, a new (otherwise blank) staff record is created.\n\n` +
+            `Continue?`
+        );
+        if (!proceed) return;
+
+        const existingSnap = await ARREAR_DOC_REF.get({ source: 'server' });
+        const existingRecords = (existingSnap.exists && existingSnap.data().records && typeof existingSnap.data().records === 'object')
+            ? existingSnap.data().records : {};
+        const merged = Object.assign({}, existingRecords);
+
+        let createdCount = 0, updatedCount = 0;
+        toImport.forEach(({ docId, matched }) => {
+            if (merged[docId] && typeof merged[docId] === 'object') {
+                merged[docId] = Object.assign({}, merged[docId]);
+                merged[docId].fields = Object.assign({}, merged[docId].fields || {}, matched);
+                merged[docId].savedAt = new Date().toISOString();
+                updatedCount++;
+            } else {
+                merged[docId] = {
+                    fields: matched,
+                    lwpRows: [],
+                    arrearRows: [],
+                    odRows: [],
+                    daBasicRows: [],
+                    daCaseRowData: {},
+                    savedAt: new Date().toISOString()
+                };
+                createdCount++;
+            }
+        });
+
+        await ARREAR_DOC_REF.set({
+            records: merged,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        await refreshSavedRecordsList();
+        alert(
+            `Import complete.\n\n` +
+            `${toImport.length} staff processed from the Pay Fixation tool.\n` +
+            `New records created: ${createdCount}\n` +
+            `Existing records updated (matching fields only): ${updatedCount}\n\n` +
+            `Use "Saved Staff Records" below, or Load, to open any of them.`
+        );
+    } catch (err) {
+        console.error('Import from Pay Fixation tool failed:', err);
+        const code = err && err.code ? `\nFirebase code: ${err.code}` : '';
+        let advice = '';
+        if (err && err.code === 'permission-denied') {
+            advice = '\n\nFirestore Rules must allow request.auth != null for both /tfhs/ropaPayFixation and /tfhs/arrearOdDaSystem.';
+        }
+        alert(`Could not import staff from the Pay Fixation tool:\n${err.message || err}${code}${advice}`);
+    }
 }
 
 // ---- BULK EXPORT: every saved staff record in the Database -> one .json file ----
