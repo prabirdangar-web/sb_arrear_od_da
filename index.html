@@ -3791,14 +3791,23 @@ function getDaCaseBasicForMonth(mStr) {
     return { value: fullBasic, prorated: false };
 }
 
-// DA-Case-only snapshot lookup. For DA Case purposes, the WHOLE ROPA-2009 D.A. regime
-// (Apr-2008 to Dec-2019) is priced strictly off the ROPA-2009 Pay Timeline -- NEVER off
-// ROPA-1998 -- because ROPA-09 revised Basic Pay is notionally effective from 01-01-2006
-// and D.A. arrear is measured on that revised Basic Pay throughout Apr-2008 to Dec-2019,
-// irrespective of the actual ROPA-98/ROPA-09 option/changeover date used elsewhere (Tab 1's
-// own Admissible column, which correctly keeps ROPA-98 pay up to 31.03.2009 for fixation
-// purposes). From Jan-2020 onward the DA Case switches to the ROPA-2019 Pay Timeline.
+// Admissible Basic Pay snapshot lookup for the DA Case tab, mirroring the SAME
+// 3-era logic as Tab-1's own getAdmissibleSnapshotForDate (ROPA-98 up to
+// 31.03.2009, ROPA-09 01.04.2009 to 31.12.2019, ROPA-19 from 01.01.2020) --
+// previously this only ever checked pfTimeline09/19 and skipped pfTimeline98
+// entirely, so every month from 01.04.2008 to 31.03.2009 wrongly picked up the
+// FIRST ROPA-2009 timeline entry (from April-2009) instead of the correct
+// ROPA-98 Basic Pay as generated in the Pay Table.
 function getAdmissibleSnapshotForDaCase(d) {
+    if (d <= new Date(2009, 2, 31)) {
+        if (!window.pfTimeline98 || window.pfTimeline98.length === 0) return null;
+        let applicable = window.pfTimeline98[0];
+        for (let r of window.pfTimeline98) {
+            if (new Date(r.date) <= d) applicable = r; else break;
+        }
+        const bVal = parseInt(String(applicable.basicDisplay || applicable.snapBasicPay || 0).replace(/,/g,''), 10) || 0;
+        return { revBasic: bVal };
+    }
     if (d <= new Date(2019, 11, 31)) {
         if (!window.pfTimeline09 || window.pfTimeline09.length === 0) return null;
         let applicable = window.pfTimeline09[0];
