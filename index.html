@@ -3137,12 +3137,16 @@ function defaultMaForMonth(y, m) {
 }
 
 // H.R.A. calculation rule.
-// Automatic HRA is calculated strictly as: HRA = round(Basic Pay * 12%, 0).
-// HRA is based on the actual monthly Basic Pay for that row/month, NOT on D.A.
-// Manual Fixed HRA bypasses the automatic formula and uses the amount entered.
-// The same rule is used for ROPA-2019 and the other generated arrear/OD/DA rows.
+// Pre-ROPA-2019 (before 01-01-2020): HRA = round(Basic Pay * the user-entered
+// "H.R.A. Rate (%) – pre-ROPA-2019" field, e.g. 15% / 12% / 6% depending on the
+// school's town/municipality classification).
+// ROPA-2019 onward (from 01-01-2020): flat 12% by rule, regardless of the field above.
+// Manual Fixed HRA bypasses both and uses the amount entered.
 function defaultHraRateForMonth(y, m, fallbackPct) {
-    return 12;
+    const d = new Date(y, m - 1, 1);
+    if (d >= new Date(2020, 0, 1)) return 12;
+    const pct = Number(fallbackPct);
+    return Number.isFinite(pct) ? pct : 12;
 }
 
 function calculateHraAmount(basicAmount, y, m, ratePct, mode, fixedAmount) {
@@ -3150,7 +3154,9 @@ function calculateHraAmount(basicAmount, y, m, ratePct, mode, fixedAmount) {
         return Math.max(0, Math.round(Number(fixedAmount) || 0));
     }
     const basic = Number(basicAmount) || 0;
-    return Math.max(0, Math.round(basic * 0.12));
+    const rate = Number(ratePct);
+    const pct = Number.isFinite(rate) ? rate : 12;
+    return Math.max(0, Math.round(basic * (pct / 100)));
 }
 
 // I.R. (Interim Relief) default: 10% of Basic Pay as on 01-01-2016 (Grade Pay in full),
@@ -3177,13 +3183,13 @@ function computeRow(row) {
     const drOTH = row.drOTH || 0;
 
     const admDA = Math.round(row.admBasic * da);
-    const admHRA = (row.admHRAOverride !== undefined) ? row.admHRAOverride : calculateHraAmount(row.admBasic, row.y, row.m, hraRatePct, hraMode, hraFixed);
+    const admHRA = (row.admHRAOverride !== undefined) ? row.admHRAOverride : calculateHraAmount(row.admBasic, row.y, row.m, defaultHraRateForMonth(row.y, row.m, hraRatePct), hraMode, hraFixed);
     const admGross = row.admBasic + admDA + admHRA + admMA + admIR;
     const admPT = ptSlab(admGross, row.y, row.m);
     const admNet = admGross - row.admGPF - row.admIT - admOTH - admPT;
 
     const drDA = Math.round(row.drBasic * da);
-    const drHRA = (row.drHRAOverride !== undefined) ? row.drHRAOverride : calculateHraAmount(row.drBasic, row.y, row.m, hraRatePct, hraMode, hraFixed);
+    const drHRA = (row.drHRAOverride !== undefined) ? row.drHRAOverride : calculateHraAmount(row.drBasic, row.y, row.m, defaultHraRateForMonth(row.y, row.m, hraRatePct), hraMode, hraFixed);
     const drGross = row.drBasic + drDA + drHRA + drMA + drIR;
     const drPT = ptSlab(drGross, row.y, row.m);
     const drNet = drGross - row.drGPF - row.drIT - drOTH - drPT;
