@@ -1218,6 +1218,7 @@
             <tbody id="daCaseBody"></tbody>
             <tfoot><tr class="total-row" id="daCaseTotalRow"></tr></tfoot>
         </table>
+        <div style="font-size:0.78rem; color:#b45309; margin-top:4px;">* Basic Pay is date-wise prorated for the month of joining (based on Date of Joining (1st Service) in the Common Staff Panel). To manually adjust any month's Basic Pay, edit it directly in the Calculation Sheet (Section 5) below.</div>
     </div>
 
     <!-- 4b. DRAWN / DUE CALCULATION SHEET (ANNEX STYLE, LIVE) -->
@@ -3756,6 +3757,31 @@ function getBasicForMonth(monthStr) {
     return applicable;
 }
 
+// DA Case Basic Pay for a given month, honouring:
+//  1) a manual per-month override (edited directly in the calc sheet below), else
+//  2) automatic date-wise proration for the actual month of joining (from the
+//     Date of Joining (1st Service) field) -- if DOJ falls mid-month, only the
+//     days actually served that month are paid, instead of the full month's Basic.
+// Every other month (including the joining month when DOJ is the 1st) uses the
+// full Basic Pay as before.
+function getDaCaseBasicForMonth(mStr) {
+    const fullBasic = getBasicForMonth(mStr);
+    const ov = daCaseRowData[mStr];
+    if (ov && ov.basic !== undefined) return { value: ov.basic, prorated: false };
+
+    const dojStr = val('doj');
+    if (dojStr) {
+        const [dy, dm, dd] = dojStr.split('-').map(Number);
+        const dojMonthStr = dojStr.slice(0, 7);
+        if (dojMonthStr === mStr && dd > 1) {
+            const totalDays = daysInMonth(dy, dm);
+            const daysServed = totalDays - dd + 1;
+            return { value: Math.round(fullBasic * daysServed / totalDays), prorated: true };
+        }
+    }
+    return { value: fullBasic, prorated: false };
+}
+
 // DA-Case-only snapshot lookup. For DA Case purposes, the WHOLE ROPA-2009 D.A. regime
 // (Apr-2008 to Dec-2019) is priced strictly off the ROPA-2009 Pay Timeline -- NEVER off
 // ROPA-1998 -- because ROPA-09 revised Basic Pay is notionally effective from 01-01-2006
@@ -3903,7 +3929,8 @@ function generateDaCaseTable() {
 
     const months = monthRange(from, to);
     daCaseRows = months.map(mStr => {
-        const basic = getBasicForMonth(mStr);
+        const basicInfo = getDaCaseBasicForMonth(mStr);
+        const basic = basicInfo.value;
         const { drawn, due } = getDaRates(mStr);
         const drawnDA = Math.round(basic * drawn);
         const dueDA = Math.round(basic * due);
@@ -3931,7 +3958,7 @@ function generateDaCaseTable() {
         const drNet = drGross - gpf - itax - oth - drPT;
 
         return {
-            month: mStr, basic, drawnPct: drawn, drawnDA, duePct: due, dueDA, arrear: dueDA - drawnDA,
+            month: mStr, basic, basicProrated: basicInfo.prorated, drawnPct: drawn, drawnDA, duePct: due, dueDA, arrear: dueDA - drawnDA,
             hra, ma, ir, gpf, it: itax, oth,
             admGross, drGross, admPT, drPT, admNet, drNet,
             dueGross: admGross - drGross, duePT: admPT - drPT, dueNet: admNet - drNet
@@ -3944,8 +3971,11 @@ function generateDaCaseTable() {
         sums.hra += r.hra; sums.ma += r.ma; sums.ir += r.ir; sums.gpf += r.gpf; sums.it += r.it; sums.oth += r.oth;
         sums.admPT += r.admPT; sums.drPT += r.drPT; sums.duePT += r.duePT;
         sums.admNet += r.admNet; sums.drNet += r.drNet; sums.dueNet += r.dueNet;
+        const basicCell = r.basicProrated
+            ? `${r.basic.toLocaleString('en-IN')} <span title="Date-wise prorated for the month of joining (edit in the Calculation Sheet below to override)" style="color:#b45309;font-weight:700;">*</span>`
+            : `${r.basic.toLocaleString('en-IN')}`;
         return `<tr>
-            <td>${idx + 1}</td><td>${monthLabelShort(r.month)}</td><td>${r.basic.toLocaleString('en-IN')}</td>
+            <td>${idx + 1}</td><td>${monthLabelShort(r.month)}</td><td>${basicCell}</td>
             <td>${(r.drawnPct * 100).toFixed(0)}%</td><td>${r.drawnDA.toLocaleString('en-IN')}</td>
             <td>${(r.duePct * 100).toFixed(0)}%</td><td>${r.dueDA.toLocaleString('en-IN')}</td>
             <td class="over-cell">${r.arrear.toLocaleString('en-IN')}</td>
@@ -3972,7 +4002,7 @@ function generateDaCaseTable() {
             calcHtml += `
             <tr class="adm-row">
                 <td>Admissible</td><td>${mName}</td>
-                <td>${r.basic.toLocaleString('en-IN')}</td><td>${r.dueDA.toLocaleString('en-IN')}</td>
+                <td><input class="tbl-input" ${dif('basic', r.basic)} title="${r.basicProrated ? 'Auto date-wise prorated for joining month; edit to override' : 'Full month Basic Pay; edit to override'}"></td><td>${r.dueDA.toLocaleString('en-IN')}</td>
                 <td><input class="tbl-input" ${dif('hra', r.hra)}></td>
                 <td><input class="tbl-input" ${dif('ma', r.ma)}></td>
                 <td><input class="tbl-input" ${dif('ir', r.ir)}></td>
