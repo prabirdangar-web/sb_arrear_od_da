@@ -862,7 +862,7 @@
             <div class="fg"><label>Arrear Period To</label><input type="date" id="arrearTo" value="2025-10-31" onchange="generateArrearTable()"></div>
             <div class="fg"><label>DA Rate (%)</label><input type="number" id="daRate" value="18" step="0.5" onchange="generateArrearTable()"></div>
             <div class="fg"><label>HRA Mode</label><select id="hraMode" onchange="generateArrearTable()"><option value="auto" selected>Auto – ROPA-2019 Rule</option><option value="manual">Manual Fixed HRA</option></select></div>
-            <div class="fg"><label>HRA Rate (%) – pre-ROPA-2019</label><input type="number" id="hraRate" value="12" step="0.5" onchange="generateArrearTable()"></div>
+            <div class="fg"><label>HRA Rate (%) – pre-ROPA-2019</label><input type="number" id="hraRate" value="15" step="0.5" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Manual Fixed HRA (₹/month)</label><input type="number" id="hraFixed" value="0" min="0" step="1" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Default GPF / PF (₹/month)</label><input type="number" id="defaultGpf" value="0" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Default I.T. (₹/month)</label><input type="number" id="defaultIt" value="0" onchange="generateArrearTable()"></div>
@@ -1187,7 +1187,7 @@
             <div class="fg"><label>Installment-2 %</label><input type="number" id="daInst2Pct" value="50" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>Installment-2 Payable In</label><input id="daInst2Label" value="September, 2026" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>H.R.A. Mode</label><select id="daHraMode" onchange="generateDaCaseTable()"><option value="auto" selected>Auto – ROPA-2019 Rule</option><option value="manual">Manual Fixed HRA</option></select></div>
-            <div class="fg"><label>H.R.A. Rate (%) – pre-ROPA-2019</label><input type="number" id="daHraRate" value="12" step="0.5" onchange="generateDaCaseTable()"></div>
+            <div class="fg"><label>H.R.A. Rate (%) – pre-ROPA-2019</label><input type="number" id="daHraRate" value="15" step="0.5" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>Manual Fixed H.R.A. (₹/month)</label><input type="number" id="daHraFixed" value="0" min="0" step="1" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>M.A. (₹ / month) &mdash; Manual (default: 300 ROPA-09 / 500 ROPA-19)</label><input type="number" id="daMa" value="" placeholder="auto" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>I.R. (₹ / month) &mdash; Manual (default: 10% of Basic as on 1.1.2016, Jan16-Dec19)</label><input type="number" id="daIr" value="" placeholder="auto" onchange="generateDaCaseTable()"></div>
@@ -2101,6 +2101,24 @@ function toggleRopa09Section() {
 
 // FULL ROPA-1998 TIMELINE ENGINE
 const eligibleFor18YScaleChange98 = [1700, 2600, 3900, 4100];
+// Short "Fixation Mode" tag shown in the Remarks column of every Pay Table
+// (ROPA-98 / ROPA-09 / ROPA-19), in place of the detailed generation-doc slip
+// box, describing HOW that row's pay was fixed.
+function fixationModeLabel(ev, evType) {
+    if (ev.isInitial) return 'Initial Fixation';
+    if (ev.isPromotion) {
+        return evType === 'promo'
+            ? 'Promotion \u2013 Notional Increment + Grade Pay Change'
+            : 'Higher Scale / Upgradation \u2013 Direct Fitment (No Increment)';
+    }
+    if (ev.isAnnual) return ev.isLwpDeferred ? 'Annual Increment (LWP Deferred)' : 'Annual Increment';
+    if (ev.isMilestone) {
+        const base = `${ev.label} CAS \u2013 Additional Increment`;
+        return ev.isLwpDeferred ? `${base} (LWP Deferred)` : base;
+    }
+    return '';
+}
+
 function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDate, lwpEntries, promotionDate, promotionTargetGp, evType) {
     let ladder = matrixData98[scaleKey] || [];
     let currentScaleKey = scaleKey;
@@ -2284,6 +2302,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             gpDisplay: '',
             basicDisplay: runningBasicPay.toLocaleString('en-IN'),
             slipHTML: '',
+            fixationMode: fixationModeLabel(ev, evType),
             snapBasicPay: runningBasicPay,
             snapGp: currentScaleKey
         });
@@ -2508,6 +2527,7 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
             gpDisplay: runningGp.toLocaleString('en-IN'),
             basicDisplay: runningBasicPay.toLocaleString('en-IN'),
             slipHTML: slipBlockHTML,
+            fixationMode: fixationModeLabel(ev, evType),
             snapBandPay: runningBandPay,
             snapGp: runningGp
         });
@@ -2737,6 +2757,7 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
             gpDisplay: runningGp.toLocaleString('en-IN'),
             basicDisplay: runningBasicPay.toLocaleString('en-IN'),
             slipHTML: slipBlockHTML,
+            fixationMode: fixationModeLabel(ev, evType),
             snapBasicPay: runningBasicPay,
             snapGp: runningGp
         });
@@ -2760,7 +2781,7 @@ function renderRows98(tbodyId, sbTbodyId, rows) {
             <td><strong>${formatDate(row.dot)}</strong></td>
             <td style="font-size:0.8rem;">${row.scaleStr}</td>
             <td><strong>₹ ${row.basicDisplay}</strong></td>
-            <td><strong>${row.label}</strong>${row.slipHTML}</td>`;
+            <td><strong>${row.label}</strong><div style="font-size:0.78rem; color:#475569; margin-top:2px;">Fixation Mode: ${row.fixationMode || '-'}</div></td>`;
         let dRow = document.createElement('tr'); dRow.innerHTML = rowHTML; tbody.appendChild(dRow);
         let pRow = document.createElement('tr'); pRow.innerHTML = rowHTML; sbTbody.appendChild(pRow);
     });
@@ -2782,7 +2803,7 @@ function renderRows(tbodyId, sbTbodyId, rows) {
             <td style="text-align:center;">${row.trackCol}</td>
             <td style="text-align:center;">₹ ${row.gpDisplay}</td>
             <td><strong>₹ ${row.basicDisplay}</strong></td>
-            <td><strong>${row.label}</strong>${row.slipHTML}</td>`;
+            <td><strong>${row.label}</strong><div style="font-size:0.78rem; color:#475569; margin-top:2px;">Fixation Mode: ${row.fixationMode || '-'}</div></td>`;
         let dRow = document.createElement('tr'); dRow.innerHTML = rowHTML; tbody.appendChild(dRow);
         let pRow = document.createElement('tr'); pRow.innerHTML = rowHTML; sbTbody.appendChild(pRow);
     });
@@ -3136,24 +3157,27 @@ function defaultMaForMonth(y, m) {
     return (d < new Date(2020, 0, 1)) ? 300 : 500;
 }
 
-// H.R.A. calculation rule.
+// H.R.A. calculation rule (per the actual GO-based table: 15% throughout the
+// whole pre-ROPA-2019 span, computed off the era-appropriate Basic Pay --
+// ROPA-98 Basic up to 31-03-2009, then ROPA-2009 Basic from 01-04-2009 onward,
+// continuing unchanged right through 31-12-2019).
 // Up to 31-03-2009 (ROPA-98 period, as generated in the Pay Table): flat 15% of
-// Basic Pay by rule, regardless of the field below.
-// 01-04-2009 to 31-12-2009 (ROPA-2009 era, immediately after the pay revision):
-// flat 15% of the (new) ROPA-2009 Basic Pay by rule -- the ROPA-2019 12%/manual-field
-// rule below does NOT apply to this window.
-// 01-01-2010 to 31-12-2019 ("pre-ROPA-2019"): HRA = round(Basic Pay * the
-// user-entered "H.R.A. Rate (%) – pre-ROPA-2019" field, e.g. 15% / 12% / 6%
-// depending on the school's town/municipality classification).
-// ROPA-2019 onward (from 01-01-2020): flat 12% by rule, regardless of the field above.
+// ROPA-98 Basic Pay.
+// 01-04-2009 to 31-12-2019 (ROPA-2009 era): flat 15% of ROPA-2009 Basic Pay --
+// the "H.R.A. Rate (%) – pre-ROPA-2019" field drives this whole window (defaults
+// to 15% to match the GO table, but stays editable for a different town/
+// municipality classification if ever needed).
+// ROPA-2019 onward (from 01-01-2020): flat 12% by rule -- this window is NOT
+// affected by the field above.
 // Manual Fixed HRA bypasses all of the above and uses the amount entered.
 function defaultHraRateForMonth(y, m, fallbackPct) {
     const d = new Date(y, m - 1, 1);
     if (d <= new Date(2009, 2, 1)) return 15;
-    if (d <= new Date(2009, 11, 1)) return 15;
-    if (d >= new Date(2020, 0, 1)) return 12;
-    const pct = Number(fallbackPct);
-    return Number.isFinite(pct) ? pct : 12;
+    if (d <= new Date(2019, 11, 1)) {
+        const pct = Number(fallbackPct);
+        return Number.isFinite(pct) ? pct : 15;
+    }
+    return 12;
 }
 
 function calculateHraAmount(basicAmount, y, m, ratePct, mode, fixedAmount) {
