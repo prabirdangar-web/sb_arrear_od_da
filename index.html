@@ -630,6 +630,16 @@
             <div class="fg"><label>Years of Continuous Service Completed</label><input id="yearsCompleted" value="18" onchange="updateAll()"></div>
             <div class="fg"><label>Service Completion Date</label><input type="date" id="serviceCompletionDate" value="2025-10-03" onchange="updateAll()"></div>
             <div class="fg wide"><label>Benefit Description (Used in Subject Lines)</label><input id="benefitDesc" value="18 years' continuous service benefit under ROPA-2019" onchange="updateAll()"></div>
+            <div class="fg"><label>Reason for Arrear (Non-Drawal Cert. &amp; Declaration)</label>
+                <select id="arrearReasonType" onchange="updateAll()">
+                    <option value="cas" selected>Continuous Service Benefit (10/18/20 Yrs) under ROPA-2019</option>
+                    <option value="promotion">Promotion</option>
+                    <option value="payfix">Pay Fixation / Pay Revision</option>
+                    <option value="macp">MACP / Time Scale Benefit</option>
+                    <option value="other">Other (specify below)</option>
+                </select>
+            </div>
+            <div class="fg wide"><label>If "Other" &mdash; Specify Reason for Arrear</label><input id="arrearOtherReason" value="" placeholder="e.g. arrear on account of DA revision, increment sanction delay, etc." onchange="updateAll()"></div>
         </div>
 
         <!-- MULTI-ROW LWP ENTRIES PANEL -->
@@ -4697,14 +4707,46 @@ function docAdmn() {
     </div>`;
 }
 
+// ---- GENERAL ARREAR-REASON HELPER ----
+// The "Years of Continuous Service Completed" fact (10/18/20 Yrs, ROPA-2019) is a
+// service-record fact about the employee and is ALWAYS stated in the Non-Drawal
+// Certificate and Declaration, regardless of what actually caused the arrear this
+// time. The arrear itself, however, may be due to a different/additional reason
+// (promotion, pay fixation correction, MACP, DA revision, etc.) -- selected via
+// #arrearReasonType / #arrearOtherReason -- so that reason is kept separate and
+// plugged in wherever the certificate/declaration needs to state "on account of ...".
+function getArrearReasonPhrase() {
+    const type = val('arrearReasonType') || 'cas';
+    const years = val('yearsCompleted') || '18';
+    const benefit = fmtDMY(val('benefitDate'));
+    switch (type) {
+        case 'promotion':
+            return `grant of promotion to the post of ${val('designation')} w.e.f. ${benefit}`;
+        case 'payfix':
+            return `revision/correction of pay fixation w.e.f. ${benefit}`;
+        case 'macp':
+            return `grant of MACP / Time Scale benefit w.e.f. ${benefit}`;
+        case 'other':
+            return (val('arrearOtherReason') || 'the reason stated in the covering application').trim();
+        case 'cas':
+        default:
+            return `grant of Career Advancement Benefit for completion of ${years} years of continuous service under ROPA-2019`;
+    }
+}
+
 function docNonDrawal() {
+    const years = val('yearsCompleted') || '18';
+    const completion = val('serviceCompletionDate') ? fmtDMY(val('serviceCompletionDate')) : fmtDMY(val('benefitDate'));
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.5; padding:10px;">
         <div>To<br><strong>${val('diOffice')}</strong><br>${val('diAddress')}</div>
         <div style="margin-top:20px; font-weight:bold;"><u>Sub:- Non-drawal certificate of arrear salary bill for the period ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} in favour of ${excelProperCase(val('staffName'))}.</u></div>
         <div style="margin-top:20px; font-weight:bold;">Certified that</div>
         <p style="text-align:justify; text-indent:30px; margin:15px 0;">
-            The arrear bill amount being submitted for the period from ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} has not been claimed or drawn previously for payment in favour of ${excelProperCase(val('staffName'))}, ${val('designation')} of this school, on account of grant of Career Advancement Benefit for completion of ${val('yearsCompleted')} years of continuous service under ROPA-2019.
+            ${excelProperCase(val('staffName'))}, ${val('designation')} of this school, has completed ${years} years of continuous and satisfactory service as on ${completion}.
+        </p>
+        <p style="text-align:justify; text-indent:30px; margin:15px 0;">
+            The arrear bill amount being submitted for the period from ${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} has not been claimed or drawn previously for payment in favour of ${excelProperCase(val('staffName'))}, and is payable on account of ${getArrearReasonPhrase()}.
         </p>
         <div style="display:flex; justify-content:space-between; margin-top:25px; font-weight:bold;"><div>With thanks</div><div>Yours faithfully.</div></div>
     </div>`;
@@ -4792,10 +4834,11 @@ function docDecl() {
         <div style="text-align:center; font-weight:bold; font-size:1.1rem; text-decoration:underline; margin-bottom:18px;">DECLARATION REGARDING HRA &amp; NON EMPLOYMENT OF SPOUSE</div>
         <p>I, ${titleName}, ${excelProperCase(val('designation'))} of ${excelProperCase(val('schoolName'))}, do hereby solemnly declare as follows:</p>
         <p>1. I have been serving as ${excelProperCase(val('designation'))} in this school continuously w.e.f. ${fmtDMY(val('dojSchool'))}.</p>
-        <p>2. That I have completed ${val('yearsCompleted')} years of continuous service in this institution as on ${fmtDMY(val('benefitDate'))} and am eligible for the Career Advancement Benefit under ROPA-2019.</p>
-        <p>3. ${spouseDeclaration}</p>
-        <p>4. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules. ${((spouseNotApplicable || s.spouseStatus === 'Deceased')) ? '<strong>Joint HRA drawn: N.A.</strong>' : ((!['Housewife / Homemaker','Not Employed','Retired','Deceased',''].includes(s.spouseStatus)) ? 'House Rent drawn by both of us is as per GA rules and within the prescribed limit throughout our service.' : 'House Rent drawn by me is as per GA rules and within the prescribed limit throughout my service.')}</p>
-        <p>5. That all the information provided above is true and correct to the best of my knowledge and belief, and I undertake that in case of any discrepancy, I shall be responsible for the consequences.</p>
+        <p>2. That I have completed ${val('yearsCompleted')} years of continuous service in this institution as on ${fmtDMY(val('benefitDate'))}.</p>
+        <p>3. That the arrear salary now claimed by me is payable on account of ${getArrearReasonPhrase()}.</p>
+        <p>4. ${spouseDeclaration}</p>
+        <p>5. That the House Rent Allowance drawn by me, during the entire service period has been within the prescribed limit as per the prevailing rules. ${((spouseNotApplicable || s.spouseStatus === 'Deceased')) ? '<strong>Joint HRA drawn: N.A.</strong>' : ((!['Housewife / Homemaker','Not Employed','Retired','Deceased',''].includes(s.spouseStatus)) ? 'House Rent drawn by both of us is as per GA rules and within the prescribed limit throughout our service.' : 'House Rent drawn by me is as per GA rules and within the prescribed limit throughout my service.')}</p>
+        <p>6. That all the information provided above is true and correct to the best of my knowledge and belief, and I undertake that in case of any discrepancy, I shall be responsible for the consequences.</p>
         <div style="margin-top:22px;">Date: ___________<br>Place: ___________</div>
         <div style="margin-top:22px;">Signature of Employee: ____________________<br><br>Name: ${val('staffName').toUpperCase()}<br>Designation: ${val('designation')}</div>
     </div>`;
