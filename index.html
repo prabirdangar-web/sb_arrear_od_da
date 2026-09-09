@@ -1886,7 +1886,6 @@ function addLwpRow(prefill) {
     }, prefill || {});
     lwpRows.push(row);
     renderLwpTable();
-    autoFetchOverdrawnReason();
     updateAll();
 }
 
@@ -3374,59 +3373,20 @@ let odRows = [];
 let odSeq = 0;
 
 function seedDefaultOverdrawnRows() {
-    // Start empty: overdrawn rows must come from actual LWP/arrear data or manual entry.
-    odRows = [];
-}
-
-
-// ===== OVERDRAWN: EXACT GRADE-PAY + AUTO SUBJECT HELPERS =====
-function getOdGradePay(monthDate, snap) {
-    // Never assume GP=4100. Prefer the exact admissible snapshot GP; then timeline data.
-    let gp = snap && Number.isFinite(Number(snap.gradePay)) ? Number(snap.gradePay) : 0;
-    if (gp) return gp;
-    try {
-        const y = monthDate.getFullYear(), m = monthDate.getMonth()+1;
-        if (window.pfTimeline19 && window.pfTimeline19.length) {
-            const hit = window.pfTimeline19.find(x => {
-                const d = x.date ? new Date(x.date) : null;
-                return d && d.getFullYear() === y && (d.getMonth()+1) === m && Number(x.gradePay) > 0;
-            });
-            if (hit) return Number(hit.gradePay) || 0;
-        }
-    } catch(e) {}
-    return 0;
-}
-function splitOdBasic(totalBasic, gradePay) {
-    const total = Number(totalBasic)||0, gp = Number(gradePay)||0;
-    return { payBand: Math.max(0, total-gp), gradePay: gp };
-}
-function formatOdMonth(m) {
-    const d = new Date(m+'-01T00:00:00');
-    return isNaN(d) ? m : d.toLocaleString('en-IN',{month:'long',year:'numeric'});
-}
-function autoFetchOverdrawnReason() {
-    const el = document.getElementById('overdrawnReason');
-    if (!el) return;
-    const rows = Array.isArray(lwpRows) ? lwpRows.filter(r => r) : [];
-    const valid = rows.filter(r => {
-        const reason = String(r.reason||r.type||r.leaveType||'').toLowerCase();
-        return reason.includes('lwp') || reason.includes('without pay') || reason.includes('non-medical');
-    });
-    const use = valid.length ? valid : rows;
-    if (!use.length) return;
-    const dates = use.map(r => [r.from,r.to,r.startDate,r.endDate].find(Boolean)).filter(Boolean).sort();
-    const totalDays = use.reduce((a,r)=>a+(Number(r.days)||Number(r.totalDays)||0),0);
-    const periods = use.map(r => {
-        const a = r.from||r.startDate||r.date, b = r.to||r.endDate;
-        return a ? (b ? `${fmtDMY(a)} to ${fmtDMY(b)}` : fmtDMY(a)) : '';
-    }).filter(Boolean);
-    const months = [...new Set((odRows||[]).map(r=>r.month).filter(Boolean))].map(formatOdMonth);
-    let text = 'Over-drawal of salary due to Leave Without Pay (LWP)';
-    if (periods.length) text += ` for the period ${periods.join(', ')}`;
-    if (totalDays) text += ` (${totalDays} day${totalDays===1?'':'s'} of LWP)`;
-    if (months.length) text += `, affecting ${months.join(', ')}`;
-    text += '; full salary was drawn/credited although salary was admissible only for the corresponding period after adjustment of LWP.';
-    if (!el.value || el.dataset.autoReason === '1') { el.value=text; el.dataset.autoReason='1'; }
+    odRows = [
+        { id:++odSeq, month:'2010-11', band:'PB-4', scale:'9000-40500',
+          drPayBand:11640, drGradePay:4100, drDP:0, drDA:4250, drHRA:1889, drMA:300, drIR:0,
+          admPayBand:11252, admGradePay:4640, admDP:0, admDA:4291, admHRA:2384, admMA:290, admIR:0,
+          remarks:'Pay admissible for 29 days\nDue to 01 day LWP' },
+        { id:++odSeq, month:'2010-12', band:'PB-4', scale:'9000-40500',
+          drPayBand:11640, drGradePay:4100, drDP:0, drDA:4250, drHRA:1889, drMA:300, drIR:0,
+          admPayBand:9387, admGradePay:3871, admDP:0, admDA:3580, admHRA:1989, admMA:242, admIR:0,
+          remarks:'Pay admissible for 25 days\nDue to 06 Days LWP' },
+        { id:++odSeq, month:'2011-01', band:'PB-4', scale:'9000-40500',
+          drPayBand:11640, drGradePay:4100, drDP:0, drDA:5509, drHRA:1889, drMA:300, drIR:0,
+          admPayBand:11265, admGradePay:4645, admDP:0, admDA:5569, admHRA:2387, admMA:290, admIR:0,
+          remarks:'Pay admissible for 30 days\nDue to 01 day LWP' }
+    ];
 }
 
 // ERA-AWARE AUTO SYNC OVERDRAWN FROM GENERATED PAY TABLES ("REF ADDED")
@@ -3459,7 +3419,7 @@ function autoSyncOverdrawnFromTab1() {
             fetched.push({
                 id: ++odSeq, month: mStr, band: admBand, scale: admScale,
                 drPayBand: r.drBasic - 4100 > 0 ? r.drBasic - 4100 : r.drBasic,
-                drGradePay: getOdGradePay(monthDate, snap)
+                drGradePay: 4100, // DEFAULT DRAWN GRADE PAY = 4100
                 drDP: 0, drDA: c.drDA, drHRA: c.drHRA, drMA: defMA, drIR: defIR,
                 admPayBand: admPB, admGradePay: admGP, admDP: 0, admDA: c.admDA, admHRA: c.admHRA, admMA: defMA, admIR: defIR,
                 remarks: `Ref Generated Table [${snap ? snap.era : 'ROPA'}]: Overdrawn by Rs. ${(c.drGross - c.admGross).toLocaleString('en-IN')}`
@@ -3470,7 +3430,6 @@ function autoSyncOverdrawnFromTab1() {
     if (fetched.length > 0) {
         odRows = fetched;
         renderOdTable();
-        autoFetchOverdrawnReason();
         alert(`Successfully imported ${fetched.length} overdrawn month(s) referenced across ROPA-98/09/19 pay tables!`);
         return;
     }
@@ -3547,7 +3506,7 @@ function autoSyncOverdrawnFromTab1() {
 
             fetched.push({
                 id: ++odSeq, month: mStr, band: bandStr, scale: scaleStr,
-                drPayBand: fullPB, drGradePay: getOdGradePay(monthDate, snap)
+                drPayBand: fullPB, drGradePay: 4100, // DEFAULT DRAWN GRADE PAY = 4100
                 drDP: 0, drDA: drDA, drHRA: drHRA, drMA: defMA_range, drIR: defIR_range,
                 admPayBand: admPB, admGradePay: admGP, admDP: 0, admDA: admDA, admHRA: admHRA, admMA: Math.round(defMA_range * admDays / tDays), admIR: defIR_range,
                 remarks: `Pay admissible for ${admDays} days\nDue to ${String(lwpDaysInMonth).padStart(2,'0')} day(s) LWP`
@@ -3740,7 +3699,6 @@ function renderOdTable() {
 }
 
 function refreshAllOverdrawn() {
-    autoFetchOverdrawnReason();
     renderOdTable();
 }
 
