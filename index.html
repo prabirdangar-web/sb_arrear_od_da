@@ -468,7 +468,7 @@
     </div>
     <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
         <label style="min-width:0; margin:0; font-weight:700; color:#1e293b;">Import from Pay Fixation / Service Book Tool:</label>
-        <span style="font-size:0.78rem; color:#64748b; min-width:0;">Pulls Staff Name, School, Designation, DOB, DOJ, Promotion &amp; ROPA-98/09/19 fixation fields for every staff saved in that tool. Other data (Leave, Arrear, Over Drawn, DA rows) is left untouched.</span>
+        <span style="font-size:0.78rem; color:#64748b; min-width:0;">Pulls Staff Name, School, Designation, DOB, DOJ, Promotion, ROPA-98/09/19 fixation fields, and LWP-type entries from the Leave Account Register (as LWP Entries here) for every staff saved in that tool. Arrear, Over Drawn and DA rows are left untouched.</span>
         <button type="button" class="btn-sync" onclick="importAllStaffFromRopaFixation()">Import All Staff (Matching Fields)</button>
     </div>
     <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:0;">
@@ -5500,10 +5500,13 @@ function handleImportSingleFile(event) {
 
 // ---- IMPORT ALL STAFF FROM THE PAY FIXATION / SERVICE BOOK TOOL (cross-tool, live Firestore) ----
 // The Pay Fixation tool ('sb.html') stores every teacher's data in one document:
-//   tfhs/ropaPayFixation  ->  { records: { "TEACHER NAME": { fields: {...}, ... }, ... } }
-// Only the field ids that genuinely exist as inputs in BOTH tools are pulled across, so
-// nothing specific to the fixation timeline (periods/ML entries/transfers) or specific to
-// this Arrear tool (Leave, Arrear, Over Drawn, DA rows) is touched.
+//   tfhs/ropaPayFixation  ->  { records: { "TEACHER NAME": { fields:{...}, masterMlEntries:[...], periods:[...], ... }, ... } }
+// Only the field ids that genuinely exist as inputs in BOTH tools are pulled across for the
+// Pay Tab (fixation) fields. Separately, the Leave Account Register's LWP-type entries
+// (masterMlEntries with type 'lwp_effect' / 'lwp_noeffect') are translated into this tool's
+// own LWP Entries rows, since both tools use the same CAS-deferral logic. Regular earned/half
+// leave entries (type 'avg' / 'half') are NOT leave-without-pay, so they are skipped. Arrear,
+// Over Drawn and DA rows already saved in this tool are never touched by this import.
 const ROPA_FIXATION_DOC_REF = db.collection('tfhs').doc('ropaPayFixation');
 const ROPA_IMPORT_MATCH_FIELDS = [
     'staffName', 'schoolName', 'designation', 'dob', 'doj',
@@ -5512,6 +5515,27 @@ const ROPA_IMPORT_MATCH_FIELDS = [
     'enableRopa09', 'ropa09GradePay', 'ropa09BandPay', 'ropa09OptionDate',
     'ropa19GradePayManual', 'ropa19BasicPayManual', 'ropa19OptionDate'
 ];
+// Maps the Leave Account Register's ML-entry types (Pay Fixation / Service Book tool) onto
+// this tool's own LWP row types.
+const ROPA_LEAVE_TYPE_MAP = { lwp_effect: 'other', lwp_noeffect: 'medical' };
+
+// Converts a Pay Fixation / Service Book staff record's masterMlEntries[] (Leave Account
+// Register) into this tool's lwpRows[] shape, keeping only genuine LWP-type entries.
+function mapSbLeaveEntriesToLwpRows(src) {
+    const mlEntries = Array.isArray(src && src.masterMlEntries) ? src.masterMlEntries : [];
+    return mlEntries
+        .filter(e => e && ROPA_LEAVE_TYPE_MAP[e.type] && e.from)
+        .map(e => {
+            const start = e.from;
+            const end = e.to || e.from;
+            return {
+                type: ROPA_LEAVE_TYPE_MAP[e.type],
+                start,
+                end,
+                days: daysBetweenInclusive(start, end)
+            };
+        });
+}
 
 async function importAllStaffFromRopaFixation() {
     try {
@@ -5546,8 +5570,10 @@ async function importAllStaffFromRopaFixation() {
             matched.staffName = staffName;
             matched.schoolName = schoolName;
 
+            const leaveRows = mapSbLeaveEntriesToLwpRows(src);
+
             const docId = `${schoolName}__${staffName}`.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
-            toImport.push({ docId, staffName, schoolName, matched });
+            toImport.push({ docId, staffName, schoolName, matched, leaveRows });
         });
 
         if (toImport.length === 0) {
@@ -5555,13 +5581,15 @@ async function importAllStaffFromRopaFixation() {
             return;
         }
 
+        const totalLeaveFound = toImport.reduce((s, t) => s + t.leaveRows.length, 0);
         const proceed = confirm(
             `Found ${toImport.length} staff record(s) in the Pay Fixation / Service Book tool.\n\n` +
-            `For each one, only these matching fields will be copied in:\n` +
-            `Staff Name, School, Designation, DOB, DOJ, Promotion details, and ROPA-98/09/19 fixation fields.\n\n` +
-            `- If a staff+school record already exists here, only those fields are updated; ` +
-            `Leave, Arrear, Over Drawn and DA data already saved for them is left untouched.\n` +
-            `- If no record exists yet, a new (otherwise blank) staff record is created.\n\n` +
+            `For each one, the following will be copied in:\n` +
+            `- Pay Tab fields: Staff Name, School, Designation, DOB, DOJ, Promotion details, and ROPA-98/09/19 fixation fields.\n` +
+            `- Leave Register: LWP-type entries from the Leave Account Register (${totalLeaveFound} found), added into LWP Entries here.\n\n` +
+            `- If a staff+school record already exists here, matching Pay Tab fields are updated and any new LWP entries ` +
+            `(not already present) are added; existing LWP rows and all Arrear, Over Drawn and DA data already saved for them are left untouched.\n` +
+            `- If no record exists yet, a new staff record is created with these Pay Tab fields and LWP entries.\n\n` +
             `Continue?`
         );
         if (!proceed) return;
@@ -5571,17 +5599,30 @@ async function importAllStaffFromRopaFixation() {
             ? existingSnap.data().records : {};
         const merged = Object.assign({}, existingRecords);
 
-        let createdCount = 0, updatedCount = 0;
-        toImport.forEach(({ docId, matched }) => {
+        let createdCount = 0, updatedCount = 0, leaveAddedCount = 0;
+        toImport.forEach(({ docId, matched, leaveRows }) => {
             if (merged[docId] && typeof merged[docId] === 'object') {
                 merged[docId] = Object.assign({}, merged[docId]);
                 merged[docId].fields = Object.assign({}, merged[docId].fields || {}, matched);
+                const existingLwp = Array.isArray(merged[docId].lwpRows) ? merged[docId].lwpRows.slice() : [];
+                let nextId = existingLwp.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+                const existingSigs = new Set(existingLwp.map(r => `${r.type}|${r.start}|${r.end}`));
+                leaveRows.forEach(lr => {
+                    const sig = `${lr.type}|${lr.start}|${lr.end}`;
+                    if (existingSigs.has(sig)) return;
+                    existingSigs.add(sig);
+                    existingLwp.push(Object.assign({ id: nextId++ }, lr));
+                    leaveAddedCount++;
+                });
+                merged[docId].lwpRows = existingLwp;
                 merged[docId].savedAt = new Date().toISOString();
                 updatedCount++;
             } else {
+                const newLwp = leaveRows.map((lr, i) => Object.assign({ id: i + 1 }, lr));
+                leaveAddedCount += newLwp.length;
                 merged[docId] = {
                     fields: matched,
-                    lwpRows: [],
+                    lwpRows: newLwp,
                     arrearRows: [],
                     odRows: [],
                     daBasicRows: [],
@@ -5602,7 +5643,8 @@ async function importAllStaffFromRopaFixation() {
             `Import complete.\n\n` +
             `${toImport.length} staff processed from the Pay Fixation tool.\n` +
             `New records created: ${createdCount}\n` +
-            `Existing records updated (matching fields only): ${updatedCount}\n\n` +
+            `Existing records updated (matching Pay Tab fields): ${updatedCount}\n` +
+            `New LWP Entries added from the Leave Account Register: ${leaveAddedCount}\n\n` +
             `Use "Saved Staff Records" below, or Load, to open any of them.`
         );
     } catch (err) {
