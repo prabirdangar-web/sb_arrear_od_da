@@ -1913,6 +1913,7 @@ function updateLwpField(id, field, v) {
         if (auto > 0) row.days = auto;
     }
     withFocusPreserved(renderLwpTable);
+    autoFetchOverdrawnReason();
     updateAll();
 }
 
@@ -3373,20 +3374,45 @@ let odRows = [];
 let odSeq = 0;
 
 function seedDefaultOverdrawnRows() {
-    odRows = [
-        { id:++odSeq, month:'2010-11', band:'PB-4', scale:'9000-40500',
-          drPayBand:11640, drGradePay:4100, drDP:0, drDA:4250, drHRA:1889, drMA:300, drIR:0,
-          admPayBand:11252, admGradePay:4640, admDP:0, admDA:4291, admHRA:2384, admMA:290, admIR:0,
-          remarks:'Pay admissible for 29 days\nDue to 01 day LWP' },
-        { id:++odSeq, month:'2010-12', band:'PB-4', scale:'9000-40500',
-          drPayBand:11640, drGradePay:4100, drDP:0, drDA:4250, drHRA:1889, drMA:300, drIR:0,
-          admPayBand:9387, admGradePay:3871, admDP:0, admDA:3580, admHRA:1989, admMA:242, admIR:0,
-          remarks:'Pay admissible for 25 days\nDue to 06 Days LWP' },
-        { id:++odSeq, month:'2011-01', band:'PB-4', scale:'9000-40500',
-          drPayBand:11640, drGradePay:4100, drDP:0, drDA:5509, drHRA:1889, drMA:300, drIR:0,
-          admPayBand:11265, admGradePay:4645, admDP:0, admDA:5569, admHRA:2387, admMA:290, admIR:0,
-          remarks:'Pay admissible for 30 days\nDue to 01 day LWP' }
-    ];
+    // Do not seed hard-coded Grade Pay values. Rows are populated from the
+    // exact month's ROPA/pay snapshot or from the saved DB record.
+    odRows = [];
+}
+
+// ==================== OVERDRAWN AUTO-DERIVATION HELPERS ====================
+function getOdGradePay(monthDate, snap) {
+    return (snap && Number.isFinite(Number(snap.gradePay))) ? (Number(snap.gradePay) || 0) : 0;
+}
+function splitOdBasic(totalBasic, gradePay) {
+    const basic = Math.max(0, Number(totalBasic) || 0);
+    const gp = Math.min(basic, Math.max(0, Number(gradePay) || 0));
+    return { payBand: basic - gp, gradePay: gp };
+}
+function formatOdDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    return isNaN(d) ? dateStr : `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getFullYear()).slice(-2)}`;
+}
+function formatOdMonth(monthStr) {
+    const [y,m] = String(monthStr || '').split('-').map(Number);
+    return (y && m) ? new Date(y,m-1,1).toLocaleString('en-IN',{month:'short',year:'numeric'}) : monthStr;
+}
+function autoFetchOverdrawnReason() {
+    const el = document.getElementById('reasonText');
+    if (!el || !Array.isArray(lwpRows)) return;
+    const valid = lwpRows.filter(r => r && r.type !== 'medical' && r.start && r.end).map(r => ({
+        start:r.start, end:r.end, days:Number(r.days)||daysBetweenInclusive(r.start,r.end)
+    })).filter(r => r.days > 0);
+    if (!valid.length) return;
+    const totalDays = valid.reduce((n,r)=>n+r.days,0);
+    const dates = valid.map(r => r.start===r.end ? formatOdDate(r.start) : `${formatOdDate(r.start)} to ${formatOdDate(r.end)}`);
+    const monthSet = new Set();
+    valid.forEach(r => {
+        let d=new Date(r.start+'T00:00:00'), e=new Date(r.end+'T00:00:00');
+        while(!isNaN(d) && d<=e) { monthSet.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); d=new Date(d.getFullYear(),d.getMonth()+1,1); }
+    });
+    const months=[...monthSet].map(formatOdMonth);
+    el.value = `${String(totalDays).padStart(2,'0')} days LWP on ${dates.join(', ')} during the month(s) ${months.join(', ')}. The said LWP was not covered by salary admissibility and full salary was credited/drawn in the respective month(s), resulting in over-drawal.`;
 }
 
 // ERA-AWARE AUTO SYNC OVERDRAWN FROM GENERATED PAY TABLES ("REF ADDED")
@@ -3418,8 +3444,8 @@ function autoSyncOverdrawnFromTab1() {
             let defIR = defaultIrForMonth(r.y, r.m, basicOn1Jan2016_od);
             fetched.push({
                 id: ++odSeq, month: mStr, band: admBand, scale: admScale,
-                drPayBand: r.drBasic - 4100 > 0 ? r.drBasic - 4100 : r.drBasic,
-                drGradePay: 4100, // DEFAULT DRAWN GRADE PAY = 4100
+                drPayBand: splitOdBasic(r.drBasic, getOdGradePay(monthDate, snap)).payBand,
+                drGradePay: splitOdBasic(r.drBasic, getOdGradePay(monthDate, snap)).gradePay
                 drDP: 0, drDA: c.drDA, drHRA: c.drHRA, drMA: defMA, drIR: defIR,
                 admPayBand: admPB, admGradePay: admGP, admDP: 0, admDA: c.admDA, admHRA: c.admHRA, admMA: defMA, admIR: defIR,
                 remarks: `Ref Generated Table [${snap ? snap.era : 'ROPA'}]: Overdrawn by Rs. ${(c.drGross - c.admGross).toLocaleString('en-IN')}`
@@ -3474,7 +3500,7 @@ function autoSyncOverdrawnFromTab1() {
             let snap = getAdmissibleSnapshotForDate(monthDate);
 
             let fullPB = snap ? snap.payBand : 11640;
-            let fullGP = snap ? snap.gradePay : 4800;
+            let fullGP = snap ? Number(snap.gradePay || 0) : 0;
             let scaleStr = snap ? snap.scale : '9000-40500';
             let bandStr = snap ? snap.band : 'PB-4';
 
@@ -3552,18 +3578,20 @@ function addOverdrawnRow() {
     let arrIR = null;
     if (arrMatch) {
         const c = computeRow(arrMatch);
-        // Split basic into Pay Band + Grade Pay isn't tracked in the arrear table,
-        // so carry the full admissible/drawn basic in the Pay Band column and
-        // leave Grade Pay at 0 -- the Rev. Basic total (PayBand + GradePay) stays correct.
-        drPayBand = c.drBasic; drGradePay = 0; drDA = c.drDA; drHRA = c.drHRA; drMA = c.drMA;
-        admPayBand = c.admBasic; admGradePay = 0; admDA = c.admDA; admHRA = c.admHRA; admMA = c.admMA;
+        // Arrear rows store total Basic. Split it using the exact month's
+        // ROPA Grade Pay; never force Rs. 4100.
+        const rowGP = getOdGradePay(monthDate, snap);
+        const drParts = splitOdBasic(c.drBasic, rowGP);
+        const admParts = splitOdBasic(c.admBasic, rowGP);
+        drPayBand = drParts.payBand; drGradePay = drParts.gradePay; drDA = c.drDA; drHRA = c.drHRA; drMA = c.drMA;
+        admPayBand = admParts.payBand; admGradePay = admParts.gradePay; admDA = c.admDA; admHRA = c.admHRA; admMA = c.admMA;
         arrIR = { adm: c.admIR, dr: c.drIR };
         remarksText = 'Auto-fetched from Arrear Table (Tab 1) -- fraction-day / mixed basic pay for this month applied';
     } else {
         let admPB = snap ? snap.payBand : 11252;
         let admGP = snap ? snap.gradePay : 4640;
-        let defaultDrGP = 4100; // DEFAULT DRAWN GRADE PAY = 4100
-        let defaultDrPB = 11640;
+        let defaultDrGP = snap ? Number(snap.gradePay || 0) : 0;
+        let defaultDrPB = snap ? Number(snap.payBand || 0) : 0;
         let daPct = (m >= "2011-01") ? 0.35 : 0.27;
         let defMA = defaultMaForMonth(y, mm);
 
@@ -3699,6 +3727,7 @@ function renderOdTable() {
 }
 
 function refreshAllOverdrawn() {
+    autoFetchOverdrawnReason();
     renderOdTable();
 }
 
@@ -5275,6 +5304,7 @@ function applyLoadedRecord(docId, record) {
 
     lwpRows = record.lwpRows || [];
     lwpRowSeq = lwpRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+    autoFetchOverdrawnReason();
 
     arrearRows = record.arrearRows || [];
 
