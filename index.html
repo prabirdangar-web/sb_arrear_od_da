@@ -1200,7 +1200,7 @@
             <div class="fg"><label>H.R.A. Rate (%) – pre-ROPA-2019</label><input type="number" id="daHraRate" value="15" step="0.5" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>Manual Fixed H.R.A. (₹/month)</label><input type="number" id="daHraFixed" value="0" min="0" step="1" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>M.A. (₹ / month) &mdash; Manual (default: 300 ROPA-09 / 500 ROPA-19)</label><input type="number" id="daMa" value="" placeholder="auto" onchange="generateDaCaseTable()"></div>
-            <div class="fg"><label>I.R. (₹ / month) &mdash; Manual (default: 10% of Basic as on 1.1.2016, Jan16-Dec19)</label><input type="number" id="daIr" value="" placeholder="auto" onchange="generateDaCaseTable()"></div>
+            <div class="fg"><label>I.R. (₹ / month) &mdash; Manual (default: 10% of Basic as on 1.7.2016, Jul16-Dec18)</label><input type="number" id="daIr" value="" placeholder="auto" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>G.P.F. / C.P.F. (₹) &mdash; Manual</label><input type="number" id="daGpf" value="0" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>Income Tax (₹) &mdash; Manual</label><input type="number" id="daItax" value="0" onchange="generateDaCaseTable()"></div>
             <div class="fg"><label>Other Deduction (₹) &mdash; Manual</label><input type="number" id="daOth" value="0" onchange="generateDaCaseTable()"></div>
@@ -3053,6 +3053,21 @@ function monthWeightedBasicFromTimeline(y, m, fallbackBasic) {
     return Math.round(sum / totalDays);
 }
 
+// Same day-weighted average as monthWeightedBasicFromTimeline, but on the Pay Band
+// component ALONE (Basic minus Grade Pay) -- this is what the 10% Interim Relief (I.R.)
+// rate is based on ("10% of (Basic - Grade Pay) of July-2016"), not the full Basic.
+function payBandWeightedFromTimeline(y, m, fallbackPayBand) {
+    const totalDays = daysInMonth(y, m);
+    let sum = 0;
+    for (let d = 1; d <= totalDays; d++) {
+        const dayDate = new Date(y, m - 1, d);
+        const snap = getAdmissibleSnapshotForDate(dayDate);
+        let applicable = snap ? snap.payBand : fallbackPayBand;
+        sum += applicable;
+    }
+    return Math.round(sum / totalDays);
+}
+
 function syncFixationToArrear() {
     const bd = val('benefitDate') ? new Date(val('benefitDate') + 'T00:00:00') : null;
     if (bd) {
@@ -3114,9 +3129,9 @@ function generateArrearTable() {
         ? ('<span style="color:#16a34a;">&#10003; Admissible Salary is being auto-pulled from Generated ROPA Pay Tables across all eras (1998 / 2009 / 2019).</span>')
         : '<span style="color:#c2410c;">&#9888; Pay Fixation Table not generated yet &mdash; using manual fields as fallback. Click "Generate Pay Tables" above.</span>';
 
-    // Basic Pay as on 01-01-2016 (Grade Pay counted in full), used as the fixed base
-    // for the 10% Interim Relief (I.R.) default across Jan-2016 to Dec-2019.
-    const basicOn1Jan2016 = hasTables ? monthWeightedBasicFromTimeline(2016, 1, prevB) : prevB;
+    // Pay Band component (Basic minus Grade Pay) as on 01-07-2016, used as the fixed base
+    // for the 10% Interim Relief (I.R.) default across Jul-2016 to Dec-2018.
+    const payBandOn1Jul2016 = hasTables ? payBandWeightedFromTimeline(2016, 7, prevB) : prevB;
 
     arrearRows = [];
     let curr = new Date(fDate.getFullYear(), fDate.getMonth(), 1);
@@ -3141,7 +3156,7 @@ function generateArrearTable() {
         }
 
         const defaultMA = defaultMaForMonth(y, m);
-        const defaultIR = defaultIrForMonth(y, m, basicOn1Jan2016);
+        const defaultIR = defaultIrForMonth(y, m, payBandOn1Jul2016);
 
         arrearRows.push({
             y, m,
@@ -3202,10 +3217,14 @@ function calculateHraAmount(basicAmount, y, m, ratePct, mode, fixedAmount) {
 
 // I.R. (Interim Relief) default: 10% of Basic Pay as on 01-01-2016 (Grade Pay in full),
 // fixed for the Jan-2016 to Dec-2019 window, 0 outside it — always editable per row.
-function defaultIrForMonth(y, m, basicOn1Jan2016) {
+// I.R. (Interim Relief) is a FIXED amount -- 10% of (Basic - Grade Pay) as it stood on
+// 01.07.2016 -- carried unchanged across every month from Jul-2016 to Dec-2018 (ROPA-2019
+// took over from Jan-2019, ending I.R.). irBaseJul2016 must already be the Pay Band
+// component (Basic minus Grade Pay) as of July-2016, not the full Basic.
+function defaultIrForMonth(y, m, irBaseJul2016) {
     const d = new Date(y, m - 1, 1);
-    if (d >= new Date(2016, 0, 1) && d <= new Date(2019, 11, 1)) {
-        return Math.round(basicOn1Jan2016 * 0.10);
+    if (d >= new Date(2016, 6, 1) && d <= new Date(2018, 11, 1)) {
+        return Math.round(irBaseJul2016 * 0.10);
     }
     return 0;
 }
@@ -3396,8 +3415,10 @@ function autoSyncOverdrawnFromTab1() {
     }
     if (arrearRows.length === 0) generateArrearTable();
 
-    const basicOn1Jan2016_od = (window.pfTimeline19 && window.pfTimeline19.length > 0)
-        ? monthWeightedBasicFromTimeline(2016, 1, num('prevBasic')) : num('prevBasic');
+    // Pay Band component (Basic minus Grade Pay) as on 01-07-2016, used as the fixed base
+    // for the 10% Interim Relief (I.R.) default across Jul-2016 to Dec-2018.
+    const payBandOn1Jul2016_od = (window.pfTimeline19 && window.pfTimeline19.length > 0)
+        ? payBandWeightedFromTimeline(2016, 7, num('prevBasic')) : num('prevBasic');
 
     // 1. PRIMARY SOURCE: build straight from every discrete LWP entry in Section 2
     // ("LWP Entries"). Each entry contributes ONLY its own actual days -- entries are
@@ -3460,7 +3481,7 @@ function autoSyncOverdrawnFromTab1() {
             const admHRA = Math.round((drHRA * admDays) / tDays);
 
             const defMA_range = defaultMaForMonth(y, m);
-            const defIR_range = defaultIrForMonth(y, m, basicOn1Jan2016_od);
+            const defIR_range = defaultIrForMonth(y, m, payBandOn1Jul2016_od);
 
             return {
                 id: ++odSeq, month: mStr, band: bandStr, scale: scaleStr,
@@ -3497,7 +3518,7 @@ function autoSyncOverdrawnFromTab1() {
         if (c.drGross > c.admGross || c.drBasic > c.admBasic) {
             let mStr = `${r.y}-${String(r.m).padStart(2,'0')}`;
             let defMA = defaultMaForMonth(r.y, r.m);
-            let defIR = defaultIrForMonth(r.y, r.m, basicOn1Jan2016_od);
+            let defIR = defaultIrForMonth(r.y, r.m, payBandOn1Jul2016_od);
             fetched.push({
                 id: ++odSeq, month: mStr, band: admBand, scale: admScale,
                 drPayBand: r.drBasic - admGP > 0 ? r.drBasic - admGP : r.drBasic,
@@ -3587,7 +3608,7 @@ function autoSyncOverdrawnFromTab1() {
             let admHRA = Math.round((drHRA * admDays) / tDays);
 
             let defMA_range = defaultMaForMonth(y, m);
-            let defIR_range = defaultIrForMonth(y, m, basicOn1Jan2016_od);
+            let defIR_range = defaultIrForMonth(y, m, payBandOn1Jul2016_od);
 
             fetched.push({
                 id: ++odSeq, month: mStr, band: bandStr, scale: scaleStr,
@@ -3670,9 +3691,9 @@ function addOverdrawnRow() {
     if (arrIR) {
         drIRVal = arrIR.dr; admIRVal = arrIR.adm;
     } else {
-        const basicOn1Jan2016_add = (window.pfTimeline19 && window.pfTimeline19.length > 0)
-            ? monthWeightedBasicFromTimeline(2016, 1, num('prevBasic')) : num('prevBasic');
-        drIRVal = admIRVal = defaultIrForMonth(y, mm, basicOn1Jan2016_add);
+        const payBandOn1Jul2016_add = (window.pfTimeline19 && window.pfTimeline19.length > 0)
+            ? payBandWeightedFromTimeline(2016, 7, num('prevBasic')) : num('prevBasic');
+        drIRVal = admIRVal = defaultIrForMonth(y, mm, payBandOn1Jul2016_add);
     }
 
     odRows.push({
@@ -4064,12 +4085,16 @@ function generateDaCaseTable() {
     const hraRatePct = num('daHraRate');
     const hraFixed = num('daHraFixed');
     const maRaw = val('daMa'); // default (blank/placeholder = auto 300 ROPA-09 / 500 ROPA-19) applied only to months with no per-row override
-    const irRaw = val('daIr'); // default (blank/placeholder = auto 10% of Basic as on 1.1.2016, Jan16-Dec19) applied only to months with no per-row override
+    const irRaw = val('daIr'); // default (blank/placeholder = auto 10% of Basic as on 1.7.2016, Jul16-Dec18) applied only to months with no per-row override
     const gpfDefault = num('daGpf');
     const itaxDefault = num('daItax');
     const othDefault = num('daOth');
 
-    const basicOn1Jan2016_da = getBasicForMonth('2016-01') || getBasicForMonth(from);
+    // NOTE: this tab tracks a single flat "Basic Pay" figure per segment (no separate
+    // Pay Band / Grade Pay split), so unlike Tab 1/2 this uses full Basic as on 01-07-2016
+    // as the I.R. base, not Basic-minus-Grade-Pay. Enter net-of-Grade-Pay figures in the
+    // Basic Pay Segments above if you need the exact "10% of (Basic - Grade Pay)" base here too.
+    const payBandOn1Jul2016_da = getBasicForMonth('2016-07') || getBasicForMonth(from);
 
     const months = monthRange(from, to);
     daCaseRows = months.map(mStr => {
@@ -4089,7 +4114,7 @@ function generateDaCaseTable() {
         const ov = daCaseRowData[mStr] || {};
         const hra = (ov.hra !== undefined) ? ov.hra : calculateHraAmount(basic, yy, mm, defaultHraRateForMonth(yy, mm, hraRatePct), hraMode, hraFixed);
         const ma = (ov.ma !== undefined) ? ov.ma : ((maRaw === '' || maRaw === null) ? defaultMaForMonth(yy, mm) : (parseFloat(maRaw) || 0));
-        const ir = (ov.ir !== undefined) ? ov.ir : ((irRaw === '' || irRaw === null) ? defaultIrForMonth(yy, mm, basicOn1Jan2016_da) : (parseFloat(irRaw) || 0));
+        const ir = (ov.ir !== undefined) ? ov.ir : ((irRaw === '' || irRaw === null) ? defaultIrForMonth(yy, mm, payBandOn1Jul2016_da) : (parseFloat(irRaw) || 0));
         const gpf = (ov.gpf !== undefined) ? ov.gpf : gpfDefault;
         const itax = (ov.itax !== undefined) ? ov.itax : itaxDefault;
         const oth = (ov.oth !== undefined) ? ov.oth : othDefault;
