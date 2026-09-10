@@ -3396,12 +3396,85 @@ function autoSyncOverdrawnFromTab1() {
     }
     if (arrearRows.length === 0) generateArrearTable();
 
-    let fetched = [];
-
     const basicOn1Jan2016_od = (window.pfTimeline19 && window.pfTimeline19.length > 0)
         ? monthWeightedBasicFromTimeline(2016, 1, num('prevBasic')) : num('prevBasic');
 
-    // 1. Check if current arrearRows has overdrawn months (Drawn > Admissible)
+    // 1. PRIMARY SOURCE: build straight from every discrete LWP entry in Section 2
+    // ("LWP Entries"). Each entry contributes ONLY its own actual days -- entries are
+    // no longer collapsed into a single min-start/max-end window first (that previously
+    // dropped or merged scattered/disjoint LWP spells, e.g. a few days in Nov, a few in
+    // Dec, one in Jan, so not every affected month made it into the table, and any gap
+    // days between spells were wrongly counted as LWP too). Every month touched by ANY
+    // entry is now included, with the correct day-count for that month specifically.
+    const lwpEntries = getLwpEntries(); // [{type:'other', start:Date, end:Date, days}, ...]
+    if (lwpEntries.length > 0) {
+        const lwpDaysByMonth = {}; // 'YYYY-MM' -> Set of day-of-month numbers actually on LWP
+        lwpEntries.forEach(entry => {
+            let d = new Date(entry.start);
+            const end = entry.end || entry.start;
+            while (d <= end) {
+                const y = d.getFullYear(), m = d.getMonth() + 1;
+                const key = `${y}-${String(m).padStart(2, '0')}`;
+                if (!lwpDaysByMonth[key]) lwpDaysByMonth[key] = new Set();
+                lwpDaysByMonth[key].add(d.getDate());
+                d = addDays(d, 1);
+            }
+        });
+
+        const monthKeys = Object.keys(lwpDaysByMonth).sort();
+        const fetchedFromLwp = monthKeys.map(mStr => {
+            const [y, m] = mStr.split('-').map(Number);
+            const tDays = daysInMonth(y, m);
+            const monthDate = new Date(y, m - 1, 1);
+            const snap = getAdmissibleSnapshotForDate(monthDate);
+
+            const fullPB = snap ? snap.payBand : 11640;
+            const fullGP = snap ? snap.gradePay : 4800;
+            const scaleStr = snap ? snap.scale : '9000-40500';
+            const bandStr = snap ? snap.band : 'PB-4';
+
+            const lwpDaysInMonth = Math.min(lwpDaysByMonth[mStr].size, tDays);
+            const admDays = Math.max(tDays - lwpDaysInMonth, 0);
+            const admPB = Math.round((fullPB * admDays) / tDays);
+            const admGP = Math.round((fullGP * admDays) / tDays);
+            const admBasic = admPB + admGP;
+            const drBasic = fullPB + fullGP;
+
+            const daR = (mStr >= "2011-01") ? 0.35 : 0.27;
+            const hraMode = val('hraMode') || 'auto';
+            const hraRatePct = num('hraRate');
+            const hraFixed = num('hraFixed');
+
+            const drDA = Math.round(drBasic * daR);
+            const drHRA = calculateHraAmount(drBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
+            const admDA = Math.round(admBasic * daR);
+            const admHRA = calculateHraAmount(admBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
+
+            const defMA_range = defaultMaForMonth(y, m);
+            const defIR_range = defaultIrForMonth(y, m, basicOn1Jan2016_od);
+
+            return {
+                id: ++odSeq, month: mStr, band: bandStr, scale: scaleStr,
+                drPayBand: fullPB, drGradePay: fullGP, // Drawn Grade Pay from this staff's own ROPA timeline for the month, not a fixed 4100
+                drDP: 0, drDA: drDA, drHRA: drHRA, drMA: defMA_range, drIR: defIR_range,
+                admPayBand: admPB, admGradePay: admGP, admDP: 0, admDA: admDA, admHRA: admHRA,
+                admMA: Math.round(defMA_range * admDays / tDays), admIR: defIR_range,
+                remarks: `Pay admissible for ${admDays} days\nDue to ${String(lwpDaysInMonth).padStart(2, '0')} day(s) LWP`
+            };
+        });
+
+        if (fetchedFromLwp.length > 0) {
+            odRows = fetchedFromLwp;
+            renderOdTable();
+            alert(`Auto-generated ${fetchedFromLwp.length} overdrawn month row(s) from ${lwpEntries.length} LWP entr${lwpEntries.length === 1 ? 'y' : 'ies'} in Section 2 (${monthKeys[0]} to ${monthKeys[monthKeys.length - 1]}).`);
+            return;
+        }
+    }
+
+    // 2. FALLBACK: no LWP entries recorded -- check arrearRows for any month where
+    // Drawn > Admissible (a pay-fixation-driven over-drawal unrelated to leave).
+    let fetched = [];
+
     arrearRows.forEach(r => {
         let monthDate = new Date(r.y, r.m - 1, 1);
         let snap = getAdmissibleSnapshotForDate(monthDate);
@@ -3434,28 +3507,22 @@ function autoSyncOverdrawnFromTab1() {
         return;
     }
 
-    // 2. Prompt user for Overdrawn / LWP Period range
-    const uLwpStart = val('unifiedLwpStart');
-    const uLwpEnd = val('unifiedLwpEnd');
-
-    let scanStartStr = uLwpStart;
-    let scanEndStr = uLwpEnd;
-
-    if (!scanStartStr || !scanEndStr) {
-        let userRange = prompt(
-            "Tab 1 Section 7 range is currently set to an Arrear period (Admissible > Drawn).\n\n" +
-            "To auto-generate Overdrawn Salary for an LWP or excess-drawal period, enter the date range in YYYY-MM format:\n" +
-            "Format: START_MONTH, END_MONTH (e.g. 2010-11, 2011-01)",
-            "2010-11, 2011-01"
-        );
-        if (userRange) {
-            let parts = userRange.split(',').map(s => s.trim());
-            if (parts.length === 2 && parts[0] && parts[1]) {
-                scanStartStr = parts[0] + "-01";
-                let [ey, em] = parts[1].split('-').map(Number);
-                let lastD = daysInMonth(ey, em);
-                scanEndStr = `${ey}-${String(em).padStart(2,'0')}-${lastD}`;
-            }
+    // 3. LAST RESORT: manual date-range prompt (only reached when there are no LWP
+    // Entries at all and arrearRows show no over-drawal either).
+    let userRange = prompt(
+        "No LWP Entries were found in Section 2, and Tab 1 Section 7's range shows no Drawn > Admissible month.\n\n" +
+        "To auto-generate Overdrawn Salary for a period manually, enter the date range in YYYY-MM format:\n" +
+        "Format: START_MONTH, END_MONTH (e.g. 2010-11, 2011-01)",
+        "2010-11, 2011-01"
+    );
+    let scanStartStr = '', scanEndStr = '';
+    if (userRange) {
+        let parts = userRange.split(',').map(s => s.trim());
+        if (parts.length === 2 && parts[0] && parts[1]) {
+            scanStartStr = parts[0] + "-01";
+            let [ey, em] = parts[1].split('-').map(Number);
+            let lastD = daysInMonth(ey, em);
+            scanEndStr = `${ey}-${String(em).padStart(2,'0')}-${lastD}`;
         }
     }
 
@@ -3523,7 +3590,7 @@ function autoSyncOverdrawnFromTab1() {
         }
     }
 
-    alert("No overdrawn months detected. Please set the Arrear/Overdrawn range in Tab 1 Section 7, or enter LWP Start/End dates in Section 2.");
+    alert("No overdrawn months detected. Please add LWP Entries in Section 2, or set the Arrear/Overdrawn range in Tab 1 Section 7.");
 }
 
 function addOverdrawnRow() {
@@ -5269,15 +5336,57 @@ async function loadFullArrearDataFromDB(explicitDocId) {
     }
 }
 
+// Builds a starter "Reason for Over-Drawal" narrative straight from this staff's own
+// LWP Entries (Section 2 tab) -- e.g. "08 days LWP-on 29.11.10, 02.12.10, ... during
+// the months Nov-10, Dec-10 and Jan-11." -- so the Subject Line reflects whichever
+// staff/record was actually loaded instead of staying blank or showing a previous
+// staff's text. Only covers the factual LWP dates/day-count; any staff-specific
+// service-rule narrative (probation completion, additional-post appointment, etc.)
+// still needs to be added manually, so a bracketed prompt is appended for that.
+function generateReasonTextFromLwp(rows) {
+    const entries = (rows || []).filter(r => r && r.type === 'other' && r.start);
+    if (entries.length === 0) return '';
+
+    const totalDays = entries.reduce((s, r) => s + (r.days || daysBetweenInclusive(r.start, r.end)), 0);
+
+    const dateList = entries.map(r => {
+        const [y, m, d] = String(r.start).split('-');
+        return `${d}.${m}.${y.slice(2)}`;
+    }).join(', ');
+
+    const monthSet = new Set();
+    entries.forEach(r => {
+        const d = new Date(r.start);
+        const e = new Date(r.end || r.start);
+        const cur = new Date(d.getFullYear(), d.getMonth(), 1);
+        const last = new Date(e.getFullYear(), e.getMonth(), 1);
+        while (cur <= last) {
+            monthSet.add(monthLabelShort(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`));
+            cur.setMonth(cur.getMonth() + 1);
+        }
+    });
+    const months = Array.from(monthSet);
+    const monthsStr = months.length > 1
+        ? months.slice(0, -1).join(', ') + ' and ' + months[months.length - 1]
+        : months[0];
+
+    return `${String(totalDays).padStart(2, '0')} days LWP-on ${dateList} during the month${months.length > 1 ? 's' : ''} ${monthsStr}. ` +
+        `[Add the staff-specific reason here -- e.g. service-completion rule or additional-post appointment -- for the "Over drawl Calculation due to" subject line.]`;
+}
+
 function applyLoadedRecord(docId, record) {
     applyFormFields(record.fields);
     // "Reason for Over-Drawal" (reasonText) is only present in record.fields when
     // it was explicitly saved for that staff. applyFormFields() silently skips any
     // key missing from record.fields, which left this textarea showing whatever the
-    // PREVIOUS staff's reason text was. Force it to reflect the loaded record here
-    // (blank if that staff never had one saved) so it's never left stale.
+    // PREVIOUS staff's reason text was. Force it to reflect the loaded record here:
+    // use the saved text if there is one, otherwise auto-draft one from this staff's
+    // own loaded LWP Entries (blank only if neither is available).
     const reasonEl = document.getElementById('reasonText');
-    if (reasonEl) reasonEl.value = (record.fields && record.fields.reasonText) || '';
+    if (reasonEl) {
+        const savedReason = record.fields && record.fields.reasonText;
+        reasonEl.value = savedReason || generateReasonTextFromLwp(record.lwpRows || []);
+    }
     syncMainToSidebar();
 
     lwpRows = record.lwpRows || [];
