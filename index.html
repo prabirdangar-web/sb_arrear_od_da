@@ -3435,10 +3435,13 @@ function autoSyncOverdrawnFromTab1() {
 
             const lwpDaysInMonth = Math.min(lwpDaysByMonth[mStr].size, tDays);
             const admDays = Math.max(tDays - lwpDaysInMonth, 0);
-            const admPB = Math.round((fullPB * admDays) / tDays);
-            const admGP = Math.round((fullGP * admDays) / tDays);
-            const admBasic = admPB + admGP;
             const drBasic = fullPB + fullGP;
+            // Single ROUND on the combined Basic (=ROUND(0*lwpDays/tDays + drBasic*admDays/tDays,0)),
+            // not two separate ROUNDs on Pay Band and Grade Pay summed afterwards -- rounding each
+            // piece on its own could land 1 rupee off the figure a manual Excel-style calc gives.
+            const admBasic = Math.round((drBasic * admDays) / tDays);
+            const admGP = Math.round((fullGP * admDays) / tDays);
+            const admPB = admBasic - admGP; // keeps Pay Band + Grade Pay adding back to admBasic exactly
 
             const daR = (mStr >= "2011-01") ? 0.35 : 0.27;
             const hraMode = val('hraMode') || 'auto';
@@ -3448,7 +3451,10 @@ function autoSyncOverdrawnFromTab1() {
             const drDA = Math.round(drBasic * daR);
             const drHRA = calculateHraAmount(drBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
             const admDA = Math.round(admBasic * daR);
-            const admHRA = calculateHraAmount(admBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
+            // Prorate the full month's HRA itself (=ROUND(0*lwpDays/tDays + drHRA*admDays/tDays,0)) rather
+            // than recomputing HRA from the already-reduced admBasic -- HRA isn't always a flat % of Basic
+            // (slab/fixed modes), so recomputing from a smaller Basic can diverge by a rupee from this.
+            const admHRA = Math.round((drHRA * admDays) / tDays);
 
             const defMA_range = defaultMaForMonth(y, m);
             const defIR_range = defaultIrForMonth(y, m, basicOn1Jan2016_od);
@@ -3553,10 +3559,13 @@ function autoSyncOverdrawnFromTab1() {
             if (lwpDaysInMonth === 0) lwpDaysInMonth = 1;
 
             let admDays = tDays - lwpDaysInMonth;
-            let admPB = Math.round((fullPB * admDays) / tDays);
-            let admGP = Math.round((fullGP * admDays) / tDays);
-            let admBasic = admPB + admGP;
             let drBasic = fullPB + fullGP;
+            // Single ROUND on the combined Basic (=ROUND(0*lwpDays/tDays + drBasic*admDays/tDays,0)),
+            // not two separate ROUNDs on Pay Band and Grade Pay summed afterwards -- rounding each
+            // piece on its own could land 1 rupee off the figure a manual Excel-style calc gives.
+            let admBasic = Math.round((drBasic * admDays) / tDays);
+            let admGP = Math.round((fullGP * admDays) / tDays);
+            let admPB = admBasic - admGP; // keeps Pay Band + Grade Pay adding back to admBasic exactly
 
             let daR = (mStr >= "2011-01") ? 0.35 : 0.27;
             let hraMode = val('hraMode') || 'auto';
@@ -3566,7 +3575,10 @@ function autoSyncOverdrawnFromTab1() {
             let drDA = Math.round(drBasic * daR);
             let drHRA = calculateHraAmount(drBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
             let admDA = Math.round(admBasic * daR);
-            let admHRA = calculateHraAmount(admBasic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
+            // Prorate the full month's HRA itself (=ROUND(0*lwpDays/tDays + drHRA*admDays/tDays,0)) rather
+            // than recomputing HRA from the already-reduced admBasic -- HRA isn't always a flat % of Basic
+            // (slab/fixed modes), so recomputing from a smaller Basic can diverge by a rupee from this.
+            let admHRA = Math.round((drHRA * admDays) / tDays);
 
             let defMA_range = defaultMaForMonth(y, m);
             let defIR_range = defaultIrForMonth(y, m, basicOn1Jan2016_od);
