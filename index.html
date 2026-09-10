@@ -1071,10 +1071,7 @@
         <div class="grid">
             <div class="fg wide">
                 <label>Sub:- (auto-prefixed with "Over drawl Calculation due to")</label>
-                <textarea id="reasonText" oninput="updateReasonPreview()" onchange="refreshAllOverdrawn()">08 days LWP-on 29.11.10, 02.12.10, 03.12.10, 04.12.10, 13.12.10, 18.12.10, 23.12.10, 10.01.11 during the months Nov-10, Dec-10 and Jan-11. As he enjoyed 08 days LWP within two years completion of his service and as he has been appointed against Additional post but full salary was credited in the respective months.</textarea>
-            </div>
-            <div class="fg wide">
-                <div class="output-box" id="reasonSubPreview" style="background-color:#eff6ff;border-left-color:#1d4ed8;"></div>
+                <textarea id="reasonText" onchange="refreshAllOverdrawn()">08 days LWP-on 29.11.10, 02.12.10, 03.12.10, 04.12.10, 13.12.10, 18.12.10, 23.12.10, 10.01.11 during the months Nov-10, Dec-10 and Jan-11. As he enjoyed 08 days LWP within two years completion of his service and as he has been appointed against Additional post but full salary was credited in the respective months.</textarea>
             </div>
         </div>
     </div>
@@ -3419,11 +3416,10 @@ function autoSyncOverdrawnFromTab1() {
             let mStr = `${r.y}-${String(r.m).padStart(2,'0')}`;
             let defMA = defaultMaForMonth(r.y, r.m);
             let defIR = defaultIrForMonth(r.y, r.m, basicOn1Jan2016_od);
-            let drGP = admGP || 4100; // Actual Grade Pay for this era (falls back to 4100 only if no snapshot found)
             fetched.push({
                 id: ++odSeq, month: mStr, band: admBand, scale: admScale,
-                drPayBand: r.drBasic - drGP > 0 ? r.drBasic - drGP : r.drBasic,
-                drGradePay: drGP,
+                drPayBand: r.drBasic - admGP > 0 ? r.drBasic - admGP : r.drBasic,
+                drGradePay: admGP, // Drawn Grade Pay now taken from this staff's own ROPA timeline for the month, not a fixed 4100
                 drDP: 0, drDA: c.drDA, drHRA: c.drHRA, drMA: defMA, drIR: defIR,
                 admPayBand: admPB, admGradePay: admGP, admDP: 0, admDA: c.admDA, admHRA: c.admHRA, admMA: defMA, admIR: defIR,
                 remarks: `Ref Generated Table [${snap ? snap.era : 'ROPA'}]: Overdrawn by Rs. ${(c.drGross - c.admGross).toLocaleString('en-IN')}`
@@ -3510,7 +3506,7 @@ function autoSyncOverdrawnFromTab1() {
 
             fetched.push({
                 id: ++odSeq, month: mStr, band: bandStr, scale: scaleStr,
-                drPayBand: fullPB, drGradePay: fullGP, // Actual Grade Pay for this era (from snapshot)
+                drPayBand: fullPB, drGradePay: fullGP, // Drawn Grade Pay now taken from this staff's own ROPA timeline for the month, not a fixed 4100
                 drDP: 0, drDA: drDA, drHRA: drHRA, drMA: defMA_range, drIR: defIR_range,
                 admPayBand: admPB, admGradePay: admGP, admDP: 0, admDA: admDA, admHRA: admHRA, admMA: Math.round(defMA_range * admDays / tDays), admIR: defIR_range,
                 remarks: `Pay admissible for ${admDays} days\nDue to ${String(lwpDaysInMonth).padStart(2,'0')} day(s) LWP`
@@ -3566,8 +3562,8 @@ function addOverdrawnRow() {
     } else {
         let admPB = snap ? snap.payBand : 11252;
         let admGP = snap ? snap.gradePay : 4640;
-        let defaultDrGP = admGP; // Actual Grade Pay for this era (from snapshot), was hardcoded to 4100
-        let defaultDrPB = snap ? snap.payBand : 11640;
+        let defaultDrGP = admGP; // Drawn Grade Pay now taken from this staff's own ROPA timeline for the month, not a fixed 4100
+        let defaultDrPB = 11640;
         let daPct = (m >= "2011-01") ? 0.35 : 0.27;
         let defMA = defaultMaForMonth(y, mm);
 
@@ -3704,14 +3700,6 @@ function renderOdTable() {
 
 function refreshAllOverdrawn() {
     renderOdTable();
-    updateReasonPreview();
-}
-
-function updateReasonPreview() {
-    const box = document.getElementById('reasonSubPreview');
-    if (!box) return;
-    const reason = val('reasonText');
-    box.innerHTML = `<strong>Sub:-</strong> Over drawl Calculation due to ${reason}`;
 }
 
 // ===================== TAB 3: DA CASE (AUTO ARREAR CALCULATION) =====================
@@ -5283,6 +5271,13 @@ async function loadFullArrearDataFromDB(explicitDocId) {
 
 function applyLoadedRecord(docId, record) {
     applyFormFields(record.fields);
+    // "Reason for Over-Drawal" (reasonText) is only present in record.fields when
+    // it was explicitly saved for that staff. applyFormFields() silently skips any
+    // key missing from record.fields, which left this textarea showing whatever the
+    // PREVIOUS staff's reason text was. Force it to reflect the loaded record here
+    // (blank if that staff never had one saved) so it's never left stale.
+    const reasonEl = document.getElementById('reasonText');
+    if (reasonEl) reasonEl.value = (record.fields && record.fields.reasonText) || '';
     syncMainToSidebar();
 
     lwpRows = record.lwpRows || [];
@@ -5752,7 +5747,6 @@ window.addEventListener('DOMContentLoaded', function () {
     generateArrearTable();
     seedDefaultOverdrawnRows();
     renderOdTable();
-    updateReasonPreview();
     renderLwpTable();
     autoDeriveDaBasicSegments();
     syncSharedFields();
