@@ -3649,7 +3649,10 @@ function addOverdrawnRow() {
         let admGP = snap ? snap.gradePay : 4640;
         let defaultDrGP = admGP; // Drawn Grade Pay now taken from this staff's own ROPA timeline for the month, not a fixed 4100
         let defaultDrPB = 11640;
-        let daPct = (m >= "2011-01") ? 0.35 : 0.27;
+        // DA rate for this month, from the same date-wise DA table used across the rest of
+        // the tool (getDaRates), not a flat 27%/35% split that never advances past 2011 --
+        // that hardcoded pair was the cause of e.g. Sep-2018 fetching 35% instead of 100%.
+        let daPct = getDaRates(m).drawn;
         let defMA = defaultMaForMonth(y, mm);
 
         drPayBand = defaultDrPB; drGradePay = defaultDrGP;
