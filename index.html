@@ -3443,7 +3443,10 @@ function autoSyncOverdrawnFromTab1() {
             const admGP = Math.round((fullGP * admDays) / tDays);
             const admPB = admBasic - admGP; // keeps Pay Band + Grade Pay adding back to admBasic exactly
 
-            const daR = (mStr >= "2011-01") ? 0.35 : 0.27;
+            // DA rate for this month, from the same date-wise DA table used across the rest of
+            // the tool (getDaRates), not a flat 27%/35% split that never advances past 2011 --
+            // that hardcoded pair was the cause of e.g. Sep-2018 fetching 35% instead of 100%.
+            const daR = getDaRates(mStr).drawn;
             const hraMode = val('hraMode') || 'auto';
             const hraRatePct = num('hraRate');
             const hraFixed = num('hraFixed');
@@ -3567,7 +3570,10 @@ function autoSyncOverdrawnFromTab1() {
             let admGP = Math.round((fullGP * admDays) / tDays);
             let admPB = admBasic - admGP; // keeps Pay Band + Grade Pay adding back to admBasic exactly
 
-            let daR = (mStr >= "2011-01") ? 0.35 : 0.27;
+            // DA rate for this month, from the same date-wise DA table used across the rest of
+            // the tool (getDaRates), not a flat 27%/35% split that never advances past 2011 --
+            // that hardcoded pair was the cause of e.g. Sep-2018 fetching 35% instead of 100%.
+            let daR = getDaRates(mStr).drawn;
             let hraMode = val('hraMode') || 'auto';
             let hraRatePct = num('hraRate');
             let hraFixed = num('hraFixed');
