@@ -304,8 +304,10 @@
     .chl-label .chl-bn { display: block; }
     .chl-val { font-weight: bold; border-bottom: 1px solid #000; flex: 1; padding-bottom: 1px; min-height: 1.1em; }
     .chl-val.editable-blank { color: #b91c1c; font-weight: normal; font-style: italic; }
-    .chl-acctgrid { display: flex; gap: 3px; flex-wrap: wrap; }
-    .chl-digitbox { border: 1px solid #000; width: 18px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.78rem; }
+    .chl-acctgrid { display: flex; gap: 3px; flex-wrap: nowrap; white-space: nowrap; }
+    .chl-digitbox { border: 1px solid #000; width: 17px; height: 22px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.76rem; }
+    .chl-page { page-break-after: always; break-after: page; }
+    .chl-page:last-child { page-break-after: auto; break-after: auto; }
     .chl-sig-table { width: 100%; border-collapse: collapse; margin-top: 28px; font-size: 0.76rem; }
     .chl-sig-table td { width: 50%; vertical-align: bottom; padding: 10px 8px 3px; text-align: center; }
     .chl-sig-table td.rule { border-top: 1px solid #000; padding-top: 4px; }
@@ -1168,7 +1170,7 @@
 
     <div class="btn-group">
         <button class="btn-print" onclick="printStatement()">Print Over Drawn Statement</button>
-        <button class="btn-challan" onclick="printChallan()">Print T.R. Form No.7 Challan</button>
+        <button class="btn-challan" onclick="printChallan()">Print T.R. Form No.7 Challan (All 4 Copies)</button>
         <button class="btn-excel" onclick="exportOverdrawnExcel()">Export to Excel (OVER DRAWN + CHALLAN)</button>
     </div>
 
@@ -1189,7 +1191,7 @@
             <div class="fg wide"><label>Account Code &ndash; 14 Digits (item 3 on T.R. 7) <em>(fill once, digits only)</em></label>
                 <input id="chlAccountCode14" value="" placeholder="14 digit code, e.g. 22020211000170" maxlength="14" inputmode="numeric" pattern="[0-9]*" onchange="this.value=this.value.replace(/\D/g,'').slice(0,14); refreshAllOverdrawn()">
             </div>
-            <div class="fg"><label>Which Copy is This? <em>(fill once)</em></label>
+            <div class="fg"><label>Which Copy is This? <em>(used for Excel export only &mdash; Print now generates all 4 copies together)</em></label>
                 <select id="chlCopyType" onchange="refreshAllOverdrawn()">
                     <option value="ORIGINAL" selected>ORIGINAL</option>
                     <option value="DUPLICATE">DUPLICATE</option>
@@ -4804,22 +4806,26 @@ function chlAccountCodeBoxes() {
     return html;
 }
 
-function printChallan() {
-    setPrintOrientation('portrait'); // T.R. FORM NO. 7 CHALLAN -> A4 PORTRAIT
+// Builds ONE T.R. Form No.7 page for the given copy type (ORIGINAL / DUPLICATE /
+// TRIPLICATE / QUADRUPLICATE), with that copy type boxed+underlined at the top.
+// School Code box is omitted entirely when the School Code field is blank or "NA".
+// The A.C.-Bill refund footnote sentence is dropped -- not applicable for Khatra Treasury.
+function buildChallanPage(copyType) {
     const sums = window._odSums || { overDrawn: 0 };
     const amount = sums.overDrawn || 0;
     const particulars = `Over drawn amount Refund by ${val('odEmpName')} ; ${val('odEmpDesig')} ${val('odSchoolName')} ; due to ${val('reasonText')}`;
-    const copyType = val('chlCopyType') || 'ORIGINAL';
     const copyOpt = (name) => `<span class="${copyType === name ? 'active' : ''}">${name}</span>`;
-    const schoolCode = val('chlSchoolCode');
+    const schoolCodeRaw = (val('chlSchoolCode') || '').trim();
+    const showSchoolCode = schoolCodeRaw && schoolCodeRaw.toUpperCase() !== 'NA';
 
-    const content = `
+    return `
+    <div class="chl-page">
     <div class="chl-wrap">
         <div class="chl-topnote">(Two Copies For Party)</div>
 
         <div class="chl-copyrow">
             <div class="copies">${copyOpt('ORIGINAL')}&nbsp;/&nbsp;${copyOpt('DUPLICATE')}&nbsp;/&nbsp;${copyOpt('TRIPLICATE')}&nbsp;/&nbsp;${copyOpt('QUADRUPLICATE')}</div>
-            <div class="chl-schoolcode-box">SCHOOL CODE-${schoolCode ? schoolCode : '<span class="editable-blank">?</span>'}</div>
+            ${showSchoolCode ? `<div class="chl-schoolcode-box">SCHOOL CODE-${schoolCodeRaw}</div>` : ''}
         </div>
 
         <div class="chl-title-block">
@@ -4875,8 +4881,18 @@ function printChallan() {
             </tr>
         </table>
 
-        <div class="chl-note">* In respect of Challan relating to refund of unspent amount of A.C. Bill. &nbsp; Date: ${val('chlDate') ? val('chlDate').split('-').reverse().join('-') : '-'}</div>
+        <div class="chl-note">Date: ${val('chlDate') ? val('chlDate').split('-').reverse().join('-') : '-'}</div>
+    </div>
     </div>`;
+}
+
+// Generates all 4 copies (ORIGINAL, DUPLICATE, TRIPLICATE, QUADRUPLICATE) in ONE go --
+// one T.R. Form No.7 per A4 page, each with its own copy type highlighted, exactly
+// 4 pages total with no extra trailing blank page.
+function printChallan() {
+    setPrintOrientation('portrait'); // T.R. FORM NO. 7 CHALLAN -> A4 PORTRAIT
+    const copyTypes = ['ORIGINAL', 'DUPLICATE', 'TRIPLICATE', 'QUADRUPLICATE'];
+    const content = copyTypes.map(ct => buildChallanPage(ct)).join('');
 
     document.getElementById('printArea').innerHTML = content;
     document.getElementById('modalOverlay').classList.add('active');
