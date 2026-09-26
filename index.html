@@ -454,6 +454,37 @@
 </head>
 <body>
 
+<!-- ==================== SIGN-IN GATE ====================
+     Blocks the whole dashboard until a real (non-anonymous) Firebase user is
+     signed in. Firestore rules require isStaff()/isAdmin() on this tool's
+     document, so a signed-in account also needs a /users/{uid} role doc
+     created by an admin -- being able to log in here doesn't by itself grant
+     data access; Firestore will still say "Missing or insufficient
+     permissions" if that role doc is missing, which is expected. -->
+<div id="authGateOverlay" style="display:flex; position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.92); align-items:center; justify-content:center; padding:20px;">
+    <form onsubmit="handleAuthGateSubmit(event)" style="background:#fff; border-radius:10px; padding:28px 26px; max-width:360px; width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
+        <h3 style="margin:0 0 4px; border:none; padding:0; color:#0f172a;">Staff Sign-In Required</h3>
+        <p style="margin:0 0 16px; font-size:0.85rem; color:#475569;">Sign in with your staff/admin account to open the Arrear &amp; Over-Drawn Refund dashboard.</p>
+        <div id="authGateStatus" style="font-size:0.8rem; color:#475569; margin-bottom:8px;"></div>
+        <div class="fg" style="margin-bottom:10px;">
+            <label>Email</label>
+            <input type="email" id="authEmail" autocomplete="username" required>
+        </div>
+        <div class="fg" style="margin-bottom:6px;">
+            <label>Password</label>
+            <input type="password" id="authPassword" autocomplete="current-password" required>
+        </div>
+        <div id="authGateError" style="color:#dc2626; font-size:0.8rem; min-height:1.2em; margin-bottom:10px;"></div>
+        <button type="submit" id="authGateSubmitBtn" class="btn-sync" style="width:100%; justify-content:center;">Sign In</button>
+    </form>
+</div>
+
+<!-- SIGNED-IN STATUS BAR (shown once authenticated) -->
+<div id="signedInBar" style="display:none; align-items:center; justify-content:flex-end; gap:10px; padding:6px 16px; background:#0f172a; color:#fff; font-size:0.8rem;">
+    <span>Signed in as <strong id="signedInEmail"></strong></span>
+    <button type="button" onclick="signOutOfDashboard()" style="background:#dc2626; color:#fff; border:none; border-radius:5px; padding:4px 10px; cursor:pointer; font-size:0.78rem;">Sign Out</button>
+</div>
+
 <div class="container">
 <h2>Unified ROPA Pay Fixation, Arrear &amp; Over Drawn Refund System</h2>
 
@@ -1458,54 +1489,102 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-// ================= FIREBASE AUTH READY =================
-// Firestore rules should use request.auth != null.  This page has no visible
-// login form, so it uses Firebase Anonymous Authentication in the background.
-// IMPORTANT: Authentication -> Sign-in method -> Anonymous must be ENABLED,
-// and this GitHub Pages domain must be listed under Authentication -> Settings
-// -> Authorized domains.
-let firebaseAuthReady = new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = (fn, value) => {
-        if (!settled) { settled = true; fn(value); }
-    };
+// ================= FIREBASE AUTH: REAL SIGNED-IN USER ONLY =================
+// This tool used to sign in anonymously, which meant Firestore rules could
+// only gate it with a blanket "any signed-in user" check -- no way to tell
+// who the caller was. It now requires a real email/password sign-in (the
+// same account model already used by /users/{uid} role docs for the rest of
+// this project), so Firestore rules can require isStaff()/isAdmin() on this
+// document specifically. See the #authGateOverlay markup near <body> for the
+// login form this depends on.
+let currentAuthUser = null;
 
-    // Reuse an existing Firebase session whenever possible.
-    if (auth.currentUser) {
-        finish(resolve, auth.currentUser);
+function showAuthGate(message) {
+    const gate = document.getElementById('authGateOverlay');
+    if (gate) gate.style.display = 'flex';
+    const container = document.querySelector('.container');
+    if (container) container.style.visibility = 'hidden';
+    const signedInBar = document.getElementById('signedInBar');
+    if (signedInBar) signedInBar.style.display = 'none';
+    if (message) {
+        const msgEl = document.getElementById('authGateStatus');
+        if (msgEl) msgEl.textContent = message;
+    }
+}
+
+function hideAuthGate() {
+    const gate = document.getElementById('authGateOverlay');
+    if (gate) gate.style.display = 'none';
+    const container = document.querySelector('.container');
+    if (container) container.style.visibility = 'visible';
+}
+
+function friendlyAuthError(err) {
+    switch (err && err.code) {
+        case 'auth/invalid-email': return 'That email address looks invalid.';
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential': return 'Incorrect email or password.';
+        case 'auth/too-many-requests': return 'Too many attempts. Please wait a few minutes and try again.';
+        case 'auth/user-disabled': return 'This account has been disabled. Contact your admin.';
+        case 'auth/network-request-failed': return 'Network error. Check your connection and try again.';
+        default: return (err && err.message) ? err.message : 'Sign-in failed.';
+    }
+}
+
+async function handleAuthGateSubmit(event) {
+    event.preventDefault();
+    const email = (val('authEmail') || '').trim();
+    const password = val('authPassword') || '';
+    const errEl = document.getElementById('authGateError');
+    const submitBtn = document.getElementById('authGateSubmitBtn');
+    if (errEl) errEl.textContent = '';
+    if (!email || !password) {
+        if (errEl) errEl.textContent = 'Please enter both email and password.';
         return;
     }
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Signing in...'; }
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+        // onAuthStateChanged (below) takes it from here: hides the gate,
+        // shows the dashboard, and loads the saved staff records.
+    } catch (err) {
+        console.error('Sign-in failed:', err);
+        if (errEl) errEl.textContent = friendlyAuthError(err);
+    } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In'; }
+    }
+}
 
-    const unsubscribe = auth.onAuthStateChanged(user => {
-        if (user) {
-            console.log('Firebase Auth ready. UID:', user.uid, 'anonymous:', !!user.isAnonymous);
-            unsubscribe();
-            finish(resolve, user);
-        }
-    });
+function signOutOfDashboard() {
+    auth.signOut().catch(err => console.error('Sign-out failed:', err));
+}
 
-    auth.signInAnonymously().catch(err => {
-        console.error('Anonymous sign-in failed:', err);
-        unsubscribe();
-        finish(reject, err);
-    });
+auth.onAuthStateChanged(user => {
+    currentAuthUser = user;
+    const signedInBar = document.getElementById('signedInBar');
+    const signedInEmail = document.getElementById('signedInEmail');
+    if (user) {
+        console.log('Signed in. UID:', user.uid, 'email:', user.email);
+        hideAuthGate();
+        if (signedInBar) signedInBar.style.display = 'flex';
+        if (signedInEmail) signedInEmail.textContent = user.email || user.uid;
+        refreshSavedRecordsList().catch(err => console.error('Initial staff-list load failed:', err));
+    } else {
+        if (signedInBar) signedInBar.style.display = 'none';
+        showAuthGate();
+    }
 });
 
+// Used by every save/load call site instead of the old anonymous auto sign-in.
+// Throws a clear "please sign in" error rather than silently proceeding
+// unauthenticated, so callers' existing try/catch + alert() already surface
+// this correctly without any changes at their end.
 async function ensureFirebaseAuth() {
     if (auth.currentUser) return auth.currentUser;
-    try {
-        const user = await firebaseAuthReady;
-        if (!user) throw new Error('Firebase Authentication did not return a signed-in user.');
-        return user;
-    } catch (err) {
-        const e = new Error(
-            (err && err.code === 'auth/operation-not-allowed')
-                ? 'Firebase Anonymous Authentication is disabled for this project. Enable Anonymous sign-in in Firebase Authentication, then reload this page.'
-                : (err && err.message ? err.message : 'Firebase Authentication failed.')
-        );
-        e.code = err && err.code ? err.code : 'auth/failed-precondition';
-        throw e;
-    }
+    const e = new Error('Please sign in with your staff/admin email first (see the sign-in box).');
+    e.code = 'auth/not-signed-in';
+    throw e;
 }
 
 // This tool stores ALL staff records inside ONE document, matching the same
@@ -1514,12 +1593,14 @@ async function ensureFirebaseAuth() {
 const ARREAR_DOC_REF = db.collection('tfhs').doc('arrearOdDaSystem');
 
 // Auth/Firestore startup diagnostic. This does not save or modify any record.
-window.firebaseDatabaseReady = firebaseAuthReady.then(user => {
-    console.log('TFHS Arrear DB ready:', { uid: user.uid, path: 'tfhs/arrearOdDaSystem' });
-    return user;
-}).catch(err => {
-    console.error('TFHS Firebase startup error:', err);
-    return null;
+// Resolves once sign-in state is known (either a real user, or null if
+// nobody is signed in yet -- the auth gate handles that case separately).
+window.firebaseDatabaseReady = new Promise(resolve => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+        unsubscribe();
+        if (user) console.log('TFHS Arrear DB ready:', { uid: user.uid, path: 'tfhs/arrearOdDaSystem' });
+        resolve(user);
+    });
 });
 
 // Generic collector: every labelled input/select/textarea inside .container,
@@ -6002,9 +6083,9 @@ window.addEventListener('DOMContentLoaded', function () {
     renderLwpTable();
     autoDeriveDaBasicSegments();
     syncSharedFields();
-    ensureFirebaseAuth().then(() => refreshSavedRecordsList()).catch(err => {
-        console.error('Initial staff-list load failed:', err);
-    });
+    // NOTE: loading the saved-records list is now triggered by auth.onAuthStateChanged
+    // (right after Firebase init, above) once a real signed-in user is confirmed --
+    // not here, since at DOMContentLoaded time we don't yet know if anyone is signed in.
 });
 </script>
 
