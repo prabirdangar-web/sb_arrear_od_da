@@ -285,12 +285,12 @@
     }
 
     /* CHALLAN LOOK -- EXACT T.R. FORM NO. 7 REPLICA */
-    .chl-wrap { border: 2px solid #000; padding: 9mm 8mm 7mm; height: 100%; box-sizing: border-box; font-size: 0.76rem; font-family: 'Times New Roman', Times, serif; color:#000; }
+    .chl-wrap { border: 2px solid #000; padding: 14px 18px; font-size: 0.8rem; font-family: 'Times New Roman', Times, serif; color:#000; }
     .chl-topnote { text-align: right; font-size: 0.68rem; font-style: italic; margin-bottom: 4px; }
-    .chl-copyrow { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 7px; gap: 8px; }
-    .chl-copyrow .copies { display: flex; gap: 5px; align-items: center; flex-wrap: nowrap; font-weight: bold; font-size: 0.72rem; letter-spacing: 0.25px; }
-    .chl-copyrow .copies span { display:inline-block; padding: 2px 5px; white-space: nowrap; border: 1px solid transparent; }
-    .chl-copyrow .copies span.active { border: 1px solid #000; border-radius: 2px; text-decoration: underline; }
+    .chl-copyrow { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
+    .chl-copyrow .copies { display: flex; gap: 10px; font-weight: bold; font-size: 0.78rem; letter-spacing: 0.5px; }
+    .chl-copyrow .copies span { padding: 2px 6px; }
+    .chl-copyrow .copies span.active { border: 1px solid #000; border-radius: 3px; text-decoration: underline; }
     .chl-schoolcode-box { border: 1px solid #000; padding: 3px 10px; font-weight: bold; font-size: 0.78rem; white-space: nowrap; }
     .chl-copy-label { text-align: center; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
     .chl-title-block { text-align: center; margin-bottom: 10px; }
@@ -298,11 +298,11 @@
     .chl-bn { font-size: 0.72rem; color: #333; }
     .chl-see { font-style: italic; font-size: 0.78rem; margin-top: 2px; }
     .chl-heading { text-align: center; font-weight: bold; font-size: 0.98rem; margin: 10px 0 4px; }
-    .chl-row { display: grid; grid-template-columns: 32px 42% minmax(0,1fr); gap: 7px; margin-bottom: 5px; align-items: start; }
-    .chl-num { width:32px; font-weight: bold; }
+    .chl-row { display: grid; grid-template-columns: 34px minmax(285px, 42%) minmax(0, 1fr); column-gap: 8px; margin-bottom: 7px; align-items: start; }
+    .chl-num { min-width: 0; font-weight: bold; }
     .chl-label { min-width: 0; overflow-wrap: anywhere; }
     .chl-label .chl-bn { display: block; }
-    .chl-val { min-width:0; font-weight: bold; border-bottom: 1px solid #000; padding: 0 2px 1px; min-height: 1.05em; overflow-wrap:anywhere; }
+    .chl-val { min-width: 0; font-weight: bold; border-bottom: 1px solid #000; padding: 0 2px 1px; min-height: 1.1em; overflow-wrap: anywhere; word-break: break-word; }
     .chl-label.chl-label-flex { min-width:0; }
     .chl-val.chl-val-oneline { min-width:0; white-space:normal; text-align:left; }
     .chl-val.editable-blank { color: #b91c1c; font-weight: normal; font-style: italic; }
@@ -310,14 +310,10 @@
     .chl-codebox { border:1px solid #000; width:46px; height:24px; display:inline-flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.95rem; }
     .chl-acctgrid { display: flex; gap: 2px; flex-wrap: nowrap; white-space: nowrap; }
     .chl-digitbox { border: 1px solid #000; width: 14px; height: 20px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem; }
-    .chl-page {
-        page-break-after: always; break-after: page;
-        width: 190mm; height: 273mm; box-sizing: border-box;
-        margin: 0 auto; padding: 0;
-    }
+    .chl-page { page-break-after: always; break-after: page; }
     .chl-page:last-child { page-break-after: auto; break-after: auto; }
-    .chl-sig-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.70rem; table-layout: fixed; }
-    .chl-sig-table td { width: 50%; vertical-align: bottom; padding: 7px 6px 2px; text-align: center; }
+    .chl-sig-table { width: 100%; border-collapse: collapse; margin-top: 28px; font-size: 0.76rem; }
+    .chl-sig-table td { width: 50%; vertical-align: bottom; padding: 10px 8px 3px; text-align: center; }
     .chl-sig-table td.rule { border-top: 1px solid #000; padding-top: 4px; }
     .chl-note { font-size: 0.68rem; margin-top: 14px; border-top: 1px dashed #000; padding-top: 6px; }
     /* Legacy grid kept for any other callers */
@@ -337,20 +333,7 @@
         .modal-overlay, .modal-overlay * { visibility: visible; }
         .modal-overlay { position: absolute; inset: 0; background: #fff !important; padding: 0; }
         .modal-toolbar { display: none !important; }
-        .modal-box { box-shadow: none; max-width: 100%; width: 100%; }
-        #printArea { padding: 0 !important; margin: 0 !important; width: 100%; }
-        #printArea .chl-page { width: 190mm; height: 273mm; margin: 0 auto; box-sizing: border-box; }
-        #printArea .annex-page-sheet {
-            width: 277mm; min-height: 190mm; margin: 0 auto;
-            box-sizing: border-box; padding: 0 !important;
-            border: none !important; box-shadow: none !important;
-            page-break-after: always; break-after: page;
-        }
-        #printArea .annex-page-sheet:last-child { page-break-after: auto; break-after: auto; }
-        #printArea .annex-page-sheet table { width: 100% !important; table-layout: fixed; }
-        #printArea .annex-page-sheet th,
-        #printArea .annex-page-sheet td { box-sizing: border-box; overflow-wrap: anywhere; }
-        #printArea .annex-page-sheet { font-size: 9px !important; }
+        .modal-box { box-shadow: none; max-width: 100%; }
         #sbPrintArea, #sbPrintArea * { visibility: visible; }
         #sbPrintArea {
             display: block !important;
@@ -368,23 +351,172 @@
         #sbPrintArea tr { page-break-inside: avoid; break-inside: avoid; }
         .annex-page-sheet { border: none !important; padding: 0 !important; margin: 0 !important; page-break-after: always; break-after: page; }
         .annex-page-sheet:last-child { page-break-after: auto; break-after: auto; }
+
+        /* ===== FINAL A4 PRINT GEOMETRY ===== */
+        #printArea {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .modal-overlay {
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+        }
+        .modal-box {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        /* TR-7: exactly one complete copy in the printable A4 content area */
+        .chl-page {
+            width: 190mm !important;
+            height: 277mm !important;
+            min-height: 277mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            overflow: hidden !important;
+        }
+        .chl-page:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+        }
+        .chl-wrap {
+            width: 190mm !important;
+            height: 277mm !important;
+            min-height: 0 !important;
+            box-sizing: border-box !important;
+            border: 2px solid #000 !important;
+            padding: 8mm 8mm 6mm !important;
+            margin: 0 !important;
+            font-size: 9.5pt !important;
+            line-height: 1.18 !important;
+            overflow: hidden !important;
+        }
+        .chl-topnote { font-size: 8pt !important; margin-bottom: 2mm !important; }
+        .chl-copyrow { padding-bottom: 2mm !important; margin-bottom: 2.5mm !important; }
+        .chl-copyrow .copies { width: auto !important; gap: 4px !important; font-size: 9pt !important; white-space: nowrap !important; }
+        .chl-copyrow .copies span { padding: 1px 4px !important; }
+        .chl-schoolcode-box { font-size: 8.5pt !important; padding: 2px 6px !important; }
+        .chl-title-block { margin-bottom: 3mm !important; }
+        .chl-form-no { font-size: 14pt !important; }
+        .chl-bn { font-size: 8.5pt !important; }
+        .chl-see { font-size: 8.5pt !important; }
+        .chl-heading { font-size: 11pt !important; margin: 2mm 0 1mm !important; }
+        .chl-row {
+            grid-template-columns: 34px minmax(285px, 43%) minmax(0, 1fr) !important;
+            column-gap: 7px !important;
+            margin-bottom: 5mm !important;
+            line-height: 1.15 !important;
+        }
+        .chl-num { font-size: 9.5pt !important; }
+        .chl-label { font-size: 9.5pt !important; }
+        .chl-val { font-size: 9.5pt !important; min-height: 12px !important; }
+        .chl-codegrid { min-width: 0 !important; }
+        .chl-codebox { width: 30px !important; height: 18px !important; font-size: 10pt !important; }
+        .chl-acctgrid { width: 100% !important; gap: 1px !important; }
+        .chl-digitbox { width: 15px !important; height: 18px !important; font-size: 8.5pt !important; }
+        .chl-sig-table { margin-top: 10mm !important; font-size: 8.5pt !important; table-layout: fixed !important; }
+        .chl-sig-table td { padding: 5px 5px 2px !important; }
+        .chl-note { margin-top: 3mm !important; padding-top: 2mm !important; font-size: 8pt !important; }
+
+        /* DA calculation sheet: use the complete A4 landscape width */
+        .annex-page-sheet {
+            width: 277mm !important;
+            min-height: 190mm !important;
+            height: 190mm !important;
+            box-sizing: border-box !important;
+            padding: 5mm !important;
+            margin: 0 !important;
+            border: 1px solid #000 !important;
+            overflow: hidden !important;
+        }
+        .annex-page-sheet table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            font-size: 8pt !important;
+        }
+        .annex-page-sheet th, .annex-page-sheet td {
+            box-sizing: border-box !important;
+            padding: 2px 3px !important;
+            overflow-wrap: anywhere !important;
+            word-break: normal !important;
+            line-height: 1.12 !important;
+        }
+        .annex-page-sheet th:nth-child(1), .annex-page-sheet td:nth-child(1) { width: 11% !important; }
+        .annex-page-sheet th:nth-child(2), .annex-page-sheet td:nth-child(2) { width: 11% !important; }
+        .annex-page-sheet th:nth-child(n+3), .annex-page-sheet td:nth-child(n+3) { width: 9.75% !important; }
     }
 
-    /* FINAL A4 PRINT NORMALIZATION — TR-7 PORTRAIT / CALCULATION LANDSCAPE */
-    @media print {
-        @page { size: A4 portrait; margin: 10mm; }
-        body { margin: 0 !important; padding: 0 !important; }
-        .chl-page, .annex-page-sheet { overflow: hidden; }
-        #printArea .chl-copyrow .copies { width: 100%; justify-content: flex-start; }
-        #printArea .chl-copyrow .copies span { font-size: 9px; }
-        #printArea .chl-title-block { margin-bottom: 7px; }
-        #printArea .chl-heading { font-size: 0.86rem; margin: 6px 0 3px; }
-        #printArea .chl-bn { font-size: 0.64rem; }
-        #printArea .chl-see { font-size: 0.68rem; }
-        #printArea .chl-row { margin-bottom: 4px; font-size: 9.5px; }
-        #printArea .chl-codebox { width: 38px; height: 20px; }
-        #printArea .chl-digitbox { width: 13px; height: 18px; }
-        #printArea .chl-note { margin-top: 8px; }
+
+    /* ===== TRUE A4 PREVIEW GEOMETRY ===== */
+    /* The print preview must itself look like the paper.  Do not stretch the
+       challan to the browser window: keep exact A4 content dimensions. */
+    .modal-box { overflow: auto; }
+    #printArea { background: #e5e7eb; }
+    .chl-page {
+        width: 190mm;
+        height: 277mm;
+        min-height: 277mm;
+        box-sizing: border-box;
+        margin: 0 auto 8mm;
+        padding: 0;
+        background: #fff;
+        page-break-after: always;
+        break-after: page;
+        overflow: hidden;
+    }
+    .chl-page:last-child { margin-bottom: 0; page-break-after: auto; break-after: auto; }
+    .chl-wrap {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        padding: 8mm 8mm 6mm;
+        border: 2px solid #000;
+        background: #fff;
+        font-size: 10pt;
+        line-height: 1.22;
+    }
+    .chl-row {
+        grid-template-columns: 34px 43% minmax(0,1fr);
+        column-gap: 8px;
+        margin-bottom: 5mm;
+    }
+    .chl-title-block { margin-bottom: 4mm; }
+    .chl-heading { margin: 3mm 0 2mm; font-size: 11pt; }
+    .chl-form-no { font-size: 15pt; }
+    .chl-bn, .chl-see { font-size: 9pt; }
+    .chl-label, .chl-num, .chl-val { font-size: 10pt; }
+    .chl-val { min-height: 1.25em; }
+    .chl-sig-table { margin-top: 10mm; font-size: 9pt; }
+    .chl-sig-table td { padding: 7px 6px 3px; }
+    .chl-note { margin-top: 4mm; padding-top: 2mm; font-size: 8.5pt; }
+
+    .annex-page-sheet {
+        width: 277mm;
+        min-height: 190mm;
+        height: 190mm;
+        box-sizing: border-box;
+        margin: 0 auto 8mm;
+        padding: 5mm;
+        background: #fff;
+        overflow: hidden;
+    }
+    .annex-page-sheet:last-child { margin-bottom: 0; }
+
+    @media screen {
+        .modal-overlay.active { padding: 18px; }
+        .modal-box { max-width: none; width: 100%; }
+        #printArea { padding: 12mm 8mm !important; min-width: 0; }
     }
 
     /* ===== LEFT SIDEBAR / COMMON STAFF PANEL ===== */
@@ -1750,9 +1882,9 @@ function setPrintOrientation(orientation) {
         document.head.appendChild(style);
     }
     if (orientation === 'landscape') {
-        style.innerHTML = `@media print { @page { size: A4 landscape; margin: 10mm; } }`;
+        style.innerHTML = `@media print { @page { size: A4 landscape; margin: 8mm; } }`;
     } else {
-        style.innerHTML = `@media print { @page { size: A4 portrait; margin: 12mm 10mm; } }`;
+        style.innerHTML = `@media print { @page { size: A4 portrait; margin: 10mm; } }`;
     }
 }
 
@@ -4900,7 +5032,7 @@ function docDaCalcSheet() {
         }
 
         html += `
-        <div class="annex-page-sheet da-calc-print-page">
+        <div class="annex-page-sheet">
             <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:10px;">
                 <div style="font-weight:bold; font-size:1.15rem; text-decoration:underline;">DA CASE &mdash; CALCULATION SHEET (ANNEX)</div>
                 <div style="font-weight:bold; font-size:0.9rem;">Page ${pageNum} of ${totalPages}</div>
@@ -5109,12 +5241,7 @@ function buildChallanPage(copyType) {
         <div class="chl-topnote">(Two Copies For Party)</div>
 
         <div class="chl-copyrow">
-            <div class="copies" aria-label="Challan copy type">
-                ${copyOpt('ORIGINAL')}
-                ${copyOpt('DUPLICATE')}
-                ${copyOpt('TRIPLICATE')}
-                ${copyOpt('QUADRUPLICATE')}
-            </div>
+            <div class="copies"><span class="${copyType==='ORIGINAL'?'active':''}">ORIGINAL</span><b>/</b><span class="${copyType==='DUPLICATE'?'active':''}">DUPLICATE</span><b>/</b><span class="${copyType==='TRIPLICATE'?'active':''}">TRIPLICATE</span><b>/</b><span class="${copyType==='QUADRUPLICATE'?'active':''}">QUADRUPLICATE</span></div>
             ${showSchoolCode ? `<div class="chl-schoolcode-box">SCHOOL CODE-${schoolCodeRaw}</div>` : ''}
         </div>
 
@@ -5136,7 +5263,7 @@ function buildChallanPage(copyType) {
         <div class="chl-row"><div class="chl-num">5a.</div><div class="chl-label">Amount<span class="chl-bn">টাকা</span></div><div class="chl-val">Rs. ${amount.toLocaleString('en-IN')}</div></div>
         <div class="chl-row"><div class="chl-num">5b.</div><div class="chl-label">In Words<span class="chl-bn">কথায়</span></div><div class="chl-val">Rupees ${numberToWords(amount)} Only</div></div>
         <div class="chl-row"><div class="chl-num">6.</div><div class="chl-label">By whom tendered; Name and Address<span class="chl-bn">যে টাকা জমা দিচ্ছে তার নাম ও ঠিকানা</span></div>${chlField(val('chlTenderedBy'))}</div>
-        <div class="chl-row"><div class="chl-num">7.</div><div class="chl-label chl-label-flex">Name / Designation and Address of the Departmental Officer on whose behalf/favor money is paid<span class="chl-bn">যার নামে/পক্ষে টাকা জমা দেওয়া হচ্ছে</span></div><div class="chl-val chl-val-oneline">${val('chlDeptOfficer')}</div></div>
+        <div class="chl-row"><div class="chl-num">7.</div><div class="chl-label chl-label-flex">Name / Designation and Address of the Departmental Officer on whose behalf/favor money is paid<span class="chl-bn">যার নামে/পক্ষে টাকা জমা দেওয়া হচ্ছে</span></div><div class="chl-val chl-val-oneline">${val('chlDeptOfficer') || "&nbsp;"}</div></div>
         <div class="chl-row"><div class="chl-num">8a.</div><div class="chl-label">Particulars and Authority of deposit<span class="chl-bn">যে কারণে ও ক্ষমতা অনুসারে টাকা জমা দেওয়া হচ্ছে</span></div><div class="chl-val">${particulars}</div></div>
         <div class="chl-row"><div class="chl-num">8b.</div><div class="chl-label">T.V. No. and date of A.C. Bill<span class="chl-bn">টি.ভি. নং ও তারিখ</span></div><div class="chl-val">${val('chlTvNo')}</div></div>
 
@@ -5538,7 +5665,7 @@ function docAnnex() {
         }
 
         html += `
-        <div class="annex-page-sheet da-calc-print-page">
+        <div class="annex-page-sheet">
             <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:10px;">
                 <div style="font-weight:bold; font-size:1.15rem; text-decoration:underline;">CALCULATION SHEET (ANNEX)</div>
                 <div style="font-weight:bold; font-size:0.9rem;">Page ${pageNum} of ${totalPages}</div>
