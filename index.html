@@ -285,12 +285,12 @@
     }
 
     /* CHALLAN LOOK -- EXACT T.R. FORM NO. 7 REPLICA */
-    .chl-wrap { border: 2px solid #000; padding: 14px 18px; font-size: 0.8rem; font-family: 'Times New Roman', Times, serif; color:#000; }
+    .chl-wrap { border: 2px solid #000; padding: 9mm 8mm 7mm; height: 100%; box-sizing: border-box; font-size: 0.76rem; font-family: 'Times New Roman', Times, serif; color:#000; }
     .chl-topnote { text-align: right; font-size: 0.68rem; font-style: italic; margin-bottom: 4px; }
-    .chl-copyrow { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
-    .chl-copyrow .copies { display: flex; gap: 10px; font-weight: bold; font-size: 0.78rem; letter-spacing: 0.5px; }
-    .chl-copyrow .copies span { padding: 2px 6px; }
-    .chl-copyrow .copies span.active { border: 1px solid #000; border-radius: 3px; text-decoration: underline; }
+    .chl-copyrow { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 7px; gap: 8px; }
+    .chl-copyrow .copies { display: flex; gap: 5px; align-items: center; flex-wrap: nowrap; font-weight: bold; font-size: 0.72rem; letter-spacing: 0.25px; }
+    .chl-copyrow .copies span { display:inline-block; padding: 2px 5px; white-space: nowrap; border: 1px solid transparent; }
+    .chl-copyrow .copies span.active { border: 1px solid #000; border-radius: 2px; text-decoration: underline; }
     .chl-schoolcode-box { border: 1px solid #000; padding: 3px 10px; font-weight: bold; font-size: 0.78rem; white-space: nowrap; }
     .chl-copy-label { text-align: center; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; }
     .chl-title-block { text-align: center; margin-bottom: 10px; }
@@ -298,22 +298,26 @@
     .chl-bn { font-size: 0.72rem; color: #333; }
     .chl-see { font-style: italic; font-size: 0.78rem; margin-top: 2px; }
     .chl-heading { text-align: center; font-weight: bold; font-size: 0.98rem; margin: 10px 0 4px; }
-    .chl-row { display: flex; gap: 10px; margin-bottom: 7px; align-items: flex-start; }
-    .chl-num { min-width: 26px; font-weight: bold; }
-    .chl-label { min-width: 300px; }
+    .chl-row { display: grid; grid-template-columns: 32px 42% minmax(0,1fr); gap: 7px; margin-bottom: 5px; align-items: start; }
+    .chl-num { width:32px; font-weight: bold; }
+    .chl-label { min-width: 0; overflow-wrap: anywhere; }
     .chl-label .chl-bn { display: block; }
-    .chl-val { font-weight: bold; border-bottom: 1px solid #000; flex: 1; padding-bottom: 1px; min-height: 1.1em; }
-    .chl-label.chl-label-flex { min-width:0; flex:1 1 auto; }
-    .chl-val.chl-val-oneline { flex:0 0 auto; white-space:nowrap; text-align:right; }
+    .chl-val { min-width:0; font-weight: bold; border-bottom: 1px solid #000; padding: 0 2px 1px; min-height: 1.05em; overflow-wrap:anywhere; }
+    .chl-label.chl-label-flex { min-width:0; }
+    .chl-val.chl-val-oneline { min-width:0; white-space:normal; text-align:left; }
     .chl-val.editable-blank { color: #b91c1c; font-weight: normal; font-style: italic; }
     .chl-codegrid { display:flex; gap:0; }
     .chl-codebox { border:1px solid #000; width:46px; height:24px; display:inline-flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.95rem; }
     .chl-acctgrid { display: flex; gap: 2px; flex-wrap: nowrap; white-space: nowrap; }
     .chl-digitbox { border: 1px solid #000; width: 14px; height: 20px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem; }
-    .chl-page { page-break-after: always; break-after: page; }
+    .chl-page {
+        page-break-after: always; break-after: page;
+        width: 190mm; height: 273mm; box-sizing: border-box;
+        margin: 0 auto; padding: 0;
+    }
     .chl-page:last-child { page-break-after: auto; break-after: auto; }
-    .chl-sig-table { width: 100%; border-collapse: collapse; margin-top: 28px; font-size: 0.76rem; }
-    .chl-sig-table td { width: 50%; vertical-align: bottom; padding: 10px 8px 3px; text-align: center; }
+    .chl-sig-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.70rem; table-layout: fixed; }
+    .chl-sig-table td { width: 50%; vertical-align: bottom; padding: 7px 6px 2px; text-align: center; }
     .chl-sig-table td.rule { border-top: 1px solid #000; padding-top: 4px; }
     .chl-note { font-size: 0.68rem; margin-top: 14px; border-top: 1px dashed #000; padding-top: 6px; }
     /* Legacy grid kept for any other callers */
@@ -333,7 +337,20 @@
         .modal-overlay, .modal-overlay * { visibility: visible; }
         .modal-overlay { position: absolute; inset: 0; background: #fff !important; padding: 0; }
         .modal-toolbar { display: none !important; }
-        .modal-box { box-shadow: none; max-width: 100%; }
+        .modal-box { box-shadow: none; max-width: 100%; width: 100%; }
+        #printArea { padding: 0 !important; margin: 0 !important; width: 100%; }
+        #printArea .chl-page { width: 190mm; height: 273mm; margin: 0 auto; box-sizing: border-box; }
+        #printArea .annex-page-sheet {
+            width: 277mm; min-height: 190mm; margin: 0 auto;
+            box-sizing: border-box; padding: 0 !important;
+            border: none !important; box-shadow: none !important;
+            page-break-after: always; break-after: page;
+        }
+        #printArea .annex-page-sheet:last-child { page-break-after: auto; break-after: auto; }
+        #printArea .annex-page-sheet table { width: 100% !important; table-layout: fixed; }
+        #printArea .annex-page-sheet th,
+        #printArea .annex-page-sheet td { box-sizing: border-box; overflow-wrap: anywhere; }
+        #printArea .annex-page-sheet { font-size: 9px !important; }
         #sbPrintArea, #sbPrintArea * { visibility: visible; }
         #sbPrintArea {
             display: block !important;
@@ -351,6 +368,23 @@
         #sbPrintArea tr { page-break-inside: avoid; break-inside: avoid; }
         .annex-page-sheet { border: none !important; padding: 0 !important; margin: 0 !important; page-break-after: always; break-after: page; }
         .annex-page-sheet:last-child { page-break-after: auto; break-after: auto; }
+    }
+
+    /* FINAL A4 PRINT NORMALIZATION — TR-7 PORTRAIT / CALCULATION LANDSCAPE */
+    @media print {
+        @page { size: A4 portrait; margin: 10mm; }
+        body { margin: 0 !important; padding: 0 !important; }
+        .chl-page, .annex-page-sheet { overflow: hidden; }
+        #printArea .chl-copyrow .copies { width: 100%; justify-content: flex-start; }
+        #printArea .chl-copyrow .copies span { font-size: 9px; }
+        #printArea .chl-title-block { margin-bottom: 7px; }
+        #printArea .chl-heading { font-size: 0.86rem; margin: 6px 0 3px; }
+        #printArea .chl-bn { font-size: 0.64rem; }
+        #printArea .chl-see { font-size: 0.68rem; }
+        #printArea .chl-row { margin-bottom: 4px; font-size: 9.5px; }
+        #printArea .chl-codebox { width: 38px; height: 20px; }
+        #printArea .chl-digitbox { width: 13px; height: 18px; }
+        #printArea .chl-note { margin-top: 8px; }
     }
 
     /* ===== LEFT SIDEBAR / COMMON STAFF PANEL ===== */
@@ -4866,7 +4900,7 @@ function docDaCalcSheet() {
         }
 
         html += `
-        <div class="annex-page-sheet">
+        <div class="annex-page-sheet da-calc-print-page">
             <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:10px;">
                 <div style="font-weight:bold; font-size:1.15rem; text-decoration:underline;">DA CASE &mdash; CALCULATION SHEET (ANNEX)</div>
                 <div style="font-weight:bold; font-size:0.9rem;">Page ${pageNum} of ${totalPages}</div>
@@ -5075,7 +5109,12 @@ function buildChallanPage(copyType) {
         <div class="chl-topnote">(Two Copies For Party)</div>
 
         <div class="chl-copyrow">
-            <div class="copies">${copyOpt('ORIGINAL')}&nbsp;/&nbsp;${copyOpt('DUPLICATE')}&nbsp;/&nbsp;${copyOpt('TRIPLICATE')}&nbsp;/&nbsp;${copyOpt('QUADRUPLICATE')}</div>
+            <div class="copies" aria-label="Challan copy type">
+                ${copyOpt('ORIGINAL')}
+                ${copyOpt('DUPLICATE')}
+                ${copyOpt('TRIPLICATE')}
+                ${copyOpt('QUADRUPLICATE')}
+            </div>
             ${showSchoolCode ? `<div class="chl-schoolcode-box">SCHOOL CODE-${schoolCodeRaw}</div>` : ''}
         </div>
 
@@ -5499,7 +5538,7 @@ function docAnnex() {
         }
 
         html += `
-        <div class="annex-page-sheet">
+        <div class="annex-page-sheet da-calc-print-page">
             <div style="display:flex; justify-content:space-between; align-items:baseline; border-bottom:2px solid #000; padding-bottom:4px; margin-bottom:10px;">
                 <div style="font-weight:bold; font-size:1.15rem; text-decoration:underline;">CALCULATION SHEET (ANNEX)</div>
                 <div style="font-weight:bold; font-size:0.9rem;">Page ${pageNum} of ${totalPages}</div>
