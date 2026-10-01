@@ -304,6 +304,8 @@
     .chl-label .chl-bn { display: block; }
     .chl-val { font-weight: bold; border-bottom: 1px solid #000; flex: 1; padding-bottom: 1px; min-height: 1.1em; }
     .chl-val.editable-blank { color: #b91c1c; font-weight: normal; font-style: italic; }
+    .chl-codegrid { display:flex; gap:0; }
+    .chl-codebox { border:1px solid #000; width:46px; height:24px; display:inline-flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.95rem; }
     .chl-acctgrid { display: flex; gap: 2px; flex-wrap: nowrap; white-space: nowrap; }
     .chl-digitbox { border: 1px solid #000; width: 14px; height: 20px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.7rem; }
     .chl-page { page-break-after: always; break-after: page; }
@@ -1099,6 +1101,48 @@
         </div>
     </div>
 
+    <!-- LONG-PERIOD HRA / M.A. OVERDRAWN GENERATOR -->
+    <h3>Long-Period Over-Drawal &mdash; H.R.A. or M.A. (Auto from Pay Table)</h3>
+    <div class="panel" style="border-left:4px solid #0d9488;">
+        <div style="font-size:0.82rem; color:#475569; margin-bottom:8px;">
+            Pick H.R.A. or M.A., the period, and what was drawn vs. what is admissible. Pay Band / Grade Pay / Basic / D.A. / I.R. are pulled month-by-month from the generated Pay Tables (ROPA-98 / 09 / 19) and kept equal on both sides, so only the chosen allowance creates the over-drawal. H.R.A. &ldquo;Auto&rdquo; uses the HRA Mode / Rate set in Tab 1 Section 7; M.A. &ldquo;Auto&rdquo; uses the era default (Rs.100 / 300 / 500).
+        </div>
+        <div class="grid">
+            <div class="fg"><label>Allowance Wrongly Drawn</label>
+                <select id="laType" onchange="laToggleGroups()">
+                    <option value="HRA" selected>H.R.A. (House Rent Allowance)</option>
+                    <option value="MA">M.A. (Medical Allowance)</option>
+                    <option value="BOTH">Both H.R.A. + M.A.</option>
+                </select>
+            </div>
+            <div class="fg"><label>Period From (month)</label><input type="month" id="laFrom" value="2020-01"></div>
+            <div class="fg"><label>Period To (month)</label><input type="month" id="laTo" value="2023-12"></div>
+            <div class="fg"><label>Existing Table Rows</label>
+                <select id="laApply"><option value="replace" selected>Replace with generated rows</option><option value="append">Append to existing rows</option></select>
+            </div>
+        </div>
+        <div class="grid" id="laHraGroup">
+            <div class="fg"><label>H.R.A. &mdash; Drawn</label>
+                <select id="laHraDrMode"><option value="auto" selected>Auto (as per Pay Table rule)</option><option value="fixed">Fixed per month</option></select></div>
+            <div class="fg"><label>H.R.A. Drawn Fixed (Rs./month)</label><input type="number" id="laHraDrFixed" value="0" min="0"></div>
+            <div class="fg"><label>H.R.A. &mdash; Admissible</label>
+                <select id="laHraAdmMode"><option value="nil" selected>Nil (not admissible)</option><option value="auto">Auto (as per rule)</option><option value="fixed">Fixed per month</option></select></div>
+            <div class="fg"><label>H.R.A. Admissible Fixed (Rs./month)</label><input type="number" id="laHraAdmFixed" value="0" min="0"></div>
+        </div>
+        <div class="grid" id="laMaGroup" style="display:none;">
+            <div class="fg"><label>M.A. &mdash; Drawn</label>
+                <select id="laMaDrMode"><option value="auto" selected>Auto (era default)</option><option value="fixed">Fixed per month</option></select></div>
+            <div class="fg"><label>M.A. Drawn Fixed (Rs./month)</label><input type="number" id="laMaDrFixed" value="0" min="0"></div>
+            <div class="fg"><label>M.A. &mdash; Admissible</label>
+                <select id="laMaAdmMode"><option value="nil" selected>Nil (not admissible)</option><option value="auto">Auto (era default)</option><option value="fixed">Fixed per month</option></select></div>
+            <div class="fg"><label>M.A. Admissible Fixed (Rs./month)</label><input type="number" id="laMaAdmFixed" value="0" min="0"></div>
+        </div>
+        <div class="grid" style="margin-bottom:0;">
+            <div class="fg wide"><label><input type="checkbox" id="laSetReason" checked style="width:auto;"> Also write the &ldquo;Sub:&rdquo; reason line automatically</label></div>
+            <div class="fg" style="justify-content:flex-end;"><button type="button" class="btn-sync" onclick="generateLongAllowanceOverdrawn()">&#9889; Generate Month-Wise Over-Drawal</button></div>
+        </div>
+    </div>
+
     <!-- 1. SCHOOL & EMPLOYEE DETAILS (SYNCED) -->
     <h3>1. School &amp; Employee Details (Ref Synced)</h3>
     <div class="panel">
@@ -1183,13 +1227,20 @@
     </div>
     <div class="panel">
         <div class="grid">
-            <div class="fg"><label>Name of Bank &amp; Branch <em>(fill once)</em></label><input id="chlBank" value="P.N.B., KHATRA" onchange="refreshAllOverdrawn()"></div>
-            <div class="fg"><label>Name of Treasury <em>(fill once)</em></label><input id="chlTreasury" value="KHATRA" onchange="refreshAllOverdrawn()"></div>
-            <div class="fg"><label>Treasury Code (short) <em>(fill once)</em></label><input id="chlTreasuryCode" value="B A C EDS-001" onchange="refreshAllOverdrawn()"></div>
+            <div class="fg"><label>Treasury / Bank Preset <em>(pick one, or Manual)</em></label>
+                <select id="chlTreasuryPreset" onchange="applyTreasuryPreset()">
+                    <option value="KHATRA" selected>KHATRA &mdash; Punjab National Bank, Khatra (B A C)</option>
+                    <option value="BANKURA">BANKURA &mdash; State Bank of India, Bankura (B A A)</option>
+                    <option value="MANUAL">MANUAL &mdash; type bank / treasury yourself</option>
+                </select>
+            </div>
+            <div class="fg wide"><label>Name of Bank &amp; Branch &mdash; FULL NAME <em>(editable)</em></label><input id="chlBank" value="PUNJAB NATIONAL BANK ; KHATRA" onchange="markTreasuryManualIfEdited(); refreshAllOverdrawn()"></div>
+            <div class="fg"><label>Name of Treasury <em>(editable)</em></label><input id="chlTreasury" value="KHATRA" onchange="markTreasuryManualIfEdited(); refreshAllOverdrawn()"></div>
+            <div class="fg"><label>Treasury Code (letters, e.g. B A C) <em>(editable)</em></label><input id="chlTreasuryCode" value="B A C" onchange="markTreasuryManualIfEdited(); refreshAllOverdrawn()"></div>
             <div class="fg"><label>School Code <em>(fill once)</em></label><input id="chlSchoolCode" value="" placeholder="e.g. 115" onchange="refreshAllOverdrawn()"></div>
-            <div class="fg wide"><label>Account Code / Detail Head of Account (14-digit + description) <em>(fill once)</em></label><input id="chlHead" value="2202-EDUCATION-02-110-NP-ASSIST TO-NO-001-SECONDARY SCHOOL-70-REFUND" onchange="refreshAllOverdrawn()"></div>
+            <div class="fg wide"><label>Account Code / Detail Head of Account (14-digit + description) <em>(fill once)</em></label><input id="chlHead" value="2202 - EDUCATION-02-110-NP-ASSIST TO-NO-001-SECONDARY SCHOOL-70-REFUND" onchange="refreshAllOverdrawn()"></div>
             <div class="fg wide"><label>Account Code &ndash; 14 Digits (item 3 on T.R. 7) <em>(fill once, digits only)</em></label>
-                <input id="chlAccountCode14" value="" placeholder="14 digit code, e.g. 22020211000170" maxlength="14" inputmode="numeric" pattern="[0-9]*" onchange="this.value=this.value.replace(/\D/g,'').slice(0,14); refreshAllOverdrawn()">
+                <input id="chlAccountCode14" value="22020211000170" placeholder="14 digit code, e.g. 22020211000170" maxlength="14" inputmode="numeric" pattern="[0-9]*" onchange="this.value=this.value.replace(/\D/g,'').slice(0,14); refreshAllOverdrawn()">
             </div>
             <div class="fg"><label>Which Copy is This? <em>(used for Excel export only &mdash; Print now generates all 4 copies together)</em></label>
                 <select id="chlCopyType" onchange="refreshAllOverdrawn()">
@@ -3927,6 +3978,132 @@ function refreshAllOverdrawn() {
     renderOdTable();
 }
 
+// ==================== TREASURY / BANK PRESETS FOR T.R. FORM NO. 7 ====================
+const TREASURY_PRESETS = {
+    KHATRA:  { bank: 'PUNJAB NATIONAL BANK ; KHATRA',  treasury: 'KHATRA',  code: 'B A C' },
+    BANKURA: { bank: 'STATE BANK OF INDIA ; BANKURA',  treasury: 'BANKURA', code: 'B A A' }
+};
+const CHL_COMMON_ACCOUNT14 = '22020211000170';
+const CHL_COMMON_HEAD = '2202 - EDUCATION-02-110-NP-ASSIST TO-NO-001-SECONDARY SCHOOL-70-REFUND';
+
+function applyTreasuryPreset() {
+    const key = val('chlTreasuryPreset');
+    const p = TREASURY_PRESETS[key];
+    if (p) {
+        document.getElementById('chlBank').value = p.bank;
+        document.getElementById('chlTreasury').value = p.treasury;
+        document.getElementById('chlTreasuryCode').value = p.code;
+        document.getElementById('chlAccountCode14').value = CHL_COMMON_ACCOUNT14;
+        document.getElementById('chlHead').value = CHL_COMMON_HEAD;
+    } else {
+        // MANUAL: clear the three treasury fields so they can be typed fresh
+        ['chlBank', 'chlTreasury', 'chlTreasuryCode'].forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('chlBank').focus();
+    }
+    refreshAllOverdrawn();
+}
+
+// If someone hand-edits bank / treasury / code after picking a preset, flip the selector to MANUAL
+// only when the values no longer match that preset.
+function markTreasuryManualIfEdited() {
+    const key = val('chlTreasuryPreset');
+    const p = TREASURY_PRESETS[key];
+    if (!p) return;
+    if (val('chlBank') !== p.bank || val('chlTreasury') !== p.treasury || val('chlTreasuryCode') !== p.code) {
+        document.getElementById('chlTreasuryPreset').value = 'MANUAL';
+    }
+}
+
+// ==================== LONG-PERIOD H.R.A. / M.A. OVER-DRAWAL GENERATOR ====================
+function laToggleGroups() {
+    const t = val('laType');
+    document.getElementById('laHraGroup').style.display = (t === 'HRA' || t === 'BOTH') ? '' : 'none';
+    document.getElementById('laMaGroup').style.display = (t === 'MA' || t === 'BOTH') ? '' : 'none';
+}
+
+function generateLongAllowanceOverdrawn() {
+    const type = val('laType');
+    const from = val('laFrom'), to = val('laTo');
+    if (!from || !to) { alert('Please choose both the From and To months.'); return; }
+    if (from > to) { alert('Period From cannot be later than Period To.'); return; }
+
+    if (!window.pfTimeline19 || window.pfTimeline19.length === 0) processFixationTimeline();
+
+    const useHra = (type === 'HRA' || type === 'BOTH');
+    const useMa = (type === 'MA' || type === 'BOTH');
+    const hraMode = val('hraMode') || 'auto';
+    const hraRatePct = num('hraRate');
+    const hraFixed = num('hraFixed');
+    const payBandJul2016 = (window.pfTimeline19 && window.pfTimeline19.length > 0)
+        ? payBandWeightedFromTimeline(2016, 7, num('prevBasic')) : num('prevBasic');
+
+    const pick = (modeId, fixedId, autoAmt) => {
+        const mode = val(modeId);
+        if (mode === 'nil') return 0;
+        if (mode === 'fixed') return Math.max(0, Math.round(num(fixedId) || 0));
+        return autoAmt;
+    };
+
+    let [y, m] = from.split('-').map(Number);
+    const [ty, tm] = to.split('-').map(Number);
+    const rows = [];
+    let guard = 0;
+    while ((y < ty || (y === ty && m <= tm)) && guard++ < 600) {
+        const mStr = `${y}-${String(m).padStart(2, '0')}`;
+        const snap = getAdmissibleSnapshotForDate(new Date(y, m - 1, 1));
+        const fallbackBasic = num('prevBasic');
+        const pb = snap ? snap.payBand : fallbackBasic;
+        const gp = snap ? snap.gradePay : 0;
+        const basic = pb + gp;
+        const da = Math.round(basic * getDaRates(mStr).drawn);
+        const ir = defaultIrForMonth(y, m, payBandJul2016);
+
+        const autoHra = calculateHraAmount(basic, y, m, defaultHraRateForMonth(y, m, hraRatePct), hraMode, hraFixed);
+        const autoMa = defaultMaForMonth(y, m);
+
+        let drHRA = autoHra, admHRA = autoHra, drMA = autoMa, admMA = autoMa;
+        const notes = [];
+        if (useHra) {
+            drHRA = pick('laHraDrMode', 'laHraDrFixed', autoHra);
+            admHRA = pick('laHraAdmMode', 'laHraAdmFixed', autoHra);
+            notes.push(`H.R.A. drawn Rs.${drHRA} / admissible Rs.${admHRA}`);
+        }
+        if (useMa) {
+            drMA = pick('laMaDrMode', 'laMaDrFixed', autoMa);
+            admMA = pick('laMaAdmMode', 'laMaAdmFixed', autoMa);
+            notes.push(`M.A. drawn Rs.${drMA} / admissible Rs.${admMA}`);
+        }
+
+        rows.push({
+            id: ++odSeq, month: mStr,
+            band: snap ? snap.band : 'PB-4', scale: snap ? snap.scale : '',
+            drPayBand: pb, drGradePay: gp, drDP: 0, drDA: da, drHRA: drHRA, drMA: drMA, drIR: ir,
+            admPayBand: pb, admGradePay: gp, admDP: 0, admDA: da, admHRA: admHRA, admMA: admMA, admIR: ir,
+            remarks: notes.join('\n')
+        });
+        m++; if (m > 12) { m = 1; y++; }
+    }
+
+    if (rows.length === 0) { alert('No months generated for that period.'); return; }
+
+    odRows = (val('laApply') === 'append') ? odRows.concat(rows) : rows;
+    odRows.sort((a, b) => a.month.localeCompare(b.month));
+
+    if (document.getElementById('laSetReason').checked) {
+        const names = [];
+        if (useHra) names.push('House Rent Allowance (H.R.A.)');
+        if (useMa) names.push('Medical Allowance (M.A.)');
+        const admTxt = (useHra && val('laHraAdmMode') !== 'nil') || (useMa && val('laMaAdmMode') !== 'nil')
+            ? 'in excess of the admissible amount' : 'which was not admissible';
+        document.getElementById('reasonText').value =
+            `excess drawal of ${names.join(' and ')} from ${monthLabelShort(from)} to ${monthLabelShort(to)} (${rows.length} months), ${admTxt}.`;
+    }
+
+    renderOdTable();
+    const tot = (window._odSums && window._odSums.overDrawn) || 0;
+    alert(`Generated ${rows.length} month row(s). Total over-drawn: Rs. ${tot.toLocaleString('en-IN')}`);
+}
+
 // ===================== TAB 3: DA CASE (AUTO ARREAR CALCULATION) =====================
 // Historical D.A. rate change points, as fraction of Basic Pay: [ 'YYYY-MM', rate ]
 // ROPA-2009 era (Apr-2008 to Dec-2019)
@@ -4796,6 +4973,15 @@ function chlField(value, placeholder) {
 // Renders the 14-digit Account Code as individual boxes -- exactly as printed
 // on the physical/Excel T.R. Form No. 7 -- auto-filled digit-by-digit from
 // #chlAccountCode14 when present, else left blank for manual entry.
+function chlTreasuryCodeBoxes() {
+    const raw = (val('chlTreasuryCode') || '').trim();
+    const letters = raw.replace(/\s+/g, '');
+    if (/^[A-Za-z]{1,4}$/.test(letters)) {
+        return '<div class="chl-codegrid">' + letters.toUpperCase().split('').map(c => `<span class="chl-codebox">${c}</span>`).join('') + '</div>';
+    }
+    return chlField(raw);
+}
+
 function chlAccountCodeBoxes() {
     const digits = (val('chlAccountCode14') || '').replace(/\D/g, '').padEnd(14, ' ').slice(0, 14);
     let html = '<div class="chl-acctgrid">';
@@ -4836,11 +5022,11 @@ function buildChallanPage(copyType) {
             <div class="chl-bn">পশ্চিমবঙ্গ সরকারের হিসাবে টাকা জমা দিবার চালান</div>
         </div>
 
-        <div class="chl-row"><div class="chl-num">FOR</div><div class="chl-label">${val('odSubDivision')} TREASURY</div></div>
+        <div class="chl-row"><div class="chl-num">FOR</div><div class="chl-label">${val('chlTreasury')} TREASURY</div></div>
 
         <div class="chl-row"><div class="chl-num">1.</div><div class="chl-label">Name of Bank &amp; Branch<span class="chl-bn">ব্যাংক ও শাখার নাম</span></div>${chlField(val('chlBank'))}</div>
         <div class="chl-row"><div class="chl-num">2a.</div><div class="chl-label">Name of Treasury<span class="chl-bn">ট্রেজারির নাম</span></div>${chlField(val('chlTreasury'))}</div>
-        <div class="chl-row"><div class="chl-num">2b.</div><div class="chl-label">Treasury Code<span class="chl-bn">ট্রেজারির সাংকেতিক চিহ্ন</span></div>${chlField(val('chlTreasuryCode'))}</div>
+        <div class="chl-row"><div class="chl-num">2b.</div><div class="chl-label">Treasury Code<span class="chl-bn">ট্রেজারির সাংকেতিক চিহ্ন</span></div>${chlTreasuryCodeBoxes()}</div>
         <div class="chl-row"><div class="chl-num">3.</div><div class="chl-label">Account Code (14 digits must be filled up properly)<span class="chl-bn">হিসাবখাত নং</span></div>${chlAccountCodeBoxes()}</div>
         <div class="chl-row"><div class="chl-num">4.</div><div class="chl-label">Detail Head of Account<span class="chl-bn">হিসাবমদের বিশদ বিবরণ</span></div>${chlField(val('chlHead'))}</div>
         <div class="chl-row"><div class="chl-num">5a.</div><div class="chl-label">Amount<span class="chl-bn">টাকা</span></div><div class="chl-val">Rs. ${amount.toLocaleString('en-IN')}</div></div>
