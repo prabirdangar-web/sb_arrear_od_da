@@ -303,6 +303,8 @@
     .chl-label { min-width: 300px; }
     .chl-label .chl-bn { display: block; }
     .chl-val { font-weight: bold; border-bottom: 1px solid #000; flex: 1; padding-bottom: 1px; min-height: 1.1em; }
+    .chl-label.chl-label-flex { min-width:0; flex:1 1 auto; }
+    .chl-val.chl-val-oneline { flex:0 0 auto; white-space:nowrap; text-align:right; }
     .chl-val.editable-blank { color: #b91c1c; font-weight: normal; font-style: italic; }
     .chl-codegrid { display:flex; gap:0; }
     .chl-codebox { border:1px solid #000; width:46px; height:24px; display:inline-flex; align-items:center; justify-content:center; font-weight:bold; font-size:0.95rem; }
@@ -5032,9 +5034,9 @@ function buildChallanPage(copyType) {
         <div class="chl-row"><div class="chl-num">5a.</div><div class="chl-label">Amount<span class="chl-bn">টাকা</span></div><div class="chl-val">Rs. ${amount.toLocaleString('en-IN')}</div></div>
         <div class="chl-row"><div class="chl-num">5b.</div><div class="chl-label">In Words<span class="chl-bn">কথায়</span></div><div class="chl-val">Rupees ${numberToWords(amount)} Only</div></div>
         <div class="chl-row"><div class="chl-num">6.</div><div class="chl-label">By whom tendered; Name and Address<span class="chl-bn">যে টাকা জমা দিচ্ছে তার নাম ও ঠিকানা</span></div>${chlField(val('chlTenderedBy'))}</div>
-        <div class="chl-row"><div class="chl-num">7.</div><div class="chl-label">Name / Designation and Address of the Departmental Officer on whose behalf/favor money is paid<span class="chl-bn">যার নামে/পক্ষে টাকা জমা দেওয়া হচ্ছে</span></div>${chlField(val('chlDeptOfficer'))}</div>
+        <div class="chl-row"><div class="chl-num">7.</div><div class="chl-label chl-label-flex">Name / Designation and Address of the Departmental Officer on whose behalf/favor money is paid<span class="chl-bn">যার নামে/পক্ষে টাকা জমা দেওয়া হচ্ছে</span></div><div class="chl-val chl-val-oneline">${val('chlDeptOfficer')}</div></div>
         <div class="chl-row"><div class="chl-num">8a.</div><div class="chl-label">Particulars and Authority of deposit<span class="chl-bn">যে কারণে ও ক্ষমতা অনুসারে টাকা জমা দেওয়া হচ্ছে</span></div><div class="chl-val">${particulars}</div></div>
-        <div class="chl-row"><div class="chl-num">8b.</div><div class="chl-label">T.V. No. and date of A.C. Bill<span class="chl-bn">টি.ভি. নং ও তারিখ</span></div>${chlField(val('chlTvNo'), '(N/A)')}</div>
+        <div class="chl-row"><div class="chl-num">8b.</div><div class="chl-label">T.V. No. and date of A.C. Bill<span class="chl-bn">টি.ভি. নং ও তারিখ</span></div><div class="chl-val">${val('chlTvNo')}</div></div>
 
         <table class="chl-sig-table">
             <tr>
