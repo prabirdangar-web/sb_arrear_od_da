@@ -3111,7 +3111,8 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
             slipHTML: slipBlockHTML,
             fixationMode: fixationModeLabel(ev, evType),
             snapBasicPay: runningBasicPay,
-            snapGp: runningGp
+            snapGp: runningGp,
+            snapLevel: runningLevel
         });
     });
 
@@ -3244,8 +3245,9 @@ function getAdmissibleSnapshotForDate(d) {
         const bVal = parseInt(String(applicable.basicDisplay || applicable.snapBasicPay || 0).replace(/,/g,''), 10) || 0;
         return {
             era: 'ROPA-19',
-            band: 'LEVEL-' + (levelMap19[applicable.snapGp] || 12),
-            scale: 'LEVEL-' + (levelMap19[applicable.snapGp] || 12),
+            band: 'LEVEL-' + (applicable.snapLevel || levelMap19[applicable.snapGp] || 12),
+            scale: 'LEVEL-' + (applicable.snapLevel || levelMap19[applicable.snapGp] || 12),
+            level: (applicable.snapLevel || levelMap19[applicable.snapGp] || 12),
             payBand: bVal,
             gradePay: 0,
             revBasic: bVal
@@ -4092,10 +4094,12 @@ function odApplyEraRules(row) {
         row.drPayBand = (row.drPayBand || 0) + (row.drGradePay || 0); row.drGradePay = 0;
         row.admPayBand = (row.admPayBand || 0) + (row.admGradePay || 0); row.admGradePay = 0;
     }
-    if (era === '19' && !/^LEVEL/i.test(row.band || '')) {
+    if (era === '19') {
+        // Level comes from the generated ROPA-19 Pay Table for that month (Level-7, Level-11, Level-12 ...).
         const [yy, mm] = row.month.split('-').map(Number);
         const snap = getAdmissibleSnapshotForDate(new Date(yy, mm - 1, 1));
-        if (snap && snap.era === 'ROPA-19') row.band = snap.band;
+        if (snap && snap.era === 'ROPA-19') { row.band = snap.band; row.scale = snap.scale; }
+        else if (/^LEVEL/i.test(row.band || '') && !row.scale) row.scale = row.band;
     }
     return era;
 }
@@ -4107,7 +4111,7 @@ function odEraDisplay(row) {
     return {
         era,
         band: era === '98' ? NA : (row.band || NA),
-        scale: era === '19' ? NA : (row.scale || NA),
+        scale: row.scale || (era === '19' ? (row.band || NA) : NA),
         drPB: era === '09' ? row.drPayBand : NA, drGP: era === '09' ? row.drGradePay : NA,
         admPB: era === '09' ? row.admPayBand : NA, admGP: era === '09' ? row.admGradePay : NA
     };
@@ -4137,7 +4141,7 @@ function renderOdTable() {
         const era = odApplyEraRules(row);
         const NA = '<span style="color:#94a3b8;" title="Not applicable in this pay-revision era">&mdash;</span>';
         const bandCell  = era === '98' ? NA : inp(row.id,'band',row.band,'txt');
-        const scaleCell = era === '19' ? NA : inp(row.id,'scale',row.scale,'txt');
+        const scaleCell = inp(row.id,'scale',row.scale || (era === '19' ? row.band : ''),'txt');
         const drPB   = era === '09' ? inp(row.id,'drPayBand',row.drPayBand) : NA;
         const drGP   = era === '09' ? inp(row.id,'drGradePay',row.drGradePay) : NA;
         const admPB  = era === '09' ? inp(row.id,'admPayBand',row.admPayBand) : NA;
