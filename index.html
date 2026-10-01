@@ -374,9 +374,9 @@
 
         /* TR-7: exactly one complete copy in the printable A4 content area */
         .chl-page {
-            width: 190mm !important;
-            height: 277mm !important;
-            min-height: 277mm !important;
+            width: 100% !important;
+            height: 257mm !important;
+            min-height: 257mm !important;
             margin: 0 !important;
             padding: 0 !important;
             box-sizing: border-box !important;
@@ -389,12 +389,12 @@
             break-after: auto !important;
         }
         .chl-wrap {
-            width: 190mm !important;
-            height: 277mm !important;
+            width: 100% !important;
+            height: 100% !important;
             min-height: 0 !important;
             box-sizing: border-box !important;
             border: 2px solid #000 !important;
-            padding: 8mm 8mm 6mm !important;
+            padding: 7mm 7mm 5mm !important;
             margin: 0 !important;
             font-size: 9.5pt !important;
             line-height: 1.18 !important;
@@ -413,7 +413,7 @@
         .chl-row {
             grid-template-columns: 34px minmax(285px, 43%) minmax(0, 1fr) !important;
             column-gap: 7px !important;
-            margin-bottom: 5mm !important;
+            margin-bottom: 3.5mm !important;
             line-height: 1.15 !important;
         }
         .chl-num { font-size: 9.5pt !important; }
@@ -423,15 +423,15 @@
         .chl-codebox { width: 30px !important; height: 18px !important; font-size: 10pt !important; }
         .chl-acctgrid { width: 100% !important; gap: 1px !important; }
         .chl-digitbox { width: 15px !important; height: 18px !important; font-size: 8.5pt !important; }
-        .chl-sig-table { margin-top: 10mm !important; font-size: 8.5pt !important; table-layout: fixed !important; }
+        .chl-sig-table { margin-top: 7mm !important; font-size: 8.5pt !important; table-layout: fixed !important; }
         .chl-sig-table td { padding: 5px 5px 2px !important; }
         .chl-note { margin-top: 3mm !important; padding-top: 2mm !important; font-size: 8pt !important; }
 
         /* DA calculation sheet: use the complete A4 landscape width */
         .annex-page-sheet {
-            width: 277mm !important;
-            min-height: 190mm !important;
-            height: 190mm !important;
+            width: 100% !important;
+            min-height: 194mm !important;
+            height: auto !important;
             box-sizing: border-box !important;
             padding: 5mm !important;
             margin: 0 !important;
@@ -455,94 +455,6 @@
         .annex-page-sheet th:nth-child(1), .annex-page-sheet td:nth-child(1) { width: 11% !important; }
         .annex-page-sheet th:nth-child(2), .annex-page-sheet td:nth-child(2) { width: 11% !important; }
         .annex-page-sheet th:nth-child(n+3), .annex-page-sheet td:nth-child(n+3) { width: 9.75% !important; }
-    }
-
-
-    /* ===== TRUE A4 PREVIEW GEOMETRY =====
-       SCREEN PREVIEW: prevent horizontal overflow/scrollbars.
-       PRINT: the @media print rules retain true A4 millimetre sizing. */
-    .modal-box { overflow: hidden; max-height: calc(100vh - 36px); }
-    #printArea { background: #e5e7eb; overflow-x: hidden; overflow-y: auto; max-height: calc(100vh - 100px); box-sizing: border-box; }
-    .chl-page {
-        width: 190mm;
-        height: 277mm;
-        min-height: 277mm;
-        box-sizing: border-box;
-        margin: 0 auto 8mm;
-        padding: 0;
-        background: #fff;
-        page-break-after: always;
-        break-after: page;
-        overflow: hidden;
-    }
-    .chl-page:last-child { margin-bottom: 0; page-break-after: auto; break-after: auto; }
-    .chl-wrap {
-        width: 100%;
-        height: 100%;
-        box-sizing: border-box;
-        padding: 8mm 8mm 6mm;
-        border: 2px solid #000;
-        background: #fff;
-        font-size: 10pt;
-        line-height: 1.22;
-    }
-    .chl-row {
-        grid-template-columns: 34px 43% minmax(0,1fr);
-        column-gap: 8px;
-        margin-bottom: 5mm;
-    }
-    .chl-title-block { margin-bottom: 4mm; }
-    .chl-heading { margin: 3mm 0 2mm; font-size: 11pt; }
-    .chl-form-no { font-size: 15pt; }
-    .chl-bn, .chl-see { font-size: 9pt; }
-    .chl-label, .chl-num, .chl-val { font-size: 10pt; }
-    .chl-val { min-height: 1.25em; }
-    .chl-sig-table { margin-top: 10mm; font-size: 9pt; }
-    .chl-sig-table td { padding: 7px 6px 3px; }
-    .chl-note { margin-top: 4mm; padding-top: 2mm; font-size: 8.5pt; }
-
-    .annex-page-sheet {
-        width: 277mm;
-        min-height: 190mm;
-        height: 190mm;
-        box-sizing: border-box;
-        margin: 0 auto 8mm;
-        padding: 5mm;
-        background: #fff;
-        overflow: hidden;
-    }
-    .annex-page-sheet:last-child { margin-bottom: 0; }
-
-    @media screen {
-        .modal-overlay.active { padding: 18px; overflow: hidden; }
-        .modal-box { max-width: none; width: 100%; max-height: calc(100vh - 36px); overflow: hidden; }
-        #printArea {
-            padding: 12px !important;
-            min-width: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            overflow-x: hidden !important;
-            overflow-y: auto !important;
-            box-sizing: border-box !important;
-        }
-        /* Fit each paper to the available preview width; printing is unaffected. */
-        .chl-page {
-            width: min(190mm, calc(100vw - 60px)) !important;
-            height: auto !important;
-            min-height: 0 !important;
-            aspect-ratio: 190 / 277;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
-        .chl-wrap { width: 100% !important; height: 100% !important; }
-        .annex-page-sheet {
-            width: min(277mm, calc(100vw - 60px)) !important;
-            height: auto !important;
-            min-height: 0 !important;
-            aspect-ratio: 277 / 190;
-            margin-left: auto !important;
-            margin-right: auto !important;
-        }
     }
 
     /* ===== LEFT SIDEBAR / COMMON STAFF PANEL ===== */
