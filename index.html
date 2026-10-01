@@ -458,11 +458,11 @@
     }
 
 
-    /* ===== TRUE A4 PREVIEW GEOMETRY ===== */
-    /* The print preview must itself look like the paper.  Do not stretch the
-       challan to the browser window: keep exact A4 content dimensions. */
-    .modal-box { overflow: auto; }
-    #printArea { background: #e5e7eb; }
+    /* ===== TRUE A4 PREVIEW GEOMETRY =====
+       SCREEN PREVIEW: prevent horizontal overflow/scrollbars.
+       PRINT: the @media print rules retain true A4 millimetre sizing. */
+    .modal-box { overflow: hidden; max-height: calc(100vh - 36px); }
+    #printArea { background: #e5e7eb; overflow-x: hidden; overflow-y: auto; max-height: calc(100vh - 100px); box-sizing: border-box; }
     .chl-page {
         width: 190mm;
         height: 277mm;
@@ -514,9 +514,35 @@
     .annex-page-sheet:last-child { margin-bottom: 0; }
 
     @media screen {
-        .modal-overlay.active { padding: 18px; }
-        .modal-box { max-width: none; width: 100%; }
-        #printArea { padding: 12mm 8mm !important; min-width: 0; }
+        .modal-overlay.active { padding: 18px; overflow: hidden; }
+        .modal-box { max-width: none; width: 100%; max-height: calc(100vh - 36px); overflow: hidden; }
+        #printArea {
+            padding: 12px !important;
+            min-width: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            box-sizing: border-box !important;
+        }
+        /* Fit each paper to the available preview width; printing is unaffected. */
+        .chl-page {
+            width: min(190mm, calc(100vw - 60px)) !important;
+            height: auto !important;
+            min-height: 0 !important;
+            aspect-ratio: 190 / 277;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
+        .chl-wrap { width: 100% !important; height: 100% !important; }
+        .annex-page-sheet {
+            width: min(277mm, calc(100vw - 60px)) !important;
+            height: auto !important;
+            min-height: 0 !important;
+            aspect-ratio: 277 / 190;
+            margin-left: auto !important;
+            margin-right: auto !important;
+        }
     }
 
     /* ===== LEFT SIDEBAR / COMMON STAFF PANEL ===== */
