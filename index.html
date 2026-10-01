@@ -14,7 +14,7 @@
 
 <style id="printPageStyle">
     @media print {
-        @page { size: A4 portrait; margin: 12mm 10mm; }
+        @page { size: A4 portrait; margin: 8mm; }
     }
 </style>
 
@@ -328,20 +328,49 @@
     #printArea { padding: 25px 30px; font-family: 'Times New Roman', Times, serif; color: #000; }
     #sbPrintArea { display: none; }
 
+    /* Screen-only helpers for the calculation-sheet signature row */
+    .calc-sign-row { display: grid; grid-template-columns: 1fr 1fr 1fr; column-gap: 12mm; margin-top: 35px; font-size: 0.85rem; font-weight: bold; align-items: end; }
+    .calc-sign-row .sig { border-top: 1px solid #000; padding-top: 3px; text-align: center; margin-top: 45px; }
+    .calc-sign-row .chk { font-style: italic; }
+    .chl-sig-table .gap { width: 10mm; }
+
     @media print {
-        body * { visibility: hidden; }
-        .modal-overlay, .modal-overlay * { visibility: visible; }
-        .modal-overlay { position: absolute; inset: 0; background: #fff !important; padding: 0; }
+        /* ===== PRINT ISOLATION =====
+           Remove (not just hide) everything except the print overlay, so the hidden
+           app screen can never add blank trailing pages. */
+        html, body {
+            background: #fff !important;
+            margin: 0 !important; padding: 0 !important;
+            height: auto !important; min-height: 0 !important; overflow: visible !important;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        body > *:not(.modal-overlay):not(#sbPrintArea) { display: none !important; }
+        .modal-overlay:not(.active) { display: none !important; }
+        .modal-overlay.active {
+            display: block !important;
+            position: static !important;
+            inset: auto !important;
+            width: 100% !important; height: auto !important; min-height: 0 !important;
+            padding: 0 !important; margin: 0 !important;
+            overflow: visible !important;
+            background: #fff !important;
+        }
+        .modal-overlay.active ~ #sbPrintArea { display: none !important; }
         .modal-toolbar { display: none !important; }
-        .modal-box { box-shadow: none; max-width: 100%; }
-        #sbPrintArea, #sbPrintArea * { visibility: visible; }
+        .modal-box {
+            display: block !important;
+            width: 100% !important; max-width: none !important;
+            margin: 0 !important; padding: 0 !important;
+            box-shadow: none !important; border-radius: 0 !important;
+            overflow: visible !important;
+        }
+        #printArea { padding: 0 !important; margin: 0 !important; width: 100% !important; box-sizing: border-box !important; }
+
+        /* Service Book print container */
         #sbPrintArea {
             display: block !important;
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            max-width: 100%;
+            position: static !important;
+            width: 100%; max-width: 100%;
             box-sizing: border-box;
             font-family: 'Times New Roman', Times, serif;
             color: #000;
@@ -349,112 +378,116 @@
         #sbPrintArea table { width: 100%; table-layout: fixed; font-size: 0.78rem; }
         #sbPrintArea table, #sbPrintArea th, #sbPrintArea td { box-sizing: border-box; word-wrap: break-word; }
         #sbPrintArea tr { page-break-inside: avoid; break-inside: avoid; }
-        .annex-page-sheet { border: none !important; padding: 0 !important; margin: 0 !important; page-break-after: always; break-after: page; }
-        .annex-page-sheet:last-child { page-break-after: auto; break-after: auto; }
 
-        /* ===== FINAL A4 PRINT GEOMETRY ===== */
-        #printArea {
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        .modal-overlay {
-            width: 100% !important;
-            height: auto !important;
-            min-height: 0 !important;
-            overflow: visible !important;
-        }
-        .modal-box {
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        /* TR-7: exactly one complete copy in the printable A4 content area */
+        /* ===== T.R. FORM NO. 7 (A4 PORTRAIT, @page margin 8mm => 194 x 281 mm) =====
+           Exactly one copy per page; page box is slightly shorter than the printable
+           area so rounding can never push a 5th page. */
         .chl-page {
             width: 100% !important;
-            height: 257mm !important;
-            min-height: 257mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            height: 276mm !important; min-height: 0 !important;
+            margin: 0 !important; padding: 0 !important;
             box-sizing: border-box !important;
-            page-break-after: always !important;
-            break-after: page !important;
             overflow: hidden !important;
+            break-inside: avoid !important; page-break-inside: avoid !important;
+            break-after: page !important; page-break-after: always !important;
         }
-        .chl-page:last-child {
-            page-break-after: auto !important;
-            break-after: auto !important;
-        }
+        .chl-page:last-child { break-after: auto !important; page-break-after: auto !important; }
         .chl-wrap {
-            width: 100% !important;
-            height: 100% !important;
-            min-height: 0 !important;
+            display: flex !important; flex-direction: column !important;
+            width: 100% !important; height: 100% !important;
             box-sizing: border-box !important;
             border: 2px solid #000 !important;
-            padding: 7mm 7mm 5mm !important;
-            margin: 0 !important;
-            font-size: 9.5pt !important;
-            line-height: 1.18 !important;
+            padding: 5mm 6mm 4mm !important; margin: 0 !important;
+            font-size: 9.5pt !important; line-height: 1.18 !important;
             overflow: hidden !important;
         }
-        .chl-topnote { font-size: 8pt !important; margin-bottom: 2mm !important; }
-        .chl-copyrow { padding-bottom: 2mm !important; margin-bottom: 2.5mm !important; }
-        .chl-copyrow .copies { width: auto !important; gap: 4px !important; font-size: 9pt !important; white-space: nowrap !important; }
+        .chl-topnote { font-size: 8pt !important; margin-bottom: 1mm !important; }
+        .chl-copyrow { padding-bottom: 1.5mm !important; margin-bottom: 2mm !important; }
+        .chl-copyrow .copies { gap: 3px !important; font-size: 9pt !important; white-space: nowrap !important; }
         .chl-copyrow .copies span { padding: 1px 4px !important; }
         .chl-schoolcode-box { font-size: 8.5pt !important; padding: 2px 6px !important; }
-        .chl-title-block { margin-bottom: 3mm !important; }
-        .chl-form-no { font-size: 14pt !important; }
-        .chl-bn { font-size: 8.5pt !important; }
-        .chl-see { font-size: 8.5pt !important; }
-        .chl-heading { font-size: 11pt !important; margin: 2mm 0 1mm !important; }
+        .chl-title-block { margin-bottom: 2mm !important; }
+        .chl-form-no { font-size: 13pt !important; }
+        .chl-bn, .chl-see { font-size: 8pt !important; }
+        .chl-heading { font-size: 10.5pt !important; margin: 1.5mm 0 0.5mm !important; }
         .chl-row {
-            grid-template-columns: 34px minmax(285px, 43%) minmax(0, 1fr) !important;
-            column-gap: 7px !important;
-            margin-bottom: 3.5mm !important;
+            display: grid !important;
+            grid-template-columns: 10mm 64mm minmax(0, 1fr) !important;
+            column-gap: 3mm !important;
+            margin-bottom: 2.3mm !important;
             line-height: 1.15 !important;
+            align-items: start !important;
         }
-        .chl-num { font-size: 9.5pt !important; }
-        .chl-label { font-size: 9.5pt !important; }
-        .chl-val { font-size: 9.5pt !important; min-height: 12px !important; }
-        .chl-codegrid { min-width: 0 !important; }
-        .chl-codebox { width: 30px !important; height: 18px !important; font-size: 10pt !important; }
-        .chl-acctgrid { width: 100% !important; gap: 1px !important; }
-        .chl-digitbox { width: 15px !important; height: 18px !important; font-size: 8.5pt !important; }
-        .chl-sig-table { margin-top: 7mm !important; font-size: 8.5pt !important; table-layout: fixed !important; }
-        .chl-sig-table td { padding: 5px 5px 2px !important; }
-        .chl-note { margin-top: 3mm !important; padding-top: 2mm !important; font-size: 8pt !important; }
+        .chl-num, .chl-label, .chl-val { font-size: 9.5pt !important; }
+        .chl-label .chl-bn { display: block !important; }
+        .chl-val { min-height: 5mm !important; }
+        .chl-codegrid { display: flex !important; gap: 0 !important; }
+        .chl-codebox { width: 8mm !important; height: 6.5mm !important; font-size: 10pt !important; box-sizing: border-box !important; margin-right: -1px !important; }
+        .chl-acctgrid { display: flex !important; flex-wrap: nowrap !important; gap: 0 !important; width: 100% !important; }
+        .chl-digitbox {
+            flex: 1 1 0 !important; min-width: 0 !important; max-width: 7.2mm !important;
+            width: auto !important; height: 6.5mm !important;
+            box-sizing: border-box !important; font-size: 10pt !important;
+            margin-right: -1px !important;
+        }
+        .chl-sig-table {
+            width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important;
+            margin-top: auto !important; font-size: 8.5pt !important;
+        }
+        .chl-sig-table td { padding: 0 !important; border: 0 !important; background: transparent !important; vertical-align: top !important; text-align: center !important; }
+        .chl-sig-table td.head { font-weight: bold; height: 6mm; vertical-align: bottom !important; }
+        .chl-sig-table td.rule { border-top: 1px solid #000 !important; padding-top: 0.8mm !important; height: 9mm !important; }
+        .chl-sig-table td.gap { width: 10mm !important; border: none !important; }
+        .chl-note { margin-top: 2mm !important; padding-top: 1.5mm !important; font-size: 8.5pt !important; }
 
-        /* DA calculation sheet: use the complete A4 landscape width */
+        /* ===== CALCULATION SHEETS (A4 LANDSCAPE, @page margin 8mm => 281 x 194 mm) =====
+           One sheet == exactly one page; month blocks never split across pages. */
         .annex-page-sheet {
+            display: flex !important; flex-direction: column !important;
             width: 100% !important;
-            min-height: 194mm !important;
-            height: auto !important;
+            height: 188mm !important; min-height: 0 !important;
             box-sizing: border-box !important;
-            padding: 5mm !important;
-            margin: 0 !important;
+            padding: 3mm 4mm !important; margin: 0 !important;
             border: 1px solid #000 !important;
             overflow: hidden !important;
+            break-inside: avoid !important; page-break-inside: avoid !important;
+            break-after: page !important; page-break-after: always !important;
         }
-        .annex-page-sheet table {
-            width: 100% !important;
-            max-width: 100% !important;
-            table-layout: fixed !important;
-            border-collapse: collapse !important;
-            font-size: 8pt !important;
+        .annex-page-sheet:last-child { break-after: auto !important; page-break-after: auto !important; }
+        .annex-page-sheet table.calc-table {
+            width: 100% !important; max-width: 100% !important;
+            table-layout: fixed !important; border-collapse: collapse !important;
+            font-size: 8.5pt !important; flex: 0 0 auto;
         }
-        .annex-page-sheet th, .annex-page-sheet td {
+        .annex-page-sheet table.calc-table th,
+        .annex-page-sheet table.calc-table td {
             box-sizing: border-box !important;
-            padding: 2px 3px !important;
-            overflow-wrap: anywhere !important;
-            word-break: normal !important;
-            line-height: 1.12 !important;
+            padding: 1.5px 3px !important;
+            border: 1px solid #000 !important;
+            overflow-wrap: anywhere !important; word-break: normal !important;
+            line-height: 1.15 !important;
         }
-        .annex-page-sheet th:nth-child(1), .annex-page-sheet td:nth-child(1) { width: 11% !important; }
-        .annex-page-sheet th:nth-child(2), .annex-page-sheet td:nth-child(2) { width: 11% !important; }
-        .annex-page-sheet th:nth-child(n+3), .annex-page-sheet td:nth-child(n+3) { width: 9.75% !important; }
+        .annex-page-sheet table.calc-table thead { display: table-header-group; }
+        .annex-page-sheet table.calc-table tbody.month-group,
+        .annex-page-sheet table.calc-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+        .annex-page-sheet .calc-sign-row { margin-top: auto !important; padding-top: 6mm; }
+        .annex-page-sheet .calc-sign-row .sig { margin-top: 9mm !important; }
+
+        /* ===== OVER DRAWN STATEMENT (A4 LANDSCAPE, 25 columns) ===== */
+        .od-sheet { width: 100% !important; box-sizing: border-box !important; font-family: 'Times New Roman', Times, serif; color: #000; }
+        .od-sheet table.annex1-table {
+            width: 100% !important; max-width: 100% !important;
+            table-layout: fixed !important; border-collapse: collapse !important;
+            font-size: 6.5pt !important;
+        }
+        .od-sheet table.annex1-table th, .od-sheet table.annex1-table td {
+            box-sizing: border-box !important; padding: 1.5px 1.5px !important;
+            overflow-wrap: anywhere !important; line-height: 1.15 !important;
+        }
+        .od-sheet table.annex1-table thead { display: table-header-group; }
+        .od-sheet table.annex1-table tfoot { display: table-row-group; }
+        .od-sheet table.annex1-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+        .od-sheet .od-foot { break-inside: avoid; page-break-inside: avoid; }
     }
 
     /* ===== LEFT SIDEBAR / COMMON STAFF PANEL ===== */
@@ -1819,11 +1852,41 @@ function setPrintOrientation(orientation) {
         style.id = 'printPageStyle';
         document.head.appendChild(style);
     }
-    if (orientation === 'landscape') {
+    if (orientation === 'landscape-numbered') {
+        // A4 landscape + automatic "Page X of Y" in the bottom margin (multi-page statements)
+        style.innerHTML = `@media print { @page { size: A4 landscape; margin: 8mm 8mm 12mm 8mm;
+            @bottom-center { content: "Page " counter(page) " of " counter(pages); font-family: 'Times New Roman', serif; font-size: 8pt; } } }`;
+    } else if (orientation === 'landscape') {
         style.innerHTML = `@media print { @page { size: A4 landscape; margin: 8mm; } }`;
     } else {
-        style.innerHTML = `@media print { @page { size: A4 portrait; margin: 10mm; } }`;
+        style.innerHTML = `@media print { @page { size: A4 portrait; margin: 8mm; } }`;
     }
+}
+
+// Calculation-sheet helpers --------------------------------------------------
+// Fixed column widths so a sheet can never run outside the printable width:
+// two label columns (Status, Month) + equal numeric columns.
+function calcColgroup(nCols) {
+    const label = 9, rest = (100 - 2 * label) / (nCols - 2);
+    let h = `<colgroup><col style="width:${label}%"><col style="width:${label}%">`;
+    for (let i = 2; i < nCols; i++) h += `<col style="width:${rest.toFixed(3)}%">`;
+    return h + '</colgroup>';
+}
+// Wraps the <tr> list in <tbody>s: each month's Admissible/Drawn/Due trio is ONE
+// tbody (kept together on a page); B/F, C/F and totals rows get their own tbody.
+function groupCalcRows(rowsHtml) {
+    const rows = rowsHtml.match(/<tr[\s\S]*?<\/tr>/g) || [];
+    let out = '', i = 0;
+    while (i < rows.length) {
+        if (/class="adm-row"/.test(rows[i])) {
+            out += `<tbody class="month-group">${rows[i]}${rows[i + 1] || ''}${rows[i + 2] || ''}</tbody>`;
+            i += 3;
+        } else {
+            out += `<tbody>${rows[i]}</tbody>`;
+            i += 1;
+        }
+    }
+    return out;
 }
 
 // COMPLETE MATRIX DATASETS
@@ -4861,7 +4924,7 @@ function docDaCalcSheet() {
     const desig = val('daEmpDesig') || val('designation');
     const period = `${monthLabelShort(val('daFrom'))} TO ${monthLabelShort(val('daTo'))}`;
 
-    const CHUNK_SIZE = 12;
+    const CHUNK_SIZE = 8; // months per landscape page (3 rows each) -- sized to fit A4 landscape
     const totalEntries = daCaseRows.length;
     const totalPages = Math.ceil(totalEntries / CHUNK_SIZE) || 1;
 
@@ -4982,7 +5045,8 @@ function docDaCalcSheet() {
                 <div>D.A. Arrear for the period: <strong>${period}</strong></div>
             </div>
 
-            <table style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:center;">
+            <table class="calc-table" style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:center;">
+                ${calcColgroup(10)}
                 <thead>
                     <tr style="background:#e2e8f0; color:#000; font-weight:bold;">
                         <th style="border:1px solid #000; padding:4px;">Status</th>
@@ -4997,17 +5061,13 @@ function docDaCalcSheet() {
                         <th style="border:1px solid #000; padding:4px;">NET</th>
                     </tr>
                 </thead>
-                <tbody>${pageTableRowsHtml}</tbody>
+                ${groupCalcRows(pageTableRowsHtml)}
             </table>
 
-            <div style="margin-top:35px; font-size:0.85rem; font-weight:bold;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div style="text-align:left; width:45%;"><em>Checked, Verified and Found Correct</em></div>
-                    <div style="text-align:center; width:45%;"><br><br>________________________________________<br>Signature of Secretary / Administrator</div>
-                </div>
-                <div style="display:flex; justify-content:center; margin-top:25px;">
-                    <div style="text-align:center; width:50%;"><br><br>________________________________________<br>Signature of HOI with Seal</div>
-                </div>
+            <div class="calc-sign-row">
+                <div class="chk">Checked, Verified and Found Correct</div>
+                <div class="sig">Signature of Secretary / Administrator</div>
+                <div class="sig">Signature of HOI with Seal</div>
             </div>
         </div>`;
     }
@@ -5076,7 +5136,7 @@ async function exportDaCaseExcel() {
 
 function printStatement() {
     if (odRows.length === 0) { alert('Add at least one month row first.'); return; }
-    setPrintOrientation('landscape'); // OD SHEET -> A4 LANDSCAPE
+    setPrintOrientation('landscape-numbered'); // OD SHEET -> A4 LANDSCAPE + Page X of Y
     const sums = window._odSums || {};
     let rowsHtml = '';
     odRows.forEach((row, idx) => {
@@ -5091,11 +5151,12 @@ function printStatement() {
     });
 
     const content = `
-    <div>
+    <div class="od-sheet">
         <div style="font-size:.85rem;"><strong>Name of Employee, Qualification &amp; Designation:</strong>
             ${val('odEmpName')} ${val('odEmpQual') ? ';'+val('odEmpQual') : ''} ; ${val('odEmpDesig')} ${val('odSchoolName')}</div>
         <div style="font-size:.85rem; margin-bottom:10px;"><strong>Sub:-</strong> Over drawl Calculation due to ${val('reasonText')}</div>
         <table class="annex1-table" style="width:100%; font-size:0.7rem;">
+            <colgroup><col style="width:2.5%"><col style="width:4.5%"><col style="width:4.5%"><col style="width:6.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:4%"><col style="width:2.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:3%"><col style="width:2.5%"><col style="width:4.2%"><col style="width:4%"><col style="width:3.5%"><col style="width:4%"><col style="width:2.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:3%"><col style="width:2.5%"><col style="width:4.2%"><col style="width:4.2%"><col style="width:2.8%"><col style="width:12.6%"></colgroup>
             <thead>
                 <tr>
                     <th rowspan="3">Sl</th><th rowspan="3">Month</th><th rowspan="3">Name of<br>Band / Level</th><th rowspan="3">Pay Scale /<br>Pay Band</th>
@@ -5118,12 +5179,12 @@ function printStatement() {
                 </tr>
             </tfoot>
         </table>
-        <div style="margin-top:12px; font-weight:bold; font-size:.9rem;">Net overdrawn Amount to be refunded Rs. ${(sums.overDrawn||0).toLocaleString('en-IN')}</div>
+        <div class="od-foot"><div style="margin-top:12px; font-weight:bold; font-size:.9rem;">Net overdrawn Amount to be refunded Rs. ${(sums.overDrawn||0).toLocaleString('en-IN')}</div>
         <div style="font-style:italic;">[ Rupees ${numberToWords(sums.overDrawn||0)} Only ]</div>
         <div style="display:flex;justify-content:space-between;margin-top:60px;font-weight:bold;font-size:.85rem;">
             <div>________________________________<br>Signature of Head of Institution</div>
             <div>________________________________<br>Countersigned / D.I. of Schools</div>
-        </div>
+        </div></div>
     </div>`;
 
     document.getElementById('printArea').innerHTML = content;
@@ -5206,34 +5267,14 @@ function buildChallanPage(copyType) {
         <div class="chl-row"><div class="chl-num">8b.</div><div class="chl-label">T.V. No. and date of A.C. Bill<span class="chl-bn">টি.ভি. নং ও তারিখ</span></div><div class="chl-val">${val('chlTvNo')}</div></div>
 
         <table class="chl-sig-table">
-            <tr>
-                <td>Accounts Officer by whom adjustable</td>
-                <td>Account General (A &amp; E), West Bengal</td>
-            </tr>
-            <tr>
-                <td style="font-size:0.68rem;">Verified</td>
-                <td></td>
-            </tr>
-            <tr>
-                <td class="rule">Signature of Departmental / Treasury Officer</td>
-                <td class="rule">Depositor's Signature</td>
-            </tr>
-            <tr>
-                <td class="rule">Date</td>
-                <td class="rule">Treasury Receipt Challan No.</td>
-            </tr>
-            <tr>
-                <td class="rule">Received Payment</td>
-                <td class="rule">Bank Scroll Serial No.</td>
-            </tr>
-            <tr>
-                <td class="rule">Received by Bank / Treasury</td>
-                <td class="rule">Signature with seal of the Bank</td>
-            </tr>
-            <tr>
-                <td class="rule">Date</td>
-                <td class="rule">Date</td>
-            </tr>
+            <colgroup><col style="width:50%"><col class="gap"><col style="width:50%"></colgroup>
+            <tr><td class="head">Accounts Officer by whom adjustable</td><td class="gap"></td><td class="head">Account General (A &amp; E), West Bengal</td></tr>
+            <tr><td class="head" style="font-weight:normal;height:4mm;">Verified</td><td class="gap"></td><td class="head"></td></tr>
+            <tr><td class="rule">Signature of Departmental / Treasury Officer</td><td class="gap"></td><td class="rule">Depositor's Signature</td></tr>
+            <tr><td class="rule">Date</td><td class="gap"></td><td class="rule">Treasury Receipt Challan No.</td></tr>
+            <tr><td class="rule">Received Payment</td><td class="gap"></td><td class="rule">Bank Scroll Serial No.</td></tr>
+            <tr><td class="rule">Received by Bank / Treasury</td><td class="gap"></td><td class="rule">Signature with seal of the Bank</td></tr>
+            <tr><td class="rule">Date</td><td class="gap"></td><td class="rule">Date</td></tr>
         </table>
 
         <div class="chl-note">Date: ${val('chlDate') ? val('chlDate').split('-').reverse().join('-') : '-'}</div>
@@ -5508,7 +5549,7 @@ function docAnnex() {
     const scaleAdm = val('scaleAdmissible') || '-';
     const scaleDr = val('scaleDrawn') || '-';
 
-    const CHUNK_SIZE = 12;
+    const CHUNK_SIZE = 8; // months per landscape page (3 rows each) -- sized to fit A4 landscape
     const totalEntries = arrearRows.length;
     const totalPages = Math.ceil(totalEntries / CHUNK_SIZE) || 1;
 
@@ -5616,7 +5657,8 @@ function docAnnex() {
                 <div>Scale Admissible: <strong>${scaleAdm}</strong> &nbsp;|&nbsp; Scale Drawn: <strong>${scaleDr}</strong></div>
             </div>
 
-            <table style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:center;">
+            <table class="calc-table" style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:center;">
+                ${calcColgroup(11)}
                 <thead>
                     <tr style="background:#e2e8f0; color:#000; font-weight:bold;">
                         <th style="border:1px solid #000; padding:4px;">Status</th>
@@ -5632,17 +5674,13 @@ function docAnnex() {
                         <th style="border:1px solid #000; padding:4px;">NET</th>
                     </tr>
                 </thead>
-                <tbody>${pageTableRowsHtml}</tbody>
+                ${groupCalcRows(pageTableRowsHtml)}
             </table>
 
-            <div style="margin-top:35px; font-size:0.85rem; font-weight:bold;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div style="text-align:left; width:45%;"><em>Checked, Verified and Found Correct</em></div>
-                    <div style="text-align:center; width:45%;"><br><br>________________________________________<br>Signature of Secretary / Administrator</div>
-                </div>
-                <div style="display:flex; justify-content:center; margin-top:25px;">
-                    <div style="text-align:center; width:50%;"><br><br>________________________________________<br>Signature of HOI with Seal</div>
-                </div>
+            <div class="calc-sign-row">
+                <div class="chk">Checked, Verified and Found Correct</div>
+                <div class="sig">Signature of Secretary / Administrator</div>
+                <div class="sig">Signature of HOI with Seal</div>
             </div>
         </div>`;
     }
@@ -6449,6 +6487,12 @@ function handleImportBulkFile(event) {
 }
 
 window.addEventListener('DOMContentLoaded', function () {
+    // The print overlay + service-book print area must be direct children of <body>
+    // so print CSS can remove the app screen without removing them.
+    ['modalOverlay','sbPrintArea'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && el.parentNode !== document.body) document.body.appendChild(el);
+    });
     calculateDOR();
     togglePromotionSection();
     toggleRopa09Section();
