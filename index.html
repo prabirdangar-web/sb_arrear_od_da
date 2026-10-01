@@ -1188,8 +1188,8 @@
                 <tr>
                     <th rowspan="3">Sl</th>
                     <th rowspan="3">Month</th>
-                    <th rowspan="3">Name of<br>Band</th>
-                    <th rowspan="3">Pay Band /<br>Pay Scale</th>
+                    <th rowspan="3">Name of<br>Band / Level</th>
+                    <th rowspan="3">Pay Scale /<br>Pay Band</th>
                     <th colspan="9">DRAWN</th>
                     <th colspan="9">ADMISSIBLE</th>
                     <th rowspan="3">Over<br>Drawn<br>(Rs.)</th>
@@ -1201,8 +1201,8 @@
                     <th colspan="9"></th><th colspan="9"></th>
                 </tr>
                 <tr>
-                    <th>Pay in Band</th><th>Grade Pay</th><th>Rev. Basic</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
-                    <th>Pay in Band</th><th>Grade Pay</th><th>Rev. Basic</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
+                    <th>Pay in Band</th><th>Grade Pay</th><th>Basic Pay</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
+                    <th>Pay in Band</th><th>Grade Pay</th><th>Basic Pay</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
                 </tr>
             </thead>
             <tbody id="odBody"></tbody>
@@ -1212,6 +1212,12 @@
         </table>
     </div>
 
+    <div class="output-box" style="background:#f0fdf4; border-left-color:#16a34a; font-size:0.8rem;">
+        <strong>Era rule applied month-wise:</strong>
+        up to <b>Mar-2009 (ROPA-98)</b> &rarr; Pay Scale + direct Basic Pay only (no Grade Pay, no Level);
+        <b>Apr-2009 to Dec-2019 (ROPA-09)</b> &rarr; Pay Band + Grade Pay, Basic = Pay in Band + Grade Pay;
+        <b>from Jan-2020 (ROPA-19)</b> &rarr; Level only (e.g. LEVEL-11), direct Basic Pay &mdash; no Pay Band / Grade Pay amount.
+    </div>
     <div class="output-box" id="netOverdrawnBox" style="margin-top:16px;">Net overdrawn amount to be refunded: Rs. 0</div>
 
     <div class="btn-group">
@@ -3052,8 +3058,8 @@ function getAdmissibleSnapshotForDate(d) {
         const gp = applicable.snapGp || 0;
         return {
             era: 'ROPA-09',
-            band: pbMap09[gp] || 'PB-4',
-            scale: `${pbMap09[gp] || 'PB-4'}:${gp}`,
+            band: (pbMap09[gp] || 'PB-4:9000-40500').split(':')[0],
+            scale: (pbMap09[gp] || 'PB-4:9000-40500').split(':')[1] || '',
             payBand: bp,
             gradePay: gp,
             revBasic: bp + gp
@@ -3071,8 +3077,8 @@ function getAdmissibleSnapshotForDate(d) {
         const bVal = parseInt(String(applicable.basicDisplay || applicable.snapBasicPay || 0).replace(/,/g,''), 10) || 0;
         return {
             era: 'ROPA-19',
-            band: pbMap19[applicable.snapGp] || 'LEVEL-12',
-            scale: applicable.scaleStr || 'LEVEL-12',
+            band: 'LEVEL-' + (levelMap19[applicable.snapGp] || 12),
+            scale: 'LEVEL-' + (levelMap19[applicable.snapGp] || 12),
             payBand: bVal,
             gradePay: 0,
             revBasic: bVal
@@ -3832,6 +3838,12 @@ function addOverdrawnRow() {
         // leave Grade Pay at 0 -- the Rev. Basic total (PayBand + GradePay) stays correct.
         drPayBand = c.drBasic; drGradePay = 0; drDA = c.drDA; drHRA = c.drHRA; drMA = c.drMA;
         admPayBand = c.admBasic; admGradePay = 0; admDA = c.admDA; admHRA = c.admHRA; admMA = c.admMA;
+        // ROPA-09 months only: split Basic into Pay in Band + Grade Pay (ROPA-98 / ROPA-19 stay direct Basic)
+        if (odEra(m) === '09' && snap && snap.gradePay > 0 && (snap.payBand + snap.gradePay) > 0) {
+            const fullB = snap.payBand + snap.gradePay;
+            drGradePay = Math.min(c.drBasic, Math.round(snap.gradePay * c.drBasic / fullB)); drPayBand = c.drBasic - drGradePay;
+            admGradePay = Math.min(c.admBasic, Math.round(snap.gradePay * c.admBasic / fullB)); admPayBand = c.admBasic - admGradePay;
+        }
         arrIR = { adm: c.admIR, dr: c.drIR };
         remarksText = 'Auto-fetched from Arrear Table (Tab 1) -- fraction-day / mixed basic pay for this month applied';
     } else {
@@ -3897,6 +3909,43 @@ function computeOdRow(row) {
     return { drRevBasic, drTotal, admRevBasic, admTotal, overDrawn, daPercent };
 }
 
+// ERA RULE FOR THE OVER DRAWN / ARREAR CALCULATION SHEET
+//  up to Mar-2009 : ROPA-98  -> Pay Scale + direct Basic Pay only (no Grade Pay, no Level)
+//  Apr-2009..Dec-2019 : ROPA-09 -> Pay Band + Grade Pay, Basic = Pay in Band + Grade Pay
+//  from Jan-2020  : ROPA-19  -> Level only, direct Basic Pay (no Pay Band / Grade Pay amount)
+function odEra(monthStr) {
+    if (monthStr < '2009-04') return '98';
+    if (monthStr <= '2019-12') return '09';
+    return '19';
+}
+function odApplyEraRules(row) {
+    const era = odEra(row.month);
+    if (era !== '09') {
+        // fold any Pay-in-Band + Grade Pay split into one direct Basic (value-preserving)
+        row.drPayBand = (row.drPayBand || 0) + (row.drGradePay || 0); row.drGradePay = 0;
+        row.admPayBand = (row.admPayBand || 0) + (row.admGradePay || 0); row.admGradePay = 0;
+    }
+    if (era === '19' && !/^LEVEL/i.test(row.band || '')) {
+        const [yy, mm] = row.month.split('-').map(Number);
+        const snap = getAdmissibleSnapshotForDate(new Date(yy, mm - 1, 1));
+        if (snap && snap.era === 'ROPA-19') row.band = snap.band;
+    }
+    return era;
+}
+function odEraLabel(era) { return era === '98' ? 'ROPA-98' : (era === '09' ? 'ROPA-09' : 'ROPA-19'); }
+// plain-text values for print / Excel (N/A shown as a dash)
+function odEraDisplay(row) {
+    const era = odApplyEraRules(row);
+    const NA = '&mdash;';
+    return {
+        era,
+        band: era === '98' ? NA : (row.band || NA),
+        scale: era === '19' ? NA : (row.scale || NA),
+        drPB: era === '09' ? row.drPayBand : NA, drGP: era === '09' ? row.drGradePay : NA,
+        admPB: era === '09' ? row.admPayBand : NA, admGP: era === '09' ? row.admGradePay : NA
+    };
+}
+
 function inp(id, field, value, cls) {
     return `<input class="tbl-input ${cls||''}" data-rowid="${id}" data-field="${field}" value="${value}" onchange="updateOdField(${id},'${field}',this.value)">`;
 }
@@ -3910,6 +3959,7 @@ function renderOdTable() {
                  admDP:0, admDA:0, admHRA:0, admMA:0, admIR:0, admRevBasic:0, admTotal:0, overDrawn:0 };
 
     odRows.forEach((row, idx) => {
+        odApplyEraRules(row);
         const c = computeOdRow(row);
         sums.drDP += row.drDP; sums.drDA += row.drDA; sums.drHRA += row.drHRA; sums.drMA += row.drMA; sums.drIR += row.drIR;
         sums.drRevBasic += c.drRevBasic; sums.drTotal += c.drTotal;
@@ -3917,24 +3967,36 @@ function renderOdTable() {
         sums.admRevBasic += c.admRevBasic; sums.admTotal += c.admTotal;
         sums.overDrawn += c.overDrawn;
 
+        const era = odApplyEraRules(row);
+        const NA = '<span style="color:#94a3b8;" title="Not applicable in this pay-revision era">&mdash;</span>';
+        const bandCell  = era === '98' ? NA : inp(row.id,'band',row.band,'txt');
+        const scaleCell = era === '19' ? NA : inp(row.id,'scale',row.scale,'txt');
+        const drPB   = era === '09' ? inp(row.id,'drPayBand',row.drPayBand) : NA;
+        const drGP   = era === '09' ? inp(row.id,'drGradePay',row.drGradePay) : NA;
+        const admPB  = era === '09' ? inp(row.id,'admPayBand',row.admPayBand) : NA;
+        const admGP  = era === '09' ? inp(row.id,'admGradePay',row.admGradePay) : NA;
+        // ROPA-98 / ROPA-19: Basic Pay is typed directly (stored in drPayBand/admPayBand, GP always 0)
+        const drBasicCell  = era === '09' ? `<strong>${c.drRevBasic}</strong>` : inp(row.id,'drPayBand',row.drPayBand);
+        const admBasicCell = era === '09' ? `<strong>${c.admRevBasic}</strong>` : inp(row.id,'admPayBand',row.admPayBand);
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${idx+1}</td>
-            <td>${monthLabelShort(row.month)}</td>
-            <td>${inp(row.id,'band',row.band,'txt')}</td>
-            <td>${inp(row.id,'scale',row.scale,'txt')}</td>
-            <td>${inp(row.id,'drPayBand',row.drPayBand)}</td>
-            <td>${inp(row.id,'drGradePay',row.drGradePay)}</td>
-            <td><strong>${c.drRevBasic}</strong></td>
+            <td>${monthLabelShort(row.month)}<br><span style="font-size:0.65rem;color:#64748b;">${odEraLabel(era)}</span></td>
+            <td>${bandCell}</td>
+            <td>${scaleCell}</td>
+            <td>${drPB}</td>
+            <td>${drGP}</td>
+            <td>${drBasicCell}</td>
             <td>${inp(row.id,'drDP',row.drDP)}</td>
             <td>${inp(row.id,'drDA',row.drDA)}</td>
             <td>${inp(row.id,'drHRA',row.drHRA)}</td>
             <td>${inp(row.id,'drMA',row.drMA)}</td>
             <td>${inp(row.id,'drIR',row.drIR)}</td>
             <td><strong>${c.drTotal}</strong></td>
-            <td>${inp(row.id,'admPayBand',row.admPayBand)}</td>
-            <td>${inp(row.id,'admGradePay',row.admGradePay)}</td>
-            <td><strong>${c.admRevBasic}</strong></td>
+            <td>${admPB}</td>
+            <td>${admGP}</td>
+            <td>${admBasicCell}</td>
             <td>${inp(row.id,'admDP',row.admDP)}</td>
             <td>${inp(row.id,'admDA',row.admDA)}</td>
             <td>${inp(row.id,'admHRA',row.admHRA)}</td>
@@ -4914,11 +4976,12 @@ function printStatement() {
     const sums = window._odSums || {};
     let rowsHtml = '';
     odRows.forEach((row, idx) => {
+        const e = odEraDisplay(row);
         const c = computeOdRow(row);
         rowsHtml += `<tr>
-            <td>${idx+1}</td><td>${monthLabelShort(row.month)}</td><td>${row.band}</td><td>${row.scale}</td>
-            <td>${row.drPayBand}</td><td>${row.drGradePay}</td><td>${c.drRevBasic}</td><td>${row.drDP}</td><td>${row.drDA}</td><td>${row.drHRA}</td><td>${row.drMA}</td><td>${row.drIR}</td><td><strong>${c.drTotal}</strong></td>
-            <td>${row.admPayBand}</td><td>${row.admGradePay}</td><td>${c.admRevBasic}</td><td>${row.admDP}</td><td>${row.admDA}</td><td>${row.admHRA}</td><td>${row.admMA}</td><td>${row.admIR}</td><td><strong>${c.admTotal}</strong></td>
+            <td>${idx+1}</td><td>${monthLabelShort(row.month)}</td><td>${e.band}</td><td>${e.scale}</td>
+            <td>${e.drPB}</td><td>${e.drGP}</td><td>${c.drRevBasic}</td><td>${row.drDP}</td><td>${row.drDA}</td><td>${row.drHRA}</td><td>${row.drMA}</td><td>${row.drIR}</td><td><strong>${c.drTotal}</strong></td>
+            <td>${e.admPB}</td><td>${e.admGP}</td><td>${c.admRevBasic}</td><td>${row.admDP}</td><td>${row.admDA}</td><td>${row.admHRA}</td><td>${row.admMA}</td><td>${row.admIR}</td><td><strong>${c.admTotal}</strong></td>
             <td><strong>${c.overDrawn}</strong></td><td>${c.daPercent}</td><td style="text-align:left;white-space:pre-line;">${row.remarks}</td>
         </tr>`;
     });
@@ -4931,14 +4994,14 @@ function printStatement() {
         <table class="annex1-table" style="width:100%; font-size:0.7rem;">
             <thead>
                 <tr>
-                    <th rowspan="3">Sl</th><th rowspan="3">Month</th><th rowspan="3">Name of<br>Band</th><th rowspan="3">Pay Band /<br>Pay Scale</th>
+                    <th rowspan="3">Sl</th><th rowspan="3">Month</th><th rowspan="3">Name of<br>Band / Level</th><th rowspan="3">Pay Scale /<br>Pay Band</th>
                     <th colspan="9">DRAWN</th><th colspan="9">ADMISSIBLE</th>
                     <th rowspan="3">Over<br>Drawn</th><th rowspan="3">% of<br>DA</th><th rowspan="3">Remarks</th>
                 </tr>
                 <tr><th colspan="9"></th><th colspan="9"></th></tr>
                 <tr>
-                    <th>Pay in Band</th><th>Grade Pay</th><th>Rev.Basic</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
-                    <th>Pay in Band</th><th>Grade Pay</th><th>Rev.Basic</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
+                    <th>Pay in Band</th><th>Grade Pay</th><th>Basic Pay</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
+                    <th>Pay in Band</th><th>Grade Pay</th><th>Basic Pay</th><th>DP</th><th>DA</th><th>HRA</th><th>MA</th><th>IR</th><th>Total</th>
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
@@ -5946,12 +6009,16 @@ async function exportOverdrawnExcel() {
     ws1.addRow([`Employee: ${val('odEmpName')} ; ${val('odEmpDesig')} ${val('odSchoolName')}`]);
     ws1.addRow([`Sub:- Over drawl Calculation due to ${val('reasonText')}`]);
     ws1.addRow([]);
-    ws1.addRow(['Sl','Month','Name of Band','Pay Band/Scale','Drawn Total','Admissible Total','Over Drawn Amount','Remarks']);
+    ws1.addRow(['Sl','Month','Era','Name of Band / Level','Pay Scale / Pay Band','Drawn Pay in Band','Drawn Grade Pay','Drawn Basic Pay','Drawn Total','Adm. Pay in Band','Adm. Grade Pay','Adm. Basic Pay','Admissible Total','Over Drawn Amount','Remarks']);
+    const xl = v => (typeof v === 'number') ? v : '-';
     odRows.forEach((row, idx) => {
+        const e = odEraDisplay(row);
         const c = computeOdRow(row);
-        ws1.addRow([idx+1, monthLabelShort(row.month), row.band, row.scale, c.drTotal, c.admTotal, c.overDrawn, row.remarks]);
+        const dash = t => (t === '&mdash;' ? '-' : t);
+        ws1.addRow([idx+1, monthLabelShort(row.month), odEraLabel(e.era), dash(e.band), dash(e.scale),
+            xl(e.drPB), xl(e.drGP), c.drRevBasic, c.drTotal, xl(e.admPB), xl(e.admGP), c.admRevBasic, c.admTotal, c.overDrawn, row.remarks]);
     });
-    ws1.addRow(['','TOTAL','','','','',sums.overDrawn||0,'']);
+    ws1.addRow(['','TOTAL','','','','','','','','','','','',sums.overDrawn||0,'']);
 
     const ws2 = workbook.addWorksheet('CHALLAN');
     ws2.addRow(['T. R. FORM NO. 7', `(${val('chlCopyType') || 'ORIGINAL'})`]);
