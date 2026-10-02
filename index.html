@@ -1105,13 +1105,22 @@
         <div class="grid">
             <div class="fg"><label>Arrear Period From</label><input type="date" id="arrearFrom" value="2025-10-04" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Arrear Period To</label><input type="date" id="arrearTo" value="2025-10-31" onchange="generateArrearTable()"></div>
-            <div class="fg"><label>DA Rate (%)</label><input type="number" id="daRate" value="18" step="0.5" onchange="generateArrearTable()"></div>
+            <div class="fg"><label>Base DA Rate (%) &ndash; months before first change below</label><input type="number" id="daRate" value="18" step="0.5" onchange="generateArrearTable()"></div>
             <div class="fg"><label>HRA Mode</label><select id="hraMode" onchange="generateArrearTable()"><option value="auto" selected>Auto – ROPA-2019 Rule</option><option value="manual">Manual Fixed HRA</option></select></div>
             <div class="fg"><label>HRA Rate (%) – pre-ROPA-2019</label><input type="number" id="hraRate" value="15" step="0.5" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Manual Fixed HRA (₹/month)</label><input type="number" id="hraFixed" value="0" min="0" step="1" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Default GPF / PF (₹/month)</label><input type="number" id="defaultGpf" value="0" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Default I.T. (₹/month)</label><input type="number" id="defaultIt" value="0" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Default OTH (₹/month)</label><input type="number" id="defaultOth" value="0" onchange="generateArrearTable()"></div>
+        </div>
+        <div style="background:#fef3c7; border:1px solid #f59e0b; padding:10px; border-radius:6px; margin-top:10px;">
+            <label style="color:#78350f; font-weight:bold; display:block; margin-bottom:4px;">DA Rate Schedule (month-wise) &mdash; drives Arrear, Over Drawn &amp; DA Case everywhere</label>
+            <div style="font-size:0.75rem; color:#78350f; margin-bottom:6px;">Each row = DA % that applies from that month onward (until the next row). Before the first row, the Base DA Rate above is used. W.B. Govt. DA: 18% up to Sep-2026, <b>38% from Oct-2026</b>.</div>
+            <div id="daScheduleWrap"></div>
+            <div style="margin-top:6px;">
+                <button type="button" class="btn-add" onclick="addDaScheduleRow()">+ Add DA Rate Change</button>
+                <button type="button" class="btn-add" style="background:#64748b;" onclick="resetDaSchedule()">Reset (38% from Oct-2026)</button>
+            </div>
         </div>
         <div style="font-size:0.75rem; color:#475569; margin-top:4px;">
             M.A. auto-defaults to ₹300 (ROPA-2009 era, before 01-01-2020) or ₹500 (ROPA-2019 era, from 01-01-2020) per month &mdash; editable per row in the table below.<br>
@@ -1885,6 +1894,7 @@ function buildFullRecord() {
         odRows: odRows,
         daBasicRows: daBasicRows,
         daCaseRowData: daCaseRowData,
+        daSchedule: daSchedule,
         savedAt: new Date().toISOString()
     };
 }
@@ -3678,8 +3688,59 @@ function defaultIrForMonth(y, m, irBaseJul2016) {
     return 0;
 }
 
+// ===== DA RATE SCHEDULE (month-wise) =====
+// Rows: { id, from:'YYYY-MM', pct } -- DA % applies from that month until the next row.
+// Before the first row the Base DA Rate field (daRate) is used.
+// W.B. Govt.: 18% (Apr-2025) -> 38% from 01-10-2026.
+const DA_SCHEDULE_DEFAULT = () => [{ id: 1, from: '2026-10', pct: 38 }];
+let daSchedule = DA_SCHEDULE_DEFAULT();
+let daScheduleSeq = 2;
+
+function daScheduleSorted() {
+    return daSchedule.filter(r => r.from && Number.isFinite(Number(r.pct)))
+                     .slice().sort((a, b) => a.from.localeCompare(b.from));
+}
+// Latest schedule row at/before the month, or null if none applies.
+function daScheduleOverrideFor(monthStr) {
+    let hit = null;
+    for (const r of daScheduleSorted()) { if (r.from <= monthStr) hit = Number(r.pct); else break; }
+    return hit;
+}
+function daPctForMonth(y, m) {
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    const ov = daScheduleOverrideFor(key);
+    return (ov !== null) ? ov : num('daRate');
+}
+function renderDaSchedule() {
+    const wrap = document.getElementById('daScheduleWrap');
+    if (!wrap) return;
+    if (daSchedule.length === 0) {
+        wrap.innerHTML = '<div style="font-size:0.8rem;color:#78350f;">No DA changes added &mdash; Base DA Rate is used for every month.</div>';
+        return;
+    }
+    wrap.innerHTML = '<table style="border-collapse:collapse;font-size:0.85rem;"><thead><tr style="background:#fde68a;"><th style="padding:4px;">DA applies from (month)</th><th style="padding:4px;">DA %</th><th></th></tr></thead><tbody>' +
+        daSchedule.map(r => `<tr>
+            <td style="padding:3px;"><input type="month" class="tbl-input" style="width:130px;" value="${r.from}" onchange="updateDaScheduleRow(${r.id},'from',this.value)"></td>
+            <td style="padding:3px;"><input type="number" step="0.5" class="tbl-input" style="width:80px;" value="${r.pct}" onchange="updateDaScheduleRow(${r.id},'pct',this.value)"></td>
+            <td style="padding:3px;"><button type="button" class="btn-del" onclick="removeDaScheduleRow(${r.id})">Del</button></td></tr>`).join('') +
+        '</tbody></table>';
+}
+function daScheduleChanged() {
+    renderDaSchedule();
+    generateArrearTable();                       // Tab 1 arrear rows
+    if (typeof generateDaCaseTable === 'function') generateDaCaseTable();   // Tab 3
+}
+function addDaScheduleRow() { daSchedule.push({ id: daScheduleSeq++, from: '2026-10', pct: 38 }); daScheduleChanged(); }
+function removeDaScheduleRow(id) { daSchedule = daSchedule.filter(r => r.id !== id); daScheduleChanged(); }
+function updateDaScheduleRow(id, f, v) {
+    const r = daSchedule.find(x => x.id === id); if (!r) return;
+    r[f] = (f === 'pct') ? (parseFloat(v) || 0) : v;
+    daScheduleChanged();
+}
+function resetDaSchedule() { daSchedule = DA_SCHEDULE_DEFAULT(); daScheduleSeq = 2; daScheduleChanged(); }
+
 function computeRow(row) {
-    const da = num('daRate') / 100;
+    const da = daPctForMonth(row.y, row.m) / 100;
     const hraMode = val('hraMode') || 'auto';
     const hraRatePct = num('hraRate');
     const hraFixed = num('hraFixed');
@@ -3718,7 +3779,8 @@ function computeRow(row) {
     return {
         admBasic: row.admBasic, admDA, admHRA, admMA, admIR, admGross, admGPF: row.admGPF, admIT: row.admIT, admOTH, admPT, admNet,
         drBasic: row.drBasic, drDA, drHRA, drMA, drIR, drGross, drGPF: row.drGPF, drIT: row.drIT, drOTH, drPT, drNet,
-        dueBasic, dueDA, dueHRA, dueMA, dueIR, dueGross, dueGPF, dueIT, dueOTH, duePT, dueNet
+        dueBasic, dueDA, dueHRA, dueMA, dueIR, dueGross, dueGPF, dueIT, dueOTH, duePT, dueNet,
+        daPct: da * 100
     };
 }
 
@@ -3746,7 +3808,7 @@ function renderDashboardTable() {
             <td rowspan="3"><strong>${mName}</strong></td>
             <td><strong>Admissible</strong></td>
             <td><input class="tbl-input" data-rowid="${idx}" data-field="admBasic" value="${row.admBasic}" onchange="updateRowField(${idx},'admBasic',this.value)"></td>
-            <td>${c.admDA}</td><td>${c.admHRA}</td>
+            <td>${c.admDA}<div style="font-size:.7em;color:#92400e;">@${c.daPct}%</div></td><td>${c.admHRA}</td>
             <td><input class="tbl-input" data-rowid="${idx}" data-field="admMA" value="${row.admMA||0}" onchange="updateRowField(${idx},'admMA',this.value)"></td>
             <td><input class="tbl-input" data-rowid="${idx}" data-field="admIR" value="${row.admIR||0}" onchange="updateRowField(${idx},'admIR',this.value)"></td>
             <td><strong>${c.admGross}</strong></td>
@@ -3759,7 +3821,7 @@ function renderDashboardTable() {
         trDr.innerHTML = `
             <td><strong>Drawn</strong></td>
             <td><input class="tbl-input" data-rowid="${idx}" data-field="drBasic" value="${row.drBasic}" onchange="updateRowField(${idx},'drBasic',this.value)"></td>
-            <td>${c.drDA}</td><td>${c.drHRA}</td>
+            <td>${c.drDA}<div style="font-size:.7em;color:#92400e;">@${c.daPct}%</div></td><td>${c.drHRA}</td>
             <td><input class="tbl-input" data-rowid="${idx}" data-field="drMA" value="${row.drMA||0}" onchange="updateRowField(${idx},'drMA',this.value)"></td>
             <td><input class="tbl-input" data-rowid="${idx}" data-field="drIR" value="${row.drIR||0}" onchange="updateRowField(${idx},'drIR',this.value)"></td>
             <td><strong>${c.drGross}</strong></td>
@@ -4465,7 +4527,7 @@ const DA09_DUE = [
 ];
 // ROPA-2019 era (Jan-2020 onward)
 const DA19_DRAWN = [
-    ['2020-01',0.00],['2021-01',0.03],['2023-03',0.06],['2024-01',0.10],['2024-04',0.14],['2025-04',0.18]
+    ['2020-01',0.00],['2021-01',0.03],['2023-03',0.06],['2024-01',0.10],['2024-04',0.14],['2025-04',0.18],['2026-10',0.38]
 ];
 const DA19_DUE = [
     ['2020-01',0.17],['2021-07',0.31],['2022-01',0.34],['2022-07',0.38],['2023-01',0.42],
@@ -4486,7 +4548,10 @@ function getDaRates(monthStr) {
     if (monthStr < '2020-01') {
         return { drawn: rateForMonth(DA09_DRAWN, monthStr), due: rateForMonth(DA09_DUE, monthStr) };
     }
-    return { drawn: rateForMonth(DA19_DRAWN, monthStr), due: rateForMonth(DA19_DUE, monthStr) };
+    // From 2020 the user's DA Rate Schedule (Tab 1, Section 7) overrides the built-in drawn-rate table,
+    // so Over Drawn / DA Case use the same DA % as the Arrear calculation (e.g. 38% from Oct-2026).
+    const ov = (typeof daScheduleOverrideFor === 'function') ? daScheduleOverrideFor(monthStr) : null;
+    return { drawn: (ov !== null) ? ov / 100 : rateForMonth(DA19_DRAWN, monthStr), due: rateForMonth(DA19_DUE, monthStr) };
 }
 
 let daBasicRows = [];
@@ -6215,6 +6280,10 @@ function applyLoadedRecord(docId, record) {
 
     daCaseRowData = record.daCaseRowData || {};
 
+    daSchedule = Array.isArray(record.daSchedule) ? record.daSchedule : DA_SCHEDULE_DEFAULT();
+    daScheduleSeq = daSchedule.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+    renderDaSchedule();
+
     // Re-render every dynamic section and dependent UI state
     renderLwpTable();
     renderDashboardTable();
@@ -6684,6 +6753,7 @@ window.addEventListener('DOMContentLoaded', function () {
     calculateDOR();
     togglePromotionSection();
     toggleRopa09Section();
+    renderDaSchedule();
     generateArrearTable();
     seedDefaultOverdrawnRows();
     renderOdTable();
