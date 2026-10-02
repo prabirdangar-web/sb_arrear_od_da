@@ -4137,7 +4137,7 @@ function autoSyncOverdrawnFromTab1() {
     });
 
     if (fetched.length > 0) {
-        odRows = fetched;
+        odRows = fetched; odRows.forEach(r => { odRepriceDA(r,'dr'); odRepriceDA(r,'adm'); });
         renderOdTable();
         alert(`Successfully imported ${fetched.length} overdrawn month(s) referenced across ROPA-98/09/19 pay tables!`);
         return;
@@ -4228,7 +4228,7 @@ function autoSyncOverdrawnFromTab1() {
         }
 
         if (fetched.length > 0) {
-            odRows = fetched;
+            odRows = fetched; odRows.forEach(r => { odRepriceDA(r,'dr'); odRepriceDA(r,'adm'); });
             renderOdTable();
             alert(`Auto-generated ${fetched.length} overdrawn month row(s) referenced from ROPA Pay Table for range (${scanStartStr} to ${scanEndStr})!`);
             return;
@@ -4314,6 +4314,7 @@ function addOverdrawnRow() {
         admPayBand: admPayBand, admGradePay: admGradePay, admDP: 0, admDA: admDA, admHRA: admHRA, admMA: admMA, admIR: admIRVal,
         remarks: remarksText
     });
+    { const nr = odRows[odRows.length-1]; odRepriceDA(nr,'dr'); odRepriceDA(nr,'adm'); }
     renderOdTable();
 }
 
@@ -4322,13 +4323,10 @@ function removeOdRow(id) {
     renderOdTable();
 }
 
-// DA rate (fraction) for a given month -- fetched month-wise, same source addOverdrawnRow uses:
-// the Arrear table's DA % when that month exists there, else the date-wise DA table.
+// DA rate (fraction) for a given month -- always fetched from the month-wise DA table.
 function odMonthDaRate(monthStr) {
-    const [y, m] = String(monthStr).split('-').map(Number);
-    if (!y || !m) return 0;
-    if (typeof arrearRows !== 'undefined' && arrearRows.find(r => r.y === y && r.m === m)) return daPctForMonth(y, m) / 100;
-    const r = getDaRates(monthStr);
+    if (!monthStr) return 0;
+    const r = getDaRates(monthStr);          // month-wise drawn DA table (1992 -> Oct-2026 38%)
     return (r && Number.isFinite(r.drawn)) ? r.drawn : 0;
 }
 // Re-price DA on one side of a row. A hand-typed DA (manual flag) keeps its own rate
@@ -4676,7 +4674,20 @@ function rateForMonth(table, monthStr) {
 
 // Beyond the tabulated history, the last known rate is held flat -- the Calculation
 // Sheet / Annexure both note this so the preparer can confirm the latest sanctioned rate.
+// Drawn DA % (fraction of Basic) before Apr-2008 -- month-wise table supplied by the user (Jan-1992 onward).
+const DA_DRAWN_PRE2008 = [
+    ['1992-01',0.51],['1992-11',0.60],['1993-07',0.71],['1993-12',0.83],['1994-05',0.92],['1994-11',0.97],
+    ['1995-02',1.04],['1995-06',1.14],['1995-12',1.25],['1996-04',1.36],['1996-10',1.48],
+    ['1997-04',0.00],['1997-08',0.04],['1997-12',0.08],['1998-04',0.13],['1998-11',0.22],
+    ['1999-08',0.32],['2000-04',0.37],['2000-10',0.38],['2001-10',0.41],['2004-01',0.45],
+    ['2004-09',0.49],['2005-04',0.52],['2005-09',0.55],['2005-12',0.59],['2006-03',0.61],
+    ['2006-07',0.64],['2006-09',0.67],['2007-01',0.71],['2007-04',0.86],['2007-05',0.24],['2008-01',0.29]
+];
 function getDaRates(monthStr) {
+    if (monthStr < '2008-04') {
+        // due rate is not part of the drawn table; keep the existing fallback for it
+        return { drawn: rateForMonth(DA_DRAWN_PRE2008, monthStr), due: rateForMonth(DA09_DUE, monthStr) };
+    }
     if (monthStr < '2020-01') {
         return { drawn: rateForMonth(DA09_DRAWN, monthStr), due: rateForMonth(DA09_DUE, monthStr) };
     }
