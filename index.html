@@ -333,6 +333,7 @@
     .calc-sign-row .sig { border-top: 1px solid #000; padding-top: 3px; text-align: center; margin-top: 2mm; }
     .calc-sign-row .chk { font-style: italic; }
     .chl-sig-table .gap { width: 10mm; }
+    .chl-sig-table td.stampcell { padding: 3px 0; }
     .stamp-box { border: 1px dashed #8a8a8a; height: 15mm; display: flex; align-items: center; justify-content: center;
                  font-size: 6.5pt; color: #8a8a8a; text-align: center; line-height: 1.1; box-sizing: border-box; padding: 1px 3px; }
 
@@ -416,8 +417,8 @@
             display: grid !important;
             grid-template-columns: 10mm 64mm minmax(0, 1fr) !important;
             column-gap: 3mm !important;
-            margin-bottom: 2.3mm !important;
-            line-height: 1.15 !important;
+            margin-bottom: 1.7mm !important;
+            line-height: 1.12 !important;
             align-items: start !important;
         }
         .chl-num, .chl-label, .chl-val { font-size: 9.5pt !important; }
@@ -437,8 +438,10 @@
             margin-top: auto !important; font-size: 8.5pt !important;
         }
         .chl-sig-table td { padding: 0 !important; border: 0 !important; background: transparent !important; vertical-align: top !important; text-align: center !important; }
-        .chl-sig-table td.head { font-weight: bold; height: 6mm; vertical-align: bottom !important; }
-        .chl-sig-table td.rule { border-top: 1px solid #000 !important; padding-top: 0.8mm !important; height: 9mm !important; }
+        .chl-sig-table td.head { font-weight: bold; height: 4.5mm; vertical-align: bottom !important; }
+        .chl-sig-table td.rule { border-top: 1px solid #000 !important; padding-top: 0.4mm !important; height: 5.6mm !important; }
+        .chl-sig-table td.stampcell { padding: 0.8mm 0 1mm !important; }
+        .chl-sig-table .stamp-box { height: 10.5mm !important; }
         .chl-sig-table td.gap { width: 10mm !important; border: none !important; }
         .chl-note { margin-top: 2mm !important; padding-top: 1.5mm !important; font-size: 8.5pt !important; }
 
@@ -2522,7 +2525,7 @@ function calcLevelLine(pairs) {
 }
 // Remarks for CAS milestone rows (10Y / 18Y / 20Y): one additional increment w.e.f. ___ for completion of
 // ___ years' continuous and satisfactory service on ___ . Window 02-Jan..30-Jun => allowed from 1st July.
-function casRemarkFor(ev, baseText, scaleChanged) {
+function casRemarkFor(ev, baseText, scaleChanged, isRopa98) {
     if (!ev || !ev.isMilestone) return baseText;
     const mt = String(ev.label || '').match(/\d+/);
     if (!mt) return baseText;
@@ -2531,7 +2534,7 @@ function casRemarkFor(ev, baseText, scaleChanged) {
     const exact = new Date(ev.exactMilestoneDate || ev.date);
     const what = scaleChanged ? 'Placed in next higher scale / Level (Grade Pay change)' : 'One additional increment';
     let t = `${what} w.e.f. ${formatDate(eff)} for completion of ${yrs} years' continuous and satisfactory service on ${formatDate(exact)}`;
-    const inWinA = exact >= new Date(exact.getFullYear(), 0, 2) && exact <= new Date(exact.getFullYear(), 5, 30);
+    const inWinA = !isRopa98 && exact >= new Date(exact.getFullYear(), 0, 2) && exact <= new Date(exact.getFullYear(), 5, 30);
     if (inWinA && eff.getMonth() === 6 && eff.getDate() === 1 && eff.getTime() !== exact.getTime()) {
         t += ` (completion date falls between 02.01 and 30.06, hence allowed w.e.f. 01.07.${eff.getFullYear()} instead of ${formatDate(exact)})`;
     }
@@ -2541,6 +2544,12 @@ function casRemarkFor(ev, baseText, scaleChanged) {
     }
     if (ev.isLwpDeferred) t += `; financial benefit deferred to ${formatDate(eff)} due to LWP`;
     return t + '.';
+}
+
+// ROPA-09 / ROPA-19: N years' service is COMPLETED on the day before the N-th anniversary of joining
+// (DOJ 19.04.2006 -> 10 years completed on 18.04.2016).  ROPA-98 does not use this rule.
+function completionDate(doj, years) {
+    return new Date(doj.getFullYear() + years, doj.getMonth(), doj.getDate() - 1);
 }
 
 function fixationModeLabel(ev, evType) {
@@ -2736,7 +2745,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
         compiledRows.push({
             date: ev.date,
             label: remarksText,
-            remarks: casRemarkFor(ev, remarksText, ev.milestoneType === '18Y'),
+            remarks: casRemarkFor(ev, remarksText, ev.milestoneType === '18Y', true),
             scaleStr: `Rs. ${ropa98ScaleRangeStr(currentScaleKey)}`,
             trackCol: '',
             gpDisplay: '',
@@ -2845,9 +2854,9 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
     const isExcludedFrom18Y = [4700, 4800, 5400].includes(gpInput);
     const eligibleFor18YScaleChange = [1700, 2600, 3900, 4100].includes(gpInput);
 
-    [ {d: new Date(doj.getFullYear() + 10, doj.getMonth(), doj.getDate()), name: "10 YEARS"},
-      {d: new Date(doj.getFullYear() + 18, doj.getMonth(), doj.getDate()), name: "18 YEARS"},
-      {d: new Date(doj.getFullYear() + 20, doj.getMonth(), doj.getDate()), name: "20 YEARS"} ].forEach(milestone => {
+    [ {d: completionDate(doj, 10), name: "10 YEARS"},
+      {d: completionDate(doj, 18), name: "18 YEARS"},
+      {d: completionDate(doj, 20), name: "20 YEARS"} ].forEach(milestone => {
         if (milestone.name === "18 YEARS" && isExcludedFrom18Y) return;
         // Cumulative LWP-day shift on the CAS milestone's own due date — applies
         // regardless of which "window" (A or B) the (shifted) date lands in, so
@@ -3070,9 +3079,9 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
     const isExcludedFrom18Y = [4700, 4800, 5400].includes(gpInput);
     const eligibleFor18YScaleChange = [1700, 2600, 3900, 4100].includes(gpInput);
 
-    [ {d: new Date(doj.getFullYear() + 10, doj.getMonth(), doj.getDate()), name: "10 YEARS"},
-      {d: new Date(doj.getFullYear() + 18, doj.getMonth(), doj.getDate()), name: "18 YEARS"},
-      {d: new Date(doj.getFullYear() + 20, doj.getMonth(), doj.getDate()), name: "20 YEARS"} ].forEach(milestone => {
+    [ {d: completionDate(doj, 10), name: "10 YEARS"},
+      {d: completionDate(doj, 18), name: "18 YEARS"},
+      {d: completionDate(doj, 20), name: "20 YEARS"} ].forEach(milestone => {
         if (milestone.name === "18 YEARS" && isExcludedFrom18Y) return;
         const deferDays = cumulativeDeferDays(lwpEntries, milestone.d);
         const shiftedD = deferDays > 0 ? addDays(milestone.d, deferDays) : milestone.d;
@@ -4188,8 +4197,8 @@ function odApplyEraRules(row) {
         // Level comes from the generated ROPA-19 Pay Table for that month (Level-7, Level-11, Level-12 ...).
         const [yy, mm] = row.month.split('-').map(Number);
         const snap = getAdmissibleSnapshotForDate(new Date(yy, mm - 1, 1));
-        if (snap && snap.era === 'ROPA-19') { row.band = snap.band; row.scale = snap.scale; }
-        else if (/^LEVEL/i.test(row.band || '') && !row.scale) row.scale = row.band;
+        if (snap && snap.era === 'ROPA-19') row.band = snap.band;
+        row.scale = '';   // Level is shown once (Name of Band / Level); Pay Scale / Pay Band stays blank
     }
     return era;
 }
@@ -4204,7 +4213,7 @@ function odEraDisplay(row) {
         era, lvl,
         bandHtml: era === '98' ? NA : ((row.band || NA) + (lvl ? `<br><span style="font-size:.9em">(${lvl})</span>` : '')),
         band: era === '98' ? NA : (row.band || NA),
-        scale: row.scale || (era === '19' ? (row.band || NA) : NA),
+        scale: era === '19' ? '' : (row.scale || NA),
         drPB: era === '09' ? row.drPayBand : NA, drGP: era === '09' ? row.drGradePay : NA,
         admPB: era === '09' ? row.admPayBand : NA, admGP: era === '09' ? row.admGradePay : NA
     };
@@ -4235,7 +4244,7 @@ function renderOdTable() {
         const NA = '<span style="color:#94a3b8;" title="Not applicable in this pay-revision era">&mdash;</span>';
         const lvlNow = (era === '09') ? ropa19LevelFor(...String(row.month).split('-').map(Number)) : '';
         const bandCell  = era === '98' ? NA : inp(row.id,'band',row.band,'txt') + (lvlNow ? `<div style="font-size:0.62rem;color:#1d4ed8;">${lvlNow}</div>` : '');
-        const scaleCell = inp(row.id,'scale',row.scale || (era === '19' ? row.band : ''),'txt');
+        const scaleCell = era === '19' ? '&nbsp;' : inp(row.id,'scale',row.scale,'txt');
         const drPB   = era === '09' ? inp(row.id,'drPayBand',row.drPayBand) : NA;
         const drGP   = era === '09' ? inp(row.id,'drGradePay',row.drGradePay) : NA;
         const admPB  = era === '09' ? inp(row.id,'admPayBand',row.admPayBand) : NA;
@@ -5102,6 +5111,15 @@ function docDaCalcSheet() {
             </tr>`;
         });
 
+        {
+            const pt = (k) => (runningTotals[k] - bfTotals[k]).toLocaleString('en-IN');
+            pageTableRowsHtml += `
+            <tr style="font-weight:bold; background:#eef2f7; color:#0f172a; border-top:2px solid #000;">
+                <td colspan="2" style="text-align:left;">Page ${pageNum} Total</td>
+                <td>${pt('basic')}</td><td>${pt('dueDA')}</td><td>${pt('hra')}</td><td>${pt('ma')}</td>
+                <td>${pt('gpf')}</td><td>${pt('it')}</td><td>${pt('duePT')}</td><td>${pt('dueNet')}</td>
+            </tr>`;
+        }
         if (pageNum < totalPages) {
             pageTableRowsHtml += `
             <tr style="font-weight:bold; background:#e2e8f0; color:#0f172a;">
@@ -5368,11 +5386,12 @@ function buildChallanPage(copyType) {
         <table class="chl-sig-table">
             <colgroup><col style="width:50%"><col class="gap"><col style="width:50%"></colgroup>
             <tr><td class="head">Accounts Officer by whom adjustable</td><td class="gap"></td><td class="head">Account General (A &amp; E), West Bengal</td></tr>
-            <tr><td class="head" style="font-weight:normal;height:4mm;">Verified</td><td class="gap"></td><td class="head"></td></tr>
-            <tr><td style="padding:1mm 0 1.5mm !important;"><div class="stamp-box" style="height:17mm;">Stamp / Seal of Accounts Officer / Departmental Officer</div></td><td class="gap"></td><td style="padding:1mm 0 1.5mm !important;"><div class="stamp-box" style="height:17mm;">Stamp of Treasury Officer / Bank</div></td></tr>
+            <tr><td class="head" style="font-weight:normal;height:3.5mm;">Verified</td><td class="gap"></td><td class="head" style="height:3.5mm;"></td></tr>
+            <tr><td class="stampcell"><div class="stamp-box">Stamp / Seal of Departmental / Treasury Officer</div></td><td class="gap"></td><td class="stampcell"><div class="stamp-box">Stamp of Depositor</div></td></tr>
             <tr><td class="rule">Signature of Departmental / Treasury Officer</td><td class="gap"></td><td class="rule">Depositor's Signature</td></tr>
             <tr><td class="rule">Date</td><td class="gap"></td><td class="rule">Treasury Receipt Challan No.</td></tr>
             <tr><td class="rule">Received Payment</td><td class="gap"></td><td class="rule">Bank Scroll Serial No.</td></tr>
+            <tr><td class="stampcell"><div class="stamp-box">Stamp of Bank / Treasury</div></td><td class="gap"></td><td class="stampcell"><div class="stamp-box">Seal of the Bank</div></td></tr>
             <tr><td class="rule">Received by Bank / Treasury</td><td class="gap"></td><td class="rule">Signature with seal of the Bank</td></tr>
             <tr><td class="rule">Date</td><td class="gap"></td><td class="rule">Date</td></tr>
         </table>
@@ -5713,6 +5732,15 @@ function docAnnex() {
             </tr>`;
         });
 
+        {
+            const pt = (k) => (runningTotals[k] - bfTotals[k]).toLocaleString('en-IN');
+            pageTableRowsHtml += `
+            <tr style="font-weight:bold; background:#eef2f7; color:#0f172a; border-top:2px solid #000;">
+                <td colspan="2" style="text-align:left;">Page ${pageNum} Total</td>
+                <td>${pt('basic')}</td><td>${pt('da')}</td><td>${pt('hra')}</td><td>${pt('ma')}</td><td>${pt('ir')}</td>
+                <td>${pt('gpf')}</td><td>${pt('it')}</td><td>${pt('pt')}</td><td>${pt('net')}</td>
+            </tr>`;
+        }
         if (pageNum < totalPages) {
             pageTableRowsHtml += `
             <tr style="font-weight:bold; background:#e2e8f0; color:#0f172a;">
@@ -5730,7 +5758,7 @@ function docAnnex() {
         } else {
             pageTableRowsHtml += `
             <tr style="font-weight:bold; background:#cbd5e1; color:#000;">
-                <td colspan="2" style="text-align:left;">G. TOTAL (DUE)</td>
+                <td colspan="2" style="text-align:left;">G. TOTAL (B/F + Page Total)</td>
                 <td>${runningTotals.basic.toLocaleString('en-IN')}</td>
                 <td>${runningTotals.da.toLocaleString('en-IN')}</td>
                 <td>${runningTotals.hra.toLocaleString('en-IN')}</td>
