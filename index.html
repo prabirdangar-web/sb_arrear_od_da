@@ -5823,7 +5823,7 @@ function docSpouseCert() {
         ? 'Joint HRA drawn: N.A.'
         : spouseInService
             ? 'House Rent drawn by both of them is as per GA rules and within the prescribed limit throughout their service.'
-            : 'House Rent drawn by me is as per GA rules and within the prescribed limit throughout my service.';
+            : `House Rent drawn by ${p.female ? 'her' : 'him'} is as per GA rules and within the prescribed limit throughout ${p.female ? 'her' : 'his'} service.`;
     return `
     <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.98rem; line-height:1.65; padding:18px 24px;">
         <div style="font-weight:bold; margin-bottom:18px;">Certified that</div>
