@@ -485,8 +485,9 @@
         .od-sheet table.annex1-table {
             width: 100% !important; max-width: 100% !important;
             table-layout: fixed !important; border-collapse: collapse !important;
-            font-size: 6.5pt !important;
+            font-size: var(--od-fs, 6.5pt) !important;
         }
+        .od-sheet table.annex1-table tbody td { height: var(--od-rh, auto); vertical-align: middle !important; }
         .od-sheet table.annex1-table th, .od-sheet table.annex1-table td {
             box-sizing: border-box !important; padding: 1.5px 1.5px !important;
             overflow-wrap: anywhere !important; line-height: 1.15 !important;
@@ -496,6 +497,8 @@
         .od-sheet table.annex1-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
         .od-sheet .od-foot { break-inside: avoid; page-break-inside: avoid; }
         .od-page { break-after: page !important; page-break-after: always !important; }
+        .od-page { display: flex !important; flex-direction: column !important; height: 188mm !important; box-sizing: border-box !important; padding: 3mm 4mm !important; border: 1px solid #000 !important; overflow: hidden !important; }
+        .od-page .od-bottom { margin-top: auto !important; break-inside: avoid; page-break-inside: avoid; }
         .od-page:last-child { break-after: auto !important; page-break-after: auto !important; }
     }
 
@@ -5300,13 +5303,21 @@ function printStatement() {
         if (!isLast) rowsHtml += sumRow('C/F (Carried Forward to Page ' + (pageNum + 1) + ')', run, '#e2e8f0');
         else rowsHtml += sumRow('TOTAL', sums, '#cbd5e1');
 
-        const footer = isLast ? `
-        <div class="od-foot"><div style="margin-top:12px; font-weight:bold; font-size:.9rem;">Net overdrawn Amount to be refunded Rs. ${(sums.overDrawn||0).toLocaleString('en-IN')}</div>
-        <div style="font-style:italic;">[ Rupees ${numberToWords(sums.overDrawn||0)} Only ]</div>
-        <div style="display:flex;justify-content:space-between;margin-top:40px;font-weight:bold;font-size:.85rem;">
-            <div><div class="stamp-box" style="width:55mm;margin-bottom:1mm;">Stamp / Seal of Head of Institution</div>________________________________<br>Signature of Head of Institution</div>
-            <div><div class="stamp-box" style="width:55mm;margin:0 0 1mm auto;">Stamp / Seal of D.I. of Schools</div>________________________________<br>Countersigned / D.I. of Schools</div>
-        </div></div>` : '';
+        const nRowsOnPage = (b - a) + (pageNum > 1 ? 1 : 0) + 1;
+        const availMm = isLast ? 104 : 124;
+        const rowH = Math.max(5.5, Math.min(15, availMm / nRowsOnPage));
+        const fs = rowH >= 9 ? '7.5pt' : (rowH >= 7 ? '7pt' : '6.5pt');
+        const sigBlock = isLast ? `
+        <div style="display:flex;justify-content:space-between;margin-top:14px;font-weight:bold;font-size:.85rem;">
+            <div style="text-align:center;"><div class="stamp-box" style="width:55mm;margin:0 auto 1mm;">Stamp / Seal of Head of Institution</div>________________________________<br>Signature of Head of Institution</div>
+            <div style="text-align:center;"><div class="stamp-box" style="width:55mm;margin:0 auto 1mm;">Stamp / Seal of D.I. of Schools</div>________________________________<br>Countersigned / D.I. of Schools</div>
+        </div>` : `
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;font-weight:bold;font-size:.85rem;">
+            <div style="text-align:center;"><div class="stamp-box" style="width:55mm;margin:0 auto 1mm;">Stamp / Seal of Head of Institution</div>________________________________<br>Signature of Head of Institution</div>
+        </div>`;
+        const footer = `
+        <div class="od-bottom">${isLast ? `<div style="font-weight:bold; font-size:.9rem;">Net overdrawn Amount to be refunded Rs. ${(sums.overDrawn||0).toLocaleString('en-IN')}</div>
+        <div style="font-style:italic;">[ Rupees ${numberToWords(sums.overDrawn||0)} Only ]</div>` : ''}${sigBlock}</div>`;
 
         content += `
     <div class="od-sheet od-page">
@@ -5315,7 +5326,7 @@ function printStatement() {
             <div style="font-weight:bold;white-space:nowrap;margin-left:10px;">Page ${pageNum} of ${totalPages}</div>
         </div>
         <div style="font-size:.85rem; margin-bottom:10px;"><strong>Sub:-</strong> Over drawl Calculation due to ${val('reasonText')}</div>
-        <table class="annex1-table" style="width:100%; font-size:0.7rem;">
+        <table class="annex1-table" style="width:100%; font-size:0.7rem; --od-rh:${rowH.toFixed(1)}mm; --od-fs:${fs};">
             <colgroup><col style="width:2.5%"><col style="width:4.5%"><col style="width:4.5%"><col style="width:6.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:4%"><col style="width:2.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:3%"><col style="width:2.5%"><col style="width:4.2%"><col style="width:4%"><col style="width:3.5%"><col style="width:4%"><col style="width:2.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:3%"><col style="width:2.5%"><col style="width:4.2%"><col style="width:4.2%"><col style="width:2.8%"><col style="width:12.6%"></colgroup>
             <thead>
                 <tr>
