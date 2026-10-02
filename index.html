@@ -330,9 +330,11 @@
 
     /* Screen-only helpers for the calculation-sheet signature row */
     .calc-sign-row { display: grid; grid-template-columns: 1fr 1fr 1fr; column-gap: 12mm; margin-top: 35px; font-size: 0.85rem; font-weight: bold; align-items: end; }
-    .calc-sign-row .sig { border-top: 1px solid #000; padding-top: 3px; text-align: center; margin-top: 45px; }
+    .calc-sign-row .sig { border-top: 1px solid #000; padding-top: 3px; text-align: center; margin-top: 2mm; }
     .calc-sign-row .chk { font-style: italic; }
     .chl-sig-table .gap { width: 10mm; }
+    .stamp-box { border: 1px dashed #8a8a8a; height: 15mm; display: flex; align-items: center; justify-content: center;
+                 font-size: 6.5pt; color: #8a8a8a; text-align: center; line-height: 1.1; box-sizing: border-box; padding: 1px 3px; }
 
     @media print {
         /* ===== PRINT ISOLATION =====
@@ -471,7 +473,9 @@
         .annex-page-sheet table.calc-table tbody.month-group,
         .annex-page-sheet table.calc-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
         .annex-page-sheet .calc-sign-row { margin-top: auto !important; padding-top: 6mm; }
-        .annex-page-sheet .calc-sign-row .sig { margin-top: 9mm !important; }
+        .annex-page-sheet .calc-sign-row .sig { margin-top: 1.5mm !important; }
+        .annex-page-sheet .calc-sign-row { padding-top: 2mm !important; }
+        .annex-page-sheet .stamp-box { height: 14mm; }
 
         /* ===== OVER DRAWN STATEMENT (A4 LANDSCAPE, 25 columns) ===== */
         .od-sheet { width: 100% !important; box-sizing: border-box !important; font-family: 'Times New Roman', Times, serif; color: #000; }
@@ -593,6 +597,34 @@
         .sidebar-toggle { display:block; }
         .left-sidebar.collapsed { display:none; }
     }
+    /* ===== COMPACT PROFESSIONAL APP BAR + TOOLBAR (screen only) ===== */
+    body { padding: 8px 10px; }
+    .container { padding: 0 14px 14px; border-radius: 6px; }
+    .app-sticky { position: sticky; top: 0; z-index: 1000; background: #fff; margin: 0 -14px 10px; padding: 0 14px;
+                  border-bottom: 1px solid #cbd5e1; box-shadow: 0 2px 6px rgba(15,23,42,.06); }
+    .app-bar { display: flex; align-items: center; gap: 14px; padding: 5px 0 0; flex-wrap: wrap; }
+    .app-title { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: .92rem; color: #1e3a8a; white-space: nowrap; }
+    .app-logo { display: inline-flex; width: 22px; height: 22px; border-radius: 6px; background: #1e3a8a; color: #fff;
+                align-items: center; justify-content: center; font-size: .8rem; }
+    .app-bar .tab-nav { margin: 0; padding: 0; background: transparent; border-bottom: 0; border-radius: 0; gap: 3px; align-self: flex-end; }
+    .app-bar .tab-btn { padding: 6px 12px; font-size: .76rem; font-weight: 600; border-radius: 5px 5px 0 0; }
+    .app-bar .tab-btn.active { box-shadow: none; }
+    .app-toolbar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 5px 0 6px; margin: 0; border: 0; }
+    .tb-group { display: flex; align-items: center; gap: 4px; }
+    .tb-grow { flex: 1 1 260px; min-width: 220px; }
+    .tb-grow select { flex: 1; min-width: 0; padding: 3px 6px; font-size: .74rem; height: 26px; border-radius: 5px; }
+    .tb-sep { width: 1px; height: 20px; background: #cbd5e1; margin: 0 2px; }
+    .tb-label { font-size: .68rem; font-weight: 700; color: #475569; letter-spacing: .04em; }
+    .tb-mini { display: inline-flex; align-items: center; gap: 2px; font-size: .68rem; color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 5px; padding: 0 3px 0 6px; height: 26px; }
+    .tb-btn { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; font-size: .72rem; font-weight: 600;
+              border-radius: 5px; color: #fff; line-height: 1; white-space: nowrap; }
+    .tb-btn .i { width: 13px; height: 13px; flex: none; }
+    .tb-btn.tb-ico { width: 24px; height: 22px; padding: 0; justify-content: center; background: transparent; color: #334155; border: 1px solid transparent; }
+    .tb-btn.tb-ico:hover { background: #e2e8f0; border-color: #cbd5e1; opacity: 1; }
+    .tb-group > .tb-btn.tb-ico { border-color: #cbd5e1; height: 26px; }
+    .tb-blue { background: #1d4ed8; } .tb-green { background: #15803d; } .tb-amber { background: #b45309; } .tb-sky { background: #0369a1; }
+    .left-sidebar { top: 80px; max-height: calc(100vh - 92px); }
+    @media (max-width: 760px) { .tb-btn span { display: none; } .tb-btn { padding: 0 7px; } .app-title span:last-child { display: none; } }
 </style>
 </head>
 <body>
@@ -629,46 +661,51 @@
 </div>
 
 <div class="container">
-<h2>Unified ROPA Pay Fixation, Arrear &amp; Over Drawn Refund System</h2>
-
-<!-- TAB NAVIGATION -->
-<div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('tabPayable')" data-tab="tabPayable">1. Payable Pay &amp; Fixation Arrear System</button>
-    <button class="tab-btn ref-tab" onclick="switchTab('tabOverdrawn')" data-tab="tabOverdrawn">2. Over Drawn Salary &amp; T.R. Form No.7 Refund (REF ADDED)</button>
-    <button class="tab-btn ref-tab" onclick="switchTab('tabDaCase')" data-tab="tabDaCase" style="background:#7c3aed; color:#fff;">3. DA Case (Auto Arrear Calculation)</button>
-</div>
-
-<!-- TOP ACTION / SAVED STAFF BAR -->
-<div class="top-action-area" style="position:sticky; top:0; z-index:1000; background:#fff; padding:8px 0 10px; border-bottom:1px solid var(--border-color); margin-bottom:12px;">
-    <div class="btn-row" style="margin:0 0 10px 0;">
-        <button class="btn-main" type="button" onclick="generateArrearTable()">1. Calculate Arrear &amp; Refresh</button>
-        <button class="btn-print" type="button" onclick="saveFullArrearDataToDB()">2. Save All Data to Database</button>
-        <button class="btn-sync" type="button" onclick="loadFullArrearDataFromDB()">2b. Load Saved Data (this Staff)</button>
-        <button class="btn-excel" type="button" onclick="exportFullWorkbookExcel()">3. Export Full 12-Sheet Excel Workbook</button>
+<div class="app-sticky">
+  <div class="app-bar">
+    <div class="app-title"><span class="app-logo">&#8377;</span><span>ROPA Pay Fixation, Arrear &amp; Over Drawn Refund System</span></div>
+    <!-- TAB NAVIGATION -->
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('tabPayable')" data-tab="tabPayable" title="Payable Pay &amp; Fixation Arrear System">1. Pay Fixation &amp; Arrear</button>
+      <button class="tab-btn ref-tab" onclick="switchTab('tabOverdrawn')" data-tab="tabOverdrawn" title="Over Drawn Salary &amp; T.R. Form No.7 Refund">2. Over Drawn &amp; T.R. 7 Refund</button>
+      <button class="tab-btn ref-tab" onclick="switchTab('tabDaCase')" data-tab="tabDaCase" style="background:#7c3aed; color:#fff;" title="DA Case (Auto Arrear Calculation)">3. DA Case</button>
     </div>
-    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-        <label style="min-width:0; margin:0; font-weight:700; color:#1e293b;">JSON Import / Export:</label>
-        <span style="font-size:0.78rem; color:#64748b; min-width:0;">Single = this staff only &nbsp;|&nbsp; Bulk = every saved staff record</span>
-        <button type="button" class="btn-doc" onclick="exportSingleRecordJSON()">Export Single (JSON)</button>
-        <button type="button" class="btn-sync" onclick="triggerImportSingle()">Import Single (JSON)</button>
-        <input type="file" id="importSingleFileInput" accept="application/json,.json" style="display:none" onchange="handleImportSingleFile(event)">
-        <button type="button" class="btn-challan" onclick="exportBulkRecordsJSON()">Export Bulk / All (JSON)</button>
-        <button type="button" class="btn-challan" onclick="triggerImportBulk()">Import Bulk / All (JSON)</button>
-        <input type="file" id="importBulkFileInput" accept="application/json,.json" style="display:none" onchange="handleImportBulkFile(event)">
+  </div>
+  <!-- TOP ACTION / SAVED STAFF TOOLBAR (compact icons; hover for full description) -->
+  <div class="top-action-area app-toolbar">
+    <div class="tb-group">
+      <button class="tb-btn tb-blue" type="button" onclick="generateArrearTable()" title="1. Calculate Arrear &amp; Refresh"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg><span>Calculate</span></button>
+      <button class="tb-btn tb-green" type="button" onclick="saveFullArrearDataToDB()" title="2. Save All Data to Database"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span>Save</span></button>
+      <button class="tb-btn tb-amber" type="button" onclick="loadFullArrearDataFromDB()" title="2b. Load Saved Data (this Staff)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Load</span></button>
+      <button class="tb-btn tb-sky" type="button" onclick="exportFullWorkbookExcel()" title="3. Export Full 12-Sheet Excel Workbook"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg><span>Excel</span></button>
     </div>
-    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
-        <label style="min-width:0; margin:0; font-weight:700; color:#1e293b;">Import from Pay Fixation / Service Book Tool:</label>
-        <span style="font-size:0.78rem; color:#64748b; min-width:0;">Pulls Staff Name, School, Designation, DOB, DOJ, Promotion, ROPA-98/09/19 fixation fields, and LWP-type entries from the Leave Account Register (as LWP Entries here) for every staff saved in that tool. Arrear, Over Drawn and DA rows are left untouched.</span>
-        <button type="button" class="btn-sync" onclick="importAllStaffFromRopaFixation()">Import All Staff (Matching Fields)</button>
+    <span class="tb-sep"></span>
+    <div class="tb-group" title="JSON Import / Export &mdash; Single = this staff only | Bulk = every saved staff record">
+      <span class="tb-label">JSON</span>
+      <span class="tb-mini">Single
+        <button class="tb-btn tb-ico" type="button" onclick="exportSingleRecordJSON()" title="Export Single (JSON)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <button class="tb-btn tb-ico" type="button" onclick="triggerImportSingle()" title="Import Single (JSON)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+      </span>
+      <span class="tb-mini">Bulk
+        <button class="tb-btn tb-ico" type="button" onclick="exportBulkRecordsJSON()" title="Export Bulk / All (JSON)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <button class="tb-btn tb-ico" type="button" onclick="triggerImportBulk()" title="Import Bulk / All (JSON)"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+      </span>
+      <input type="file" id="importSingleFileInput" accept="application/json,.json" style="display:none" onchange="handleImportSingleFile(event)">
+      <input type="file" id="importBulkFileInput" accept="application/json,.json" style="display:none" onchange="handleImportBulkFile(event)">
     </div>
-    <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:0;">
-        <label style="min-width:0; margin:0;">Saved Staff Records (Database):</label>
-        <select id="savedRecordsDropdown" style="min-width:280px; flex:1; padding:8px 10px; border:1px solid var(--border-color); border-radius:6px;">
-            <option value="">-- Click "Refresh List" to load saved records --</option>
-        </select>
-        <button type="button" class="btn-sync" onclick="refreshSavedRecordsList()">Refresh List</button>
-        <button type="button" class="btn-main" onclick="loadSelectedRecordFromDropdown()">Load Selected</button>
+    <span class="tb-sep"></span>
+    <div class="tb-group">
+      <button class="tb-btn tb-amber" type="button" onclick="importAllStaffFromRopaFixation()" title="Import from Pay Fixation / Service Book Tool: pulls Staff Name, School, Designation, DOB, DOJ, Promotion, ROPA-98/09/19 fixation fields and LWP entries for every saved staff"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Import Staff</span></button>
     </div>
+    <span class="tb-sep"></span>
+    <div class="tb-group tb-grow">
+      <select id="savedRecordsDropdown" title="Saved Staff Records (Database)">
+        <option value="">-- Click Refresh to load saved records --</option>
+      </select>
+      <button class="tb-btn tb-ico" type="button" onclick="refreshSavedRecordsList()" title="Refresh saved staff list"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+      <button class="tb-btn tb-blue" type="button" onclick="loadSelectedRecordFromDropdown()" title="Load selected staff record"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Load Selected</span></button>
+    </div>
+  </div>
 </div>
 
 
@@ -1221,7 +1258,7 @@
         </div>
 
         <div class="annex1-sig-row">
-            <div style="width:30%;">____________________________________<br>Signature of Secretary/D.D.O</div>
+            <div style="width:30%;"><div class="stamp-box" style="margin-bottom:2px;">Stamp / Seal of Secretary / D.D.O</div>____________________________________<br>Signature of Secretary/D.D.O</div>
             <div style="width:30%;">____________________________________<br>D.I. of Schools(S.E)<br>Seal</div>
             <div style="width:30%;">____________________________________<br>AD/DD/Accounts<br>Seal</div>
         </div>
@@ -1574,7 +1611,7 @@
         </div>
 
         <div class="annex1-sig-row">
-            <div style="width:30%;">____________________________________<br>Signature of Secretary/D.D.O</div>
+            <div style="width:30%;"><div class="stamp-box" style="margin-bottom:2px;">Stamp / Seal of Secretary / D.D.O</div>____________________________________<br>Signature of Secretary/D.D.O</div>
             <div style="width:30%;">____________________________________<br>D.I. of Schools(S.E)<br>Seal</div>
             <div style="width:30%;">____________________________________<br>AD/DD/Accounts<br>Seal</div>
         </div>
@@ -2456,6 +2493,56 @@ const eligibleFor18YScaleChange98 = [1700, 2600, 3900, 4100];
 // Short "Fixation Mode" tag shown in the Remarks column of every Pay Table
 // (ROPA-98 / ROPA-09 / ROPA-19), in place of the detailed generation-doc slip
 // box, describing HOW that row's pay was fixed.
+// ROPA-19 Level (e.g. LEVEL-11 / LEVEL-12) applies from the ROPA-19 fixation date
+// (01-01-2016, or the later option date) -- NOT only from the Jan-2020 cash-payment date.
+function ropa19LevelFor(y, m) {
+    const tl = window.pfTimeline19;
+    if (!tl || !tl.length) return '';
+    const d = new Date(y, m - 1, 1);
+    const st = new Date(tl[0].date);
+    if (d < new Date(st.getFullYear(), st.getMonth(), 1)) return '';
+    let app = tl[0];
+    for (const r of tl) { if (new Date(r.date) <= d) app = r; else break; }
+    return app.snapLevel ? ('LEVEL-' + app.snapLevel) : '';
+}
+// "LEVEL-11 (Jan-22 to Jun-22), LEVEL-12 (Jul-22 to Dec-22)" for the months on one printed page
+function calcLevelLine(pairs) {
+    const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const segs = [];
+    pairs.forEach(([y, m]) => {
+        const lv = ropa19LevelFor(y, m);
+        if (!lv) return;
+        const lab = MN[m - 1] + '-' + String(y).slice(2);
+        const last = segs[segs.length - 1];
+        if (last && last.lv === lv) last.to = lab; else segs.push({ lv, from: lab, to: lab });
+    });
+    if (!segs.length) return '';
+    const txt = segs.map(g => `${g.lv} (${g.from === g.to ? g.from : g.from + ' to ' + g.to})`).join(', ');
+    return `<div>Pay Matrix Level (ROPA-2019, Admissible): <strong>${txt}</strong></div>`;
+}
+// Remarks for CAS milestone rows (10Y / 18Y / 20Y): one additional increment w.e.f. ___ for completion of
+// ___ years' continuous and satisfactory service on ___ . Window 02-Jan..30-Jun => allowed from 1st July.
+function casRemarkFor(ev, baseText, scaleChanged) {
+    if (!ev || !ev.isMilestone) return baseText;
+    const mt = String(ev.label || '').match(/\d+/);
+    if (!mt) return baseText;
+    const yrs = mt[0];
+    const eff = new Date(ev.date);
+    const exact = new Date(ev.exactMilestoneDate || ev.date);
+    const what = scaleChanged ? 'Placed in next higher scale / Level (Grade Pay change)' : 'One additional increment';
+    let t = `${what} w.e.f. ${formatDate(eff)} for completion of ${yrs} years' continuous and satisfactory service on ${formatDate(exact)}`;
+    const inWinA = exact >= new Date(exact.getFullYear(), 0, 2) && exact <= new Date(exact.getFullYear(), 5, 30);
+    if (inWinA && eff.getMonth() === 6 && eff.getDate() === 1 && eff.getTime() !== exact.getTime()) {
+        t += ` (completion date falls between 02.01 and 30.06, hence allowed w.e.f. 01.07.${eff.getFullYear()} instead of ${formatDate(exact)})`;
+    }
+    if (ev.deferDays > 0) {
+        const orig = new Date(exact); orig.setDate(orig.getDate() - ev.deferDays);
+        t += ` [original due date ${formatDate(orig)} extended by ${ev.deferDays} day(s) on account of LWP]`;
+    }
+    if (ev.isLwpDeferred) t += `; financial benefit deferred to ${formatDate(eff)} due to LWP`;
+    return t + '.';
+}
+
 function fixationModeLabel(ev, evType) {
     if (ev.isInitial) return 'Initial Fixation';
     if (ev.isPromotion) {
@@ -2649,6 +2736,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
         compiledRows.push({
             date: ev.date,
             label: remarksText,
+            remarks: casRemarkFor(ev, remarksText, ev.milestoneType === '18Y'),
             scaleStr: `Rs. ${ropa98ScaleRangeStr(currentScaleKey)}`,
             trackCol: '',
             gpDisplay: '',
@@ -2874,6 +2962,7 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
         compiledRows.push({
             date: ev.date,
             label: remarksText,
+            remarks: casRemarkFor(ev, remarksText, existingGp !== runningGp),
             scaleStr: colScaleStr,
             trackCol: runningBandPay.toLocaleString('en-IN'),
             gpDisplay: runningGp.toLocaleString('en-IN'),
@@ -3104,7 +3193,8 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
         compiledRows.push({
             date: ev.date,
             label: remarksText,
-            scaleStr: colScaleStr,
+            remarks: casRemarkFor(ev, remarksText, existingLevel !== runningLevel),
+            scaleStr: `LEVEL-${runningLevel} (${pbMap19[runningGp] || ''}, GP ${runningGp})`,
             trackCol: colTrackingInfo,
             gpDisplay: runningGp.toLocaleString('en-IN'),
             basicDisplay: runningBasicPay.toLocaleString('en-IN'),
@@ -3134,7 +3224,7 @@ function renderRows98(tbodyId, sbTbodyId, rows) {
             <td><strong>${formatDate(row.dot)}</strong></td>
             <td style="font-size:0.8rem;">${row.scaleStr}</td>
             <td><strong>₹ ${row.basicDisplay}</strong></td>
-            <td><strong>${row.label}</strong><div style="font-size:0.78rem; color:#475569; margin-top:2px;">Fixation Mode: ${row.fixationMode || '-'}</div></td>`;
+            <td><strong>${row.remarks || row.label}</strong><div style="font-size:0.78rem; color:#475569; margin-top:2px;">Fixation Mode: ${row.fixationMode || '-'}</div></td>`;
         let dRow = document.createElement('tr'); dRow.innerHTML = rowHTML; tbody.appendChild(dRow);
         let pRow = document.createElement('tr'); pRow.innerHTML = rowHTML; sbTbody.appendChild(pRow);
     });
@@ -3156,7 +3246,7 @@ function renderRows(tbodyId, sbTbodyId, rows) {
             <td style="text-align:center;">${row.trackCol}</td>
             <td style="text-align:center;">₹ ${row.gpDisplay}</td>
             <td><strong>₹ ${row.basicDisplay}</strong></td>
-            <td><strong>${row.label}</strong><div style="font-size:0.78rem; color:#475569; margin-top:2px;">Fixation Mode: ${row.fixationMode || '-'}</div></td>`;
+            <td><strong>${row.remarks || row.label}</strong><div style="font-size:0.78rem; color:#475569; margin-top:2px;">Fixation Mode: ${row.fixationMode || '-'}</div></td>`;
         let dRow = document.createElement('tr'); dRow.innerHTML = rowHTML; tbody.appendChild(dRow);
         let pRow = document.createElement('tr'); pRow.innerHTML = rowHTML; sbTbody.appendChild(pRow);
     });
@@ -4108,8 +4198,11 @@ function odEraLabel(era) { return era === '98' ? 'ROPA-98' : (era === '09' ? 'RO
 function odEraDisplay(row) {
     const era = odApplyEraRules(row);
     const NA = '&mdash;';
+    const [oy, om] = String(row.month).split('-').map(Number);
+    const lvl = (era === '09') ? ropa19LevelFor(oy, om) : '';
     return {
-        era,
+        era, lvl,
+        bandHtml: era === '98' ? NA : ((row.band || NA) + (lvl ? `<br><span style="font-size:.9em">(${lvl})</span>` : '')),
         band: era === '98' ? NA : (row.band || NA),
         scale: row.scale || (era === '19' ? (row.band || NA) : NA),
         drPB: era === '09' ? row.drPayBand : NA, drGP: era === '09' ? row.drGradePay : NA,
@@ -4140,7 +4233,8 @@ function renderOdTable() {
 
         const era = odApplyEraRules(row);
         const NA = '<span style="color:#94a3b8;" title="Not applicable in this pay-revision era">&mdash;</span>';
-        const bandCell  = era === '98' ? NA : inp(row.id,'band',row.band,'txt');
+        const lvlNow = (era === '09') ? ropa19LevelFor(...String(row.month).split('-').map(Number)) : '';
+        const bandCell  = era === '98' ? NA : inp(row.id,'band',row.band,'txt') + (lvlNow ? `<div style="font-size:0.62rem;color:#1d4ed8;">${lvlNow}</div>` : '');
         const scaleCell = inp(row.id,'scale',row.scale || (era === '19' ? row.band : ''),'txt');
         const drPB   = era === '09' ? inp(row.id,'drPayBand',row.drPayBand) : NA;
         const drGP   = era === '09' ? inp(row.id,'drGradePay',row.drGradePay) : NA;
@@ -5047,6 +5141,7 @@ function docDaCalcSheet() {
                 <div>Name of the School: <strong>${school}</strong></div>
                 <div>Name of the Employee: <strong>${staff} ; ${desig}</strong></div>
                 <div>D.A. Arrear for the period: <strong>${period}</strong></div>
+                ${calcLevelLine(pageRows.map(r => String(r.month).split('-').map(Number)))}
             </div>
 
             <table class="calc-table" style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:center;">
@@ -5069,9 +5164,9 @@ function docDaCalcSheet() {
             </table>
 
             <div class="calc-sign-row">
-                <div class="chk">Checked, Verified and Found Correct</div>
-                <div class="sig">Signature of Secretary / Administrator</div>
-                <div class="sig">Signature of HOI with Seal</div>
+                <div><div class="stamp-box">Stamp of Verifying / Auditing Officer</div><div class="sig chk">Checked, Verified and Found Correct</div></div>
+                <div><div class="stamp-box">Stamp / Seal of Secretary / Administrator</div><div class="sig">Signature of Secretary / Administrator</div></div>
+                <div><div class="stamp-box">Stamp / Seal of Head of Institution</div><div class="sig">Signature of HOI with Seal</div></div>
             </div>
         </div>`;
     }
@@ -5147,7 +5242,7 @@ function printStatement() {
         const e = odEraDisplay(row);
         const c = computeOdRow(row);
         rowsHtml += `<tr>
-            <td>${idx+1}</td><td>${monthLabelShort(row.month)}</td><td>${e.band}</td><td>${e.scale}</td>
+            <td>${idx+1}</td><td>${monthLabelShort(row.month)}</td><td>${e.bandHtml}</td><td>${e.scale}</td>
             <td>${e.drPB}</td><td>${e.drGP}</td><td>${c.drRevBasic}</td><td>${row.drDP}</td><td>${row.drDA}</td><td>${row.drHRA}</td><td>${row.drMA}</td><td>${row.drIR}</td><td><strong>${c.drTotal}</strong></td>
             <td>${e.admPB}</td><td>${e.admGP}</td><td>${c.admRevBasic}</td><td>${row.admDP}</td><td>${row.admDA}</td><td>${row.admHRA}</td><td>${row.admMA}</td><td>${row.admIR}</td><td><strong>${c.admTotal}</strong></td>
             <td><strong>${c.overDrawn}</strong></td><td>${c.daPercent}</td><td style="text-align:left;white-space:pre-line;">${row.remarks}</td>
@@ -5186,8 +5281,8 @@ function printStatement() {
         <div class="od-foot"><div style="margin-top:12px; font-weight:bold; font-size:.9rem;">Net overdrawn Amount to be refunded Rs. ${(sums.overDrawn||0).toLocaleString('en-IN')}</div>
         <div style="font-style:italic;">[ Rupees ${numberToWords(sums.overDrawn||0)} Only ]</div>
         <div style="display:flex;justify-content:space-between;margin-top:60px;font-weight:bold;font-size:.85rem;">
-            <div>________________________________<br>Signature of Head of Institution</div>
-            <div>________________________________<br>Countersigned / D.I. of Schools</div>
+            <div><div class="stamp-box" style="width:55mm;margin-bottom:1mm;">Stamp / Seal of Head of Institution</div>________________________________<br>Signature of Head of Institution</div>
+            <div><div class="stamp-box" style="width:55mm;margin:0 0 1mm auto;">Stamp / Seal of D.I. of Schools</div>________________________________<br>Countersigned / D.I. of Schools</div>
         </div></div>
     </div>`;
 
@@ -5274,6 +5369,7 @@ function buildChallanPage(copyType) {
             <colgroup><col style="width:50%"><col class="gap"><col style="width:50%"></colgroup>
             <tr><td class="head">Accounts Officer by whom adjustable</td><td class="gap"></td><td class="head">Account General (A &amp; E), West Bengal</td></tr>
             <tr><td class="head" style="font-weight:normal;height:4mm;">Verified</td><td class="gap"></td><td class="head"></td></tr>
+            <tr><td style="padding:1mm 0 1.5mm !important;"><div class="stamp-box" style="height:17mm;">Stamp / Seal of Accounts Officer / Departmental Officer</div></td><td class="gap"></td><td style="padding:1mm 0 1.5mm !important;"><div class="stamp-box" style="height:17mm;">Stamp of Treasury Officer / Bank</div></td></tr>
             <tr><td class="rule">Signature of Departmental / Treasury Officer</td><td class="gap"></td><td class="rule">Depositor's Signature</td></tr>
             <tr><td class="rule">Date</td><td class="gap"></td><td class="rule">Treasury Receipt Challan No.</td></tr>
             <tr><td class="rule">Received Payment</td><td class="gap"></td><td class="rule">Bank Scroll Serial No.</td></tr>
@@ -5659,6 +5755,7 @@ function docAnnex() {
                 <div>Name of the Employee: <strong>${staff} ; ${desig}</strong></div>
                 <div>Arrear for the period: <strong>${period}</strong></div>
                 <div>Scale Admissible: <strong>${scaleAdm}</strong> &nbsp;|&nbsp; Scale Drawn: <strong>${scaleDr}</strong></div>
+                ${calcLevelLine(pageRows.map(r => [r.y, r.m]))}
             </div>
 
             <table class="calc-table" style="width:100%; border-collapse:collapse; font-size:0.78rem; text-align:center;">
@@ -5682,9 +5779,9 @@ function docAnnex() {
             </table>
 
             <div class="calc-sign-row">
-                <div class="chk">Checked, Verified and Found Correct</div>
-                <div class="sig">Signature of Secretary / Administrator</div>
-                <div class="sig">Signature of HOI with Seal</div>
+                <div><div class="stamp-box">Stamp of Verifying / Auditing Officer</div><div class="sig chk">Checked, Verified and Found Correct</div></div>
+                <div><div class="stamp-box">Stamp / Seal of Secretary / Administrator</div><div class="sig">Signature of Secretary / Administrator</div></div>
+                <div><div class="stamp-box">Stamp / Seal of Head of Institution</div><div class="sig">Signature of HOI with Seal</div></div>
             </div>
         </div>`;
     }
@@ -5870,7 +5967,7 @@ function showDoc(type) {
             </tbody>
         </table>
         <div style="margin-top:25px;display:flex;justify-content:space-between;text-align:center;">
-            <div>____________________________<br>Signature of HOI with date and seal</div>
+            <div><div class="stamp-box" style="width:55mm;margin-bottom:1mm;">Stamp / Seal of HOI</div>____________________________<br>Signature of HOI with date and seal</div>
             <div>____________________________<br>Signature of DA</div>
         </div>
     </div>`;
