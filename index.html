@@ -2523,16 +2523,44 @@ function ropa19LevelFor(y, m) {
     for (const r of tl) { if (new Date(r.date) <= d) app = r; else break; }
     return app.snapLevel ? ('LEVEL-' + app.snapLevel) : '';
 }
-// "LEVEL-11 (Jan-22 to Jun-22), LEVEL-12 (Jul-22 to Dec-22)" for the months on one printed page
+// "LEVEL-11 (Jan-22 to Jun-22), LEVEL-12 (Jul-22 to Dec-22)" for the months on one printed page.
+// Day-accurate: if the Level changes MID-month (e.g. benefit date 15-Sep), that month is split --
+// "LEVEL-11 (Jan-26 to 14-Sep-26), LEVEL-12 (15-Sep-26 to Oct-26)" -- instead of showing the whole
+// month at the Level of the 1st.
 function calcLevelLine(pairs) {
     const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const tl = window.pfTimeline19 || [];
+    const pad = n => String(n).padStart(2, '0');
+    const levelOn = (y, m, day) => {
+        const d = new Date(y, m - 1, day);
+        let app = tl[0];
+        for (const r of tl) { if (new Date(r.date) <= d) app = r; else break; }
+        return app && app.snapLevel ? ('LEVEL-' + app.snapLevel) : '';
+    };
     const segs = [];
     pairs.forEach(([y, m]) => {
-        const lv = ropa19LevelFor(y, m);
-        if (!lv) return;
-        const lab = MN[m - 1] + '-' + String(y).slice(2);
-        const last = segs[segs.length - 1];
-        if (last && last.lv === lv) last.to = lab; else segs.push({ lv, from: lab, to: lab });
+        const lv1 = ropa19LevelFor(y, m);          // Level on the 1st (also handles months before fixation)
+        if (!lv1) return;
+        const last = new Date(y, m, 0).getDate();
+        // days (>1) of this month on which a timeline event (benefit / increment / promotion) takes effect
+        const cuts = [];
+        tl.forEach(r => {
+            const rd = new Date(r.date);
+            if (rd.getFullYear() === y && rd.getMonth() === m - 1 && rd.getDate() > 1 && !cuts.includes(rd.getDate())) cuts.push(rd.getDate());
+        });
+        cuts.sort((a, b) => a - b);
+        const pieces = [{ lv: lv1, s: 1 }];
+        cuts.forEach(day => {
+            const lv = levelOn(y, m, day);
+            if (lv && lv !== pieces[pieces.length - 1].lv) pieces.push({ lv, s: day });
+        });
+        pieces.forEach((pc, i) => {
+            pc.e = (i + 1 < pieces.length) ? pieces[i + 1].s - 1 : last;
+            const fromLab = (pc.s === 1) ? (MN[m - 1] + '-' + String(y).slice(2)) : (pad(pc.s) + '-' + MN[m - 1] + '-' + String(y).slice(2));
+            const toLab = (pc.e === last) ? (MN[m - 1] + '-' + String(y).slice(2)) : (pad(pc.e) + '-' + MN[m - 1] + '-' + String(y).slice(2));
+            const prev = segs[segs.length - 1];
+            if (prev && prev.lv === pc.lv) prev.to = toLab; else segs.push({ lv: pc.lv, from: fromLab, to: toLab });
+        });
     });
     if (!segs.length) return '';
     const txt = segs.map(g => `${g.lv} (${g.from === g.to ? g.from : g.from + ' to ' + g.to})`).join(', ');
