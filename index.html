@@ -4325,7 +4325,38 @@ function updateOdField(id, field, v) {
     const row = odRows.find(r => r.id === id);
     if (!row) return;
     if (field === 'band' || field === 'scale' || field === 'remarks' || field === 'month') row[field] = v;
-    else row[field] = parseFloat(v) || 0;
+    else {
+        // Capture the DA % this row was using BEFORE the edit (DA / Basic), so a manual Basic
+        // change can re-price DA at the same rate instead of leaving the old DA amount behind.
+        const odRate = (side) => {
+            const cached = row[side + 'DaRate'];
+            if (typeof cached === 'number' && cached >= 0) return cached;
+            const oldBasic = (row[side + 'PayBand'] || 0) + (row[side + 'GradePay'] || 0);
+            const oldDA = row[side + 'DA'] || 0;
+            if (oldBasic > 0 && oldDA > 0) return oldDA / oldBasic;
+            const r = getDaRates(row.month);          // era-aware / DA-schedule aware fallback
+            return (r && Number.isFinite(r.drawn)) ? r.drawn : 0;
+        };
+        let rDr = null, rAdm = null;
+        const isDrBasic  = (field === 'drPayBand'  || field === 'drGradePay');
+        const isAdmBasic = (field === 'admPayBand' || field === 'admGradePay');
+        if (isDrBasic)  rDr  = odRate('dr');
+        if (isAdmBasic) rAdm = odRate('adm');
+
+        row[field] = parseFloat(v) || 0;
+
+        if (isDrBasic) {                              // Drawn Basic changed -> Drawn DA follows
+            row.drDaRate = rDr;
+            row.drDA = Math.round(((row.drPayBand || 0) + (row.drGradePay || 0)) * rDr);
+        }
+        if (isAdmBasic) {                             // Admissible Basic changed -> Admissible DA follows
+            row.admDaRate = rAdm;
+            row.admDA = Math.round(((row.admPayBand || 0) + (row.admGradePay || 0)) * rAdm);
+        }
+        // A hand-typed DA amount becomes the new reference rate for later Basic edits
+        if (field === 'drDA')  row.drDaRate = null;
+        if (field === 'admDA') row.admDaRate = null;
+    }
     withFocusPreserved(renderOdTable);
 }
 
