@@ -5257,24 +5257,37 @@ async function exportDaCaseExcel() {
     link.click();
 }
 
+function empNameForBudget() { return `${val('odEmpName')} ${val('odEmpQual') ? ';'+val('odEmpQual') : ''} ; ${val('odEmpDesig')} ${val('odSchoolName')}`; }
 function printStatement() {
     if (odRows.length === 0) { alert('Add at least one month row first.'); return; }
     // Own "Page X of Y" is printed in every sheet, so use plain landscape (no margin-box numbering => no duplicate)
     setPrintOrientation('landscape');
     const sums = window._odSums || {};
     const n = odRows.length;
-    const PER_PAGE = 12, LAST_MAX = 8;   // last page also carries TOTAL + net amount + signatures
+    // ---- height-budget pagination (A4 landscape sheet = 188 mm tall) ----
+    const MINR = 6.5;                                   // mm, minimum data-row height
+    const remLines = r => String(r.remarks || '').split('\n').reduce((t, l) => t + Math.max(1, Math.ceil(l.length / 38)), 0);
+    const est = r => Math.max(MINR, remLines(r) * 2.9 + 1.5);
+    const reasonLen = String(val('reasonText') || '').length + String(empNameForBudget()).length;
+    const hdrMm = 12 + 5 * (1 + Math.ceil((reasonLen / 2 + 25) / 125));
+    const availNon = 188 - 6 - hdrMm - 15 - 26 - 3;      // sheet - padding - header - column heads - HOI block - safety
+    const availLast = 188 - 6 - hdrMm - 15 - 44 - 3;     // + net amount lines + two signature boxes
     const chunks = [];
     let pos = 0;
-    while (n - pos > PER_PAGE) { chunks.push([pos, pos + PER_PAGE]); pos += PER_PAGE; }
-    let rest = n - pos;
-    if (chunks.length === 0 && rest <= LAST_MAX) { chunks.push([0, n]); }
-    else if (rest <= LAST_MAX) { chunks.push([pos, n]); }
-    else { const h = Math.ceil(rest / 2); chunks.push([pos, pos + h]); chunks.push([pos + h, n]); }
+    while (pos < n) {
+        const first = chunks.length === 0;
+        const specials = (first ? 1 : 2) * MINR;         // (B/F) + C/F-or-TOTAL
+        let rem = 0; for (let k = pos; k < n; k++) rem += est(odRows[k]);
+        if (rem + specials <= availLast) { chunks.push([pos, n]); break; }
+        let used = specials + (first ? 0 : 0) + MINR * 0, end = pos;
+        const cap = availNon - MINR * (first ? 1 : 1);   // C/F row counted in specials already; keep margin
+        while (end < n && (end === pos || used + est(odRows[end]) <= availNon)) { used += est(odRows[end]); end++; }
+        chunks.push([pos, end]); pos = end;
+    }
     const totalPages = chunks.length;
     const K = ['drRevBasic','drDP','drDA','drHRA','drMA','drIR','drTotal','admRevBasic','admDP','admDA','admHRA','admMA','admIR','admTotal','overDrawn'];
     const run = {}; K.forEach(k => run[k] = 0);
-    const sumRow = (label, t, bg) => `<tr style="font-weight:bold;background:${bg};">
+    const sumRow = (label, t, bg) => `<tr style="font-weight:bold;background:${bg};height:${MINR + 1}mm;">
                     <td colspan="6" style="text-align:left;">${label}</td>
                     <td>${t.drRevBasic}</td><td>${t.drDP}</td><td>${t.drDA}</td><td>${t.drHRA}</td><td>${t.drMA}</td><td>${t.drIR}</td><td>${t.drTotal}</td>
                     <td></td><td></td><td>${t.admRevBasic}</td><td>${t.admDP}</td><td>${t.admDA}</td><td>${t.admHRA}</td><td>${t.admMA}</td><td>${t.admIR}</td><td>${t.admTotal}</td>
@@ -5284,6 +5297,15 @@ function printStatement() {
     let content = '';
     chunks.forEach(([a, b], p) => {
         const pageNum = p + 1, isLast = pageNum === totalPages;
+        const availMm = isLast ? availLast : availNon;
+        const pageIdx = [];
+        for (let k = a; k < b; k++) pageIdx.push(k);
+        const specialsN = (pageNum > 1 ? 1 : 0) + 1;
+        const used = pageIdx.reduce((t, k) => t + est(odRows[k]), 0) + specialsN * MINR;
+        const extra = Math.max(0, Math.min(10, (availMm - used) / (pageIdx.length + specialsN)));
+        const rowH = MINR + extra;
+        const maxEst = Math.max(...pageIdx.map(k => est(odRows[k])));
+        const fs = (maxEst <= MINR && rowH >= 8.5) ? '7.5pt' : '6.5pt';
         let rowsHtml = '';
         if (pageNum > 1) rowsHtml += sumRow('B/F (Brought Forward from Page ' + p + ')', run, '#f1f5f9');
         for (let idx = a; idx < b; idx++) {
@@ -5293,7 +5315,7 @@ function printStatement() {
             run.drRevBasic += c.drRevBasic; run.drDP += row.drDP; run.drDA += row.drDA; run.drHRA += row.drHRA; run.drMA += row.drMA; run.drIR += row.drIR; run.drTotal += c.drTotal;
             run.admRevBasic += c.admRevBasic; run.admDP += row.admDP; run.admDA += row.admDA; run.admHRA += row.admHRA; run.admMA += row.admMA; run.admIR += row.admIR; run.admTotal += c.admTotal;
             run.overDrawn += c.overDrawn;
-            rowsHtml += `<tr>
+            rowsHtml += `<tr style="--od-rh:${(est(row) + extra).toFixed(1)}mm;">
             <td>${idx+1}</td><td>${monthLabelShort(row.month)}</td><td>${e.bandHtml}</td><td>${e.scale}</td>
             <td>${e.drPB}</td><td>${e.drGP}</td><td>${c.drRevBasic}</td><td>${row.drDP}</td><td>${row.drDA}</td><td>${row.drHRA}</td><td>${row.drMA}</td><td>${row.drIR}</td><td><strong>${c.drTotal}</strong></td>
             <td>${e.admPB}</td><td>${e.admGP}</td><td>${c.admRevBasic}</td><td>${row.admDP}</td><td>${row.admDA}</td><td>${row.admHRA}</td><td>${row.admMA}</td><td>${row.admIR}</td><td><strong>${c.admTotal}</strong></td>
@@ -5303,10 +5325,6 @@ function printStatement() {
         if (!isLast) rowsHtml += sumRow('C/F (Carried Forward to Page ' + (pageNum + 1) + ')', run, '#e2e8f0');
         else rowsHtml += sumRow('TOTAL', sums, '#cbd5e1');
 
-        const nRowsOnPage = (b - a) + (pageNum > 1 ? 1 : 0) + 1;
-        const availMm = isLast ? 104 : 124;
-        const rowH = Math.max(5.5, Math.min(15, availMm / nRowsOnPage));
-        const fs = rowH >= 9 ? '7.5pt' : (rowH >= 7 ? '7pt' : '6.5pt');
         const sigBlock = isLast ? `
         <div style="display:flex;justify-content:space-between;margin-top:14px;font-weight:bold;font-size:.85rem;">
             <div style="text-align:center;"><div class="stamp-box" style="width:55mm;margin:0 auto 1mm;">Stamp / Seal of Head of Institution</div>________________________________<br>Signature of Head of Institution</div>
