@@ -2533,11 +2533,11 @@ function casRemarkFor(ev, baseText, scaleChanged, isRopa98) {
     const eff = new Date(ev.date);
     const exact = new Date(ev.exactMilestoneDate || ev.date);
     const what = scaleChanged ? 'Placed in next higher scale / Level (Grade Pay change)' : 'One additional increment';
-    let t = `${what} w.e.f. ${formatDate(eff)} for completion of ${yrs} years' continuous and satisfactory service on ${formatDate(exact)}`;
+    // Normal effective date = day after completion (= anniversary of joining).
+    const annivDay = new Date(exact); annivDay.setDate(annivDay.getDate() + 1);
     const inWinA = !isRopa98 && exact >= new Date(exact.getFullYear(), 0, 2) && exact <= new Date(exact.getFullYear(), 5, 30);
-    if (inWinA && eff.getMonth() === 6 && eff.getDate() === 1 && eff.getTime() !== exact.getTime()) {
-        t += ` (completion date falls between 02.01 and 30.06, hence allowed w.e.f. 01.07.${eff.getFullYear()} instead of ${formatDate(exact)})`;
-    }
+    const shiftedToJul = inWinA && eff.getMonth() === 6 && eff.getDate() === 1 && eff.getTime() !== annivDay.getTime();
+    let t = `${what} w.e.f. ${formatDate(eff)}${shiftedToJul ? ' instead of ' + formatDate(annivDay) : ''} for completion of ${yrs} years' continuous and satisfactory service on ${formatDate(exact)}`;
     if (ev.deferDays > 0) {
         const orig = new Date(exact); orig.setDate(orig.getDate() - ev.deferDays);
         t += ` [original due date ${formatDate(orig)} extended by ${ev.deferDays} day(s) on account of LWP]`;
@@ -2874,7 +2874,7 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
                     pushEvent(targetJul, { label: milestone.name, isMilestone: true, exactMilestoneDate: shiftedD, win: 'A', deferDays });
                 }
             } else {
-                pushEvent(shiftedD, { label: milestone.name, isMilestone: true, exactMilestoneDate: shiftedD, win: 'B', deferDays });
+                pushEvent(addDays(shiftedD, 1), { label: milestone.name, isMilestone: true, exactMilestoneDate: shiftedD, win: 'B', deferDays });
             }
         }
     });
@@ -3096,7 +3096,7 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
                     pushEvent(targetJul, { label: milestone.name, isMilestone: true, exactMilestoneDate: shiftedD, win: 'A', deferDays });
                 }
             } else {
-                pushEvent(shiftedD, { label: milestone.name, isMilestone: true, exactMilestoneDate: shiftedD, win: 'B', deferDays });
+                pushEvent(addDays(shiftedD, 1), { label: milestone.name, isMilestone: true, exactMilestoneDate: shiftedD, win: 'B', deferDays });
             }
         }
     });
