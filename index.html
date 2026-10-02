@@ -495,6 +495,8 @@
         .od-sheet table.annex1-table tfoot { display: table-row-group; }
         .od-sheet table.annex1-table tr { break-inside: avoid !important; page-break-inside: avoid !important; }
         .od-sheet .od-foot { break-inside: avoid; page-break-inside: avoid; }
+        .od-page { break-after: page !important; page-break-after: always !important; }
+        .od-page:last-child { break-after: auto !important; page-break-after: auto !important; }
     }
 
     /* ===== LEFT SIDEBAR / COMMON STAFF PANEL ===== */
@@ -2525,7 +2527,7 @@ function calcLevelLine(pairs) {
 }
 // Remarks for CAS milestone rows (10Y / 18Y / 20Y): one additional increment w.e.f. ___ for completion of
 // ___ years' continuous and satisfactory service on ___ . Window 02-Jan..30-Jun => allowed from 1st July.
-function casRemarkFor(ev, baseText, scaleChanged, isRopa98) {
+function casRemarkFor(ev, baseText, scaleChanged, isRopa98, ropaName) {
     if (!ev || !ev.isMilestone) return baseText;
     const mt = String(ev.label || '').match(/\d+/);
     if (!mt) return baseText;
@@ -2538,6 +2540,7 @@ function casRemarkFor(ev, baseText, scaleChanged, isRopa98) {
     const inWinA = !isRopa98 && exact >= new Date(exact.getFullYear(), 0, 2) && exact <= new Date(exact.getFullYear(), 5, 30);
     const shiftedToJul = inWinA && eff.getMonth() === 6 && eff.getDate() === 1 && eff.getTime() !== annivDay.getTime();
     let t = `${what} w.e.f. ${formatDate(eff)}${shiftedToJul ? ' instead of ' + formatDate(annivDay) : ''} for completion of ${yrs} years' continuous and satisfactory service on ${formatDate(exact)}`;
+    if (ropaName) t += ` as per ${ropaName} rules and granted by MCR / Administrator Order No. ____________ dated ____________`;
     if (ev.deferDays > 0) {
         const orig = new Date(exact); orig.setDate(orig.getDate() - ev.deferDays);
         t += ` [original due date ${formatDate(orig)} extended by ${ev.deferDays} day(s) on account of LWP]`;
@@ -2971,7 +2974,7 @@ function computeRopa09Timeline(doj, optionDate, gpInput, initialBandPay, endDate
         compiledRows.push({
             date: ev.date,
             label: remarksText,
-            remarks: casRemarkFor(ev, remarksText, existingGp !== runningGp),
+            remarks: casRemarkFor(ev, remarksText, existingGp !== runningGp, false, 'ROPA-2009'),
             scaleStr: colScaleStr,
             trackCol: runningBandPay.toLocaleString('en-IN'),
             gpDisplay: runningGp.toLocaleString('en-IN'),
@@ -3202,7 +3205,7 @@ function computeRopa19Timeline(doj, startDate, gpInput, levelInput, basicInput, 
         compiledRows.push({
             date: ev.date,
             label: remarksText,
-            remarks: casRemarkFor(ev, remarksText, existingLevel !== runningLevel),
+            remarks: casRemarkFor(ev, remarksText, existingLevel !== runningLevel, false, 'ROPA-2019'),
             scaleStr: `LEVEL-${runningLevel} (${pbMap19[runningGp] || ''}, GP ${runningGp})`,
             trackCol: colTrackingInfo,
             gpDisplay: runningGp.toLocaleString('en-IN'),
@@ -5253,24 +5256,64 @@ async function exportDaCaseExcel() {
 
 function printStatement() {
     if (odRows.length === 0) { alert('Add at least one month row first.'); return; }
-    setPrintOrientation('landscape-numbered'); // OD SHEET -> A4 LANDSCAPE + Page X of Y
+    // Own "Page X of Y" is printed in every sheet, so use plain landscape (no margin-box numbering => no duplicate)
+    setPrintOrientation('landscape');
     const sums = window._odSums || {};
-    let rowsHtml = '';
-    odRows.forEach((row, idx) => {
-        const e = odEraDisplay(row);
-        const c = computeOdRow(row);
-        rowsHtml += `<tr>
+    const n = odRows.length;
+    const PER_PAGE = 12, LAST_MAX = 8;   // last page also carries TOTAL + net amount + signatures
+    const chunks = [];
+    let pos = 0;
+    while (n - pos > PER_PAGE) { chunks.push([pos, pos + PER_PAGE]); pos += PER_PAGE; }
+    let rest = n - pos;
+    if (chunks.length === 0 && rest <= LAST_MAX) { chunks.push([0, n]); }
+    else if (rest <= LAST_MAX) { chunks.push([pos, n]); }
+    else { const h = Math.ceil(rest / 2); chunks.push([pos, pos + h]); chunks.push([pos + h, n]); }
+    const totalPages = chunks.length;
+    const K = ['drRevBasic','drDP','drDA','drHRA','drMA','drIR','drTotal','admRevBasic','admDP','admDA','admHRA','admMA','admIR','admTotal','overDrawn'];
+    const run = {}; K.forEach(k => run[k] = 0);
+    const sumRow = (label, t, bg) => `<tr style="font-weight:bold;background:${bg};">
+                    <td colspan="6" style="text-align:left;">${label}</td>
+                    <td>${t.drRevBasic}</td><td>${t.drDP}</td><td>${t.drDA}</td><td>${t.drHRA}</td><td>${t.drMA}</td><td>${t.drIR}</td><td>${t.drTotal}</td>
+                    <td></td><td></td><td>${t.admRevBasic}</td><td>${t.admDP}</td><td>${t.admDA}</td><td>${t.admHRA}</td><td>${t.admMA}</td><td>${t.admIR}</td><td>${t.admTotal}</td>
+                    <td>${t.overDrawn}</td><td></td><td></td>
+                </tr>`;
+    const empName = `${val('odEmpName')} ${val('odEmpQual') ? ';'+val('odEmpQual') : ''} ; ${val('odEmpDesig')} ${val('odSchoolName')}`;
+    let content = '';
+    chunks.forEach(([a, b], p) => {
+        const pageNum = p + 1, isLast = pageNum === totalPages;
+        let rowsHtml = '';
+        if (pageNum > 1) rowsHtml += sumRow('B/F (Brought Forward from Page ' + p + ')', run, '#f1f5f9');
+        for (let idx = a; idx < b; idx++) {
+            const row = odRows[idx];
+            const e = odEraDisplay(row);
+            const c = computeOdRow(row);
+            run.drRevBasic += c.drRevBasic; run.drDP += row.drDP; run.drDA += row.drDA; run.drHRA += row.drHRA; run.drMA += row.drMA; run.drIR += row.drIR; run.drTotal += c.drTotal;
+            run.admRevBasic += c.admRevBasic; run.admDP += row.admDP; run.admDA += row.admDA; run.admHRA += row.admHRA; run.admMA += row.admMA; run.admIR += row.admIR; run.admTotal += c.admTotal;
+            run.overDrawn += c.overDrawn;
+            rowsHtml += `<tr>
             <td>${idx+1}</td><td>${monthLabelShort(row.month)}</td><td>${e.bandHtml}</td><td>${e.scale}</td>
             <td>${e.drPB}</td><td>${e.drGP}</td><td>${c.drRevBasic}</td><td>${row.drDP}</td><td>${row.drDA}</td><td>${row.drHRA}</td><td>${row.drMA}</td><td>${row.drIR}</td><td><strong>${c.drTotal}</strong></td>
             <td>${e.admPB}</td><td>${e.admGP}</td><td>${c.admRevBasic}</td><td>${row.admDP}</td><td>${row.admDA}</td><td>${row.admHRA}</td><td>${row.admMA}</td><td>${row.admIR}</td><td><strong>${c.admTotal}</strong></td>
             <td><strong>${c.overDrawn}</strong></td><td>${c.daPercent}</td><td style="text-align:left;white-space:pre-line;">${row.remarks}</td>
         </tr>`;
-    });
+        }
+        if (!isLast) rowsHtml += sumRow('C/F (Carried Forward to Page ' + (pageNum + 1) + ')', run, '#e2e8f0');
+        else rowsHtml += sumRow('TOTAL', sums, '#cbd5e1');
 
-    const content = `
-    <div class="od-sheet">
-        <div style="font-size:.85rem;"><strong>Name of Employee, Qualification &amp; Designation:</strong>
-            ${val('odEmpName')} ${val('odEmpQual') ? ';'+val('odEmpQual') : ''} ; ${val('odEmpDesig')} ${val('odSchoolName')}</div>
+        const footer = isLast ? `
+        <div class="od-foot"><div style="margin-top:12px; font-weight:bold; font-size:.9rem;">Net overdrawn Amount to be refunded Rs. ${(sums.overDrawn||0).toLocaleString('en-IN')}</div>
+        <div style="font-style:italic;">[ Rupees ${numberToWords(sums.overDrawn||0)} Only ]</div>
+        <div style="display:flex;justify-content:space-between;margin-top:40px;font-weight:bold;font-size:.85rem;">
+            <div><div class="stamp-box" style="width:55mm;margin-bottom:1mm;">Stamp / Seal of Head of Institution</div>________________________________<br>Signature of Head of Institution</div>
+            <div><div class="stamp-box" style="width:55mm;margin:0 0 1mm auto;">Stamp / Seal of D.I. of Schools</div>________________________________<br>Countersigned / D.I. of Schools</div>
+        </div></div>` : '';
+
+        content += `
+    <div class="od-sheet od-page">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.85rem;">
+            <div><strong>Name of Employee, Qualification &amp; Designation:</strong> ${empName}</div>
+            <div style="font-weight:bold;white-space:nowrap;margin-left:10px;">Page ${pageNum} of ${totalPages}</div>
+        </div>
         <div style="font-size:.85rem; margin-bottom:10px;"><strong>Sub:-</strong> Over drawl Calculation due to ${val('reasonText')}</div>
         <table class="annex1-table" style="width:100%; font-size:0.7rem;">
             <colgroup><col style="width:2.5%"><col style="width:4.5%"><col style="width:4.5%"><col style="width:6.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:4%"><col style="width:2.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:3%"><col style="width:2.5%"><col style="width:4.2%"><col style="width:4%"><col style="width:3.5%"><col style="width:4%"><col style="width:2.5%"><col style="width:4%"><col style="width:3.5%"><col style="width:3%"><col style="width:2.5%"><col style="width:4.2%"><col style="width:4.2%"><col style="width:2.8%"><col style="width:12.6%"></colgroup>
@@ -5287,22 +5330,9 @@ function printStatement() {
                 </tr>
             </thead>
             <tbody>${rowsHtml}</tbody>
-            <tfoot>
-                <tr style="font-weight:bold;background:#e2e8f0;">
-                    <td colspan="6">TOTAL</td>
-                    <td>${sums.drRevBasic||0}</td><td>${sums.drDP||0}</td><td>${sums.drDA||0}</td><td>${sums.drHRA||0}</td><td>${sums.drMA||0}</td><td>${sums.drIR||0}</td><td>${sums.drTotal||0}</td>
-                    <td></td><td></td><td>${sums.admRevBasic||0}</td><td>${sums.admDP||0}</td><td>${sums.admDA||0}</td><td>${sums.admHRA||0}</td><td>${sums.admMA||0}</td><td>${sums.admIR||0}</td><td>${sums.admTotal||0}</td>
-                    <td>${sums.overDrawn||0}</td><td></td><td></td>
-                </tr>
-            </tfoot>
-        </table>
-        <div class="od-foot"><div style="margin-top:12px; font-weight:bold; font-size:.9rem;">Net overdrawn Amount to be refunded Rs. ${(sums.overDrawn||0).toLocaleString('en-IN')}</div>
-        <div style="font-style:italic;">[ Rupees ${numberToWords(sums.overDrawn||0)} Only ]</div>
-        <div style="display:flex;justify-content:space-between;margin-top:60px;font-weight:bold;font-size:.85rem;">
-            <div><div class="stamp-box" style="width:55mm;margin-bottom:1mm;">Stamp / Seal of Head of Institution</div>________________________________<br>Signature of Head of Institution</div>
-            <div><div class="stamp-box" style="width:55mm;margin:0 0 1mm auto;">Stamp / Seal of D.I. of Schools</div>________________________________<br>Countersigned / D.I. of Schools</div>
-        </div></div>
+        </table>${footer}
     </div>`;
+    });
 
     document.getElementById('printArea').innerHTML = content;
     document.getElementById('modalOverlay').classList.add('active');
