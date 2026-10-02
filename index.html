@@ -1084,7 +1084,7 @@
     <h3>6. Approval &amp; Pay Fixation Parameters</h3>
     <div class="panel">
         <div class="grid">
-            <div class="fg"><label>Benefit Effective Date (w.e.f.)</label><input type="date" id="benefitDate" value="2025-10-04" onchange="generateArrearTable()"></div>
+            <div class="fg"><label>Benefit Effective Date (w.e.f.)</label><input type="date" id="benefitDate" value="2025-10-04" onchange="manualArrearDateEdit(); generateArrearTable()"></div>
             <div class="fg wide"><label>Approval Memo No. &amp; Date</label><input id="approvalMemo" value="1890/1(2)/S ; dated : 31-10-2025" onchange="updateAll()"></div>
             <div class="fg"><label>Salary Updated / Drawn Revised From</label><input type="date" id="salaryUpdatedFrom" value="2025-12-01" onchange="updateAll()"></div>
             <div class="fg"><label>Non-B.Ed Fixation Memo No.</label><input id="nonBedMemo" value="Memo No. 118 Dated 06/02/2018" onchange="updateAll()"></div>
@@ -1102,9 +1102,17 @@
     <!-- 7. ARREAR PERIOD & SUB-PERIOD TOOL -->
     <h3>7. Arrear Period &amp; Sub-Period Tool</h3>
     <div class="panel">
+        <div style="background:#dcfce7; border:1px solid #16a34a; padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:0.85rem;">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#14532d; cursor:pointer;">
+                <input type="checkbox" id="autoArrearDates" checked onchange="if(this.checked){syncFixationToArrear();}">
+                Auto-fetch 18-Year arrear dates from Pay Fixation (default)
+            </label>
+            <div id="autoArrearStatus" style="margin-top:4px; color:#166534;"></div>
+            <div style="color:#475569; margin-top:2px;">Benefit w.e.f. / Arrear From = 18-Years CAS date in the generated Pay Table; Arrear To = day before &ldquo;Salary Updated / Drawn Revised From&rdquo;. Editing any of these dates by hand switches this off.</div>
+        </div>
         <div class="grid">
-            <div class="fg"><label>Arrear Period From</label><input type="date" id="arrearFrom" value="2025-10-04" onchange="generateArrearTable()"></div>
-            <div class="fg"><label>Arrear Period To</label><input type="date" id="arrearTo" value="2025-10-31" onchange="generateArrearTable()"></div>
+            <div class="fg"><label>Arrear Period From</label><input type="date" id="arrearFrom" value="2025-10-04" onchange="manualArrearDateEdit(); generateArrearTable()"></div>
+            <div class="fg"><label>Arrear Period To</label><input type="date" id="arrearTo" value="2025-10-31" onchange="manualArrearDateEdit(); generateArrearTable()"></div>
             <div class="fg"><label>Base DA Rate (%) &ndash; months before first change below</label><input type="number" id="daRate" value="18" step="0.5" onchange="generateArrearTable()"></div>
             <div class="fg"><label>HRA Mode</label><select id="hraMode" onchange="generateArrearTable()"><option value="auto" selected>Auto – ROPA-2019 Rule</option><option value="manual">Manual Fixed HRA</option></select></div>
             <div class="fg"><label>HRA Rate (%) – pre-ROPA-2019</label><input type="number" id="hraRate" value="15" step="0.5" onchange="generateArrearTable()"></div>
@@ -3555,7 +3563,62 @@ function payBandWeightedFromTimeline(y, m, fallbackPayBand) {
     return Math.round(sum / totalDays);
 }
 
+// ---- AUTO-FETCH 18-YEAR ARREAR DATES FROM THE GENERATED PAY FIXATION (default behaviour) ----
+function manualArrearDateEdit() {
+    const cb = document.getElementById('autoArrearDates');
+    if (cb && cb.checked) {
+        cb.checked = false;
+        const st = document.getElementById('autoArrearStatus');
+        if (st) st.innerHTML = 'Manual dates in use &mdash; tick the box above to go back to auto-fetch.';
+    }
+}
+function ymdLocal(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function find18YearRow() {
+    const tls = [window.pfTimeline19, window.pfTimeline09, window.pfTimeline98];
+    for (const tl of tls) {
+        if (!tl || !tl.length) continue;
+        const hit = tl.find(r => /^\s*18\s*YEARS/i.test(String(r.label || '')));
+        if (hit) return hit;
+    }
+    return null;
+}
+function autoFetch18YArrearDates() {
+    const cb = document.getElementById('autoArrearDates');
+    if (!cb || !cb.checked) return false;
+    const st = document.getElementById('autoArrearStatus');
+    const row = find18YearRow();
+    let from, viaDoj = false;
+    if (row) {
+        from = new Date(row.date); from.setHours(0, 0, 0, 0);
+    } else {
+        // No 18-Years row in the Pay Table (not generated yet / scale excluded): fall back to DOJ + 18 years.
+        const dojStr = val('doj');
+        if (!dojStr) {
+            if (st) st.innerHTML = '&#9888; Date of Joining missing &mdash; arrear dates left unchanged.';
+            return false;
+        }
+        const dj = new Date(dojStr + 'T00:00:00');
+        from = new Date(dj.getFullYear() + 18, dj.getMonth(), dj.getDate());
+        viaDoj = true;
+    }
+    document.getElementById('benefitDate').value = ymdLocal(from);
+    document.getElementById('arrearFrom').value = ymdLocal(from);
+    let toTxt = '';
+    const su = val('salaryUpdatedFrom');
+    if (su) {
+        const to = new Date(su + 'T00:00:00'); to.setDate(to.getDate() - 1);
+        if (to >= from) { document.getElementById('arrearTo').value = ymdLocal(to); }
+    }
+    ['subFrom'].forEach(id => { const el = document.getElementById(id); if (el) el.value = val('arrearFrom'); });
+    const subTo = document.getElementById('subTo'); if (subTo) subTo.value = val('arrearTo');
+    if (st) st.innerHTML = '&#10003; Auto-fetched: ' + fmtDMY(val('arrearFrom')) + ' TO ' + fmtDMY(val('arrearTo')) + ' (18 Years benefit w.e.f. ' + fmtDMY(val('benefitDate')) + (viaDoj ? ', computed as DOJ + 18 years &mdash; no 18-Years row in Pay Table' : ', from Pay Table') + ')';
+    return true;
+}
+
 function syncFixationToArrear() {
+    autoFetch18YArrearDates();
     const bd = val('benefitDate') ? new Date(val('benefitDate') + 'T00:00:00') : null;
     if (bd) {
         const snapAtBd = getAdmissibleSnapshotForDate(bd);
@@ -3564,6 +3627,9 @@ function syncFixationToArrear() {
 
         if (snapAtBd) document.getElementById('currBasic').value = snapAtBd.revBasic;
         if (snapBefore) document.getElementById('prevBasic').value = snapBefore.revBasic;
+        const cbA = document.getElementById('autoArrearDates');
+        const sdb = document.getElementById('subDrawnBasic');
+        if (cbA && cbA.checked && sdb && snapBefore) sdb.value = snapBefore.revBasic;
     }
 
     if (val('arrearFrom') && val('arrearTo')) {
@@ -6309,8 +6375,12 @@ function applyLoadedRecord(docId, record) {
     daCaseRowData = record.daCaseRowData || {};
 
     daSchedule = Array.isArray(record.daSchedule) ? record.daSchedule : DA_SCHEDULE_DEFAULT();
+    // W.B. Govt. DA 38% w.e.f. Oct-2026 is built into this HTML: re-add it if a saved record lacks it.
+    if (!daSchedule.some(r => r.from === '2026-10')) daSchedule.push({ id: 9000, from: '2026-10', pct: 38 });
     daScheduleSeq = daSchedule.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
     renderDaSchedule();
+    // Rebuild pay tables for this staff so 18-Year dates auto-fetch (skipped if the user switched auto off).
+    try { processFixationTimeline(); } catch (e) { console.warn('Auto pay-table build failed:', e); }
 
     // Re-render every dynamic section and dependent UI state
     renderLwpTable();
@@ -6782,6 +6852,8 @@ window.addEventListener('DOMContentLoaded', function () {
     togglePromotionSection();
     toggleRopa09Section();
     renderDaSchedule();
+    // Build the Pay Fixation tables on load so the 18-Year arrear dates are auto-fetched by default.
+    try { processFixationTimeline(); } catch (e) { console.warn('Auto pay-table build failed:', e); }
     generateArrearTable();
     seedDefaultOverdrawnRows();
     renderOdTable();
