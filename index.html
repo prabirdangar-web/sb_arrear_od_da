@@ -1370,6 +1370,41 @@
         </div>
     </div>
 
+    <div class="panel" id="odReasonToolsPanel">
+        <div class="grid">
+            <div class="fg wide">
+                <label>Reason Template (select to auto-fill; subject text remains editable)</label>
+                <select id="odReasonType" onchange="applyOverdrawnReasonTemplate()">
+                    <option value="lwp">LWP / excess salary drawal</option>
+                    <option value="swasthyasathi">Medical Allowance overdrawal — Swasthya Sathi card</option>
+                    <option value="hra">HRA overdrawal — incorrect / changed HRA entitlement</option>
+                    <option value="salary">Salary overdrawal — pay fixation / admissibility / other cause</option>
+                    <option value="other">Other reason (edit subject below)</option>
+                </select>
+            </div>
+            <div class="fg"><label>Refund Payment Status</label>
+                <select id="odRefundPaid" onchange="toggleOdPaymentFields()">
+                    <option value="no">Not yet paid</option><option value="yes">Refund paid / challan deposited</option>
+                </select>
+            </div>
+            <div class="fg"><label>Date of Refund / Deposit</label><input type="date" id="odRefundDate"></div>
+            <div class="fg"><label>Treasury Challan / Receipt No.</label><input id="odRefundChallanNo" placeholder="Enter receipt/challan number"></div>
+            <div class="fg wide"><div class="side-note">Select a reason template to populate the subject. The text remains editable. Drafts require verification and signature by the competent authority. Official references: <a href="https://swasthyasathi.gov.in/" target="_blank" rel="noopener">Swasthya Sathi portal</a> · <a href="https://bsk.wb.gov.in/formdwn" target="_blank" rel="noopener">Bangla Sahayata Kendra official forms (includes Form D for name deletion)</a>. I could not verify a separate official “card surrender” form; the generated recommendation therefore asks the competent authority to decide under current rules.</div></div>
+        </div>
+    </div>
+
+    <h3>Reason-Based Document Generator</h3>
+    <div class="panel">
+        <div class="doc-grid">
+            <div class="doc-card"><b>Overdrawal Calculation Sheet</b><button class="btn-doc" onclick="showDoc('odcalc')">Preview / Print</button></div>
+            <div class="doc-card"><b>Applicant's Application</b><button class="btn-doc" onclick="showDoc('odapp')">Preview / Print</button></div>
+            <div class="doc-card"><b>HOI Report / Certificate</b><button class="btn-doc" onclick="showDoc('odhoi')">Preview / Print</button></div>
+            <div class="doc-card"><b>Administrator's Order</b><button class="btn-doc" onclick="showDoc('odadmin')">Preview / Print</button></div>
+            <div class="doc-card" id="odSwasthyasathiRecCard"><b>DI Recommendation — Swasthya Sathi Card Surrender</b><button class="btn-doc" onclick="showDoc('odswasthyasathi')">Preview / Print</button></div>
+            <div class="doc-card" id="odHraDocCard"><b>HRA Declaration + HOI Certificate</b><button class="btn-doc" onclick="showDoc('odhra')">Preview / Print</button></div>
+        </div>
+    </div>
+
     <!-- 3. MONTH-WISE OVER DRAWN TABLE -->
     <h3>3. Month-Wise Over Drawn Salary Statement (Manual / Auto-Ref DB)</h3>
     <div class="panel">
@@ -6213,6 +6248,90 @@ function docCorrection() {
     </div>`;
 }
 
+function applyOverdrawnReasonTemplate() {
+    const type = val('odReasonType');
+    const templates = {
+        lwp: 'excess drawal of salary for the period stated in the month-wise calculation sheet due to Leave Without Pay / non-admissible service period.',
+        swasthyasathi: 'excess drawal of Medical Allowance for the period stated in the calculation sheet, as the employee/beneficiary was enrolled under Swasthya Sathi and the allowance was not admissible under the applicable rules.',
+        hra: 'excess drawal of House Rent Allowance for the period stated in the calculation sheet due to incorrect / changed HRA entitlement, subject to verification of the employee declaration and HOI certificate.',
+        salary: 'excess drawal of salary for the period stated in the calculation sheet due to incorrect pay fixation / inadmissible pay component / other salary-related discrepancy, as detailed in the supporting records.',
+        other: ''
+    };
+    const el = document.getElementById('reasonText');
+    if (el && templates[type] !== undefined) { el.value = templates[type]; refreshAllOverdrawn(); }
+    const ss = document.getElementById('odSwasthyasathiRecCard');
+    const hra = document.getElementById('odHraDocCard');
+    if (ss) ss.style.display = type === 'swasthyasathi' ? '' : 'none';
+    if (hra) hra.style.display = type === 'hra' ? '' : 'none';
+}
+function toggleOdPaymentFields() {
+    const paid = val('odRefundPaid') === 'yes';
+    ['odRefundDate','odRefundChallanNo'].forEach(id => { const e=document.getElementById(id); if(e) e.disabled=!paid; });
+}
+function odEsc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function odDocShell(title, body) {
+    return `<div style="font-family:'Times New Roman',serif;color:#000;font-size:11pt;line-height:1.45;padding:12mm;">
+      <div style="text-align:center;font-weight:bold;font-size:14pt;">${odEsc(val('odSchoolName') || val('schoolName'))}</div>
+      <div style="text-align:center;">${odEsc(val('odPoName'))}, District: ${odEsc(val('district'))}</div>
+      <h3 style="text-align:center;text-decoration:underline;margin:18px 0;color:#000;border:0;">${title}</h3>
+      ${body}
+      <div style="margin-top:34px;display:flex;justify-content:space-between;gap:20px;text-align:center;">
+        <div>________________________<br>Signature of Employee / Applicant</div>
+        <div>________________________<br>Head of the Institution<br>(with seal)</div>
+      </div></div>`;
+}
+function odPeriodText() {
+    const rows = window.odRows || window.overdrawnRows || [];
+    const months = rows.map(r => r.month || r.m || '').filter(Boolean);
+    return months.length ? `${months[0]} to ${months[months.length-1]}` : 'the period shown in the calculation sheet';
+}
+function odAmountText() { return Number((window._odSums||{}).overDrawn||0).toLocaleString('en-IN'); }
+function docOverdrawnCalcSheet() {
+    const table = document.getElementById('odTable');
+    const clone = table ? table.outerHTML : '<p>Month-wise calculation table is not available. Generate the overdrawal table first.</p>';
+    return `<div style="font-family:'Times New Roman',serif;color:#000;padding:5mm;">
+      <h3 style="text-align:center;color:#000;border:0;">OVER-DRAWAL CALCULATION SHEET</h3>
+      <p><b>Employee:</b> ${odEsc(val('odEmpName'))}; <b>Designation:</b> ${odEsc(val('odEmpDesig'))}; <b>School:</b> ${odEsc(val('odSchoolName'))}</p>
+      <p><b>Reason:</b> ${odEsc(val('reasonText'))}</p>${clone}
+      <p style="text-align:right;margin-top:20px;">Prepared / checked by: ____________________</p></div>`;
+}
+function docOverdrawnApplication() {
+    const body = `<p>To<br>The District Inspector of Schools (S.E.), ${odEsc(val('district')||'Bankura')}</p>
+      <p><b>Sub:</b> Application regarding refund of overdrawn amount of Rs. ${odAmountText()} (${numberToWords(Number((window._odSums||{}).overDrawn||0))} only).</p>
+      <p>Sir/Madam,</p><p>I, ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))} of ${odEsc(val('odSchoolName'))}, respectfully submit that an excess amount of salary/allowance amounting to Rs. ${odAmountText()} has been calculated for ${odEsc(odPeriodText())} for the following reason: ${odEsc(val('reasonText'))}. I undertake to refund the verified amount through the prescribed Government Treasury process and submit the challan/receipt and supporting calculation for your kind consideration.</p>
+      <p>I request that the matter may kindly be considered in accordance with the applicable Government orders and rules.</p><p>Yours faithfully,<br>${odEsc(val('odEmpName'))}<br>${odEsc(val('odEmpDesig'))}<br>Date: __________</p>`;
+    return odDocShell("APPLICATION OF THE EMPLOYEE",body);
+}
+function docOverdrawnHoiReport() {
+    const body = `<p>To<br>The District Inspector of Schools (S.E.), ${odEsc(val('district')||'Bankura')}</p>
+      <p><b>Sub:</b> Report and verification of overdrawal of Rs. ${odAmountText()} in respect of ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))}.</p>
+      <p>This is to report that the employee's records and the attached month-wise calculation sheet have been examined to the extent available in the institution. The stated reason is: ${odEsc(val('reasonText'))}. The calculated amount of Rs. ${odAmountText()} is submitted for scrutiny and confirmation by the competent authority. This report does not replace independent verification of service records, admissibility, applicable orders or treasury requirements.</p>
+      <p>Refund status: <b>${val('odRefundPaid')==='yes'?'Refund shown as paid/deposited':'Refund not yet shown as paid'}</b>. ${val('odRefundPaid')==='yes'?'Deposit date: '+odEsc(val('odRefundDate')||'________')+'; Challan/receipt no.: '+odEsc(val('odRefundChallanNo')||'________'):''}</p>`;
+    return odDocShell("REPORT OF THE HEAD OF THE INSTITUTION",body);
+}
+function docOverdrawnAdminOrder() {
+    const body = `<p><b>Order No.:</b> __________ &nbsp; <b>Date:</b> __________</p>
+      <p>Upon consideration of the employee's application, the report of the Head of the Institution and the attached calculation sheet, the matter relating to the calculated overdrawal of Rs. ${odAmountText()} in respect of ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))}, is recorded for administrative processing.</p>
+      <p><b>Reason:</b> ${odEsc(val('reasonText'))}</p><p>The amount and the period shall be treated as final only after verification by the competent authority. The employee shall deposit the amount through the prescribed treasury process, where applicable, and submit the authenticated receipt. This draft order shall take effect only after approval and signature by the competent authority.</p>
+      <p style="margin-top:35px;text-align:right;">________________________<br>Administrator / Competent Authority</p>`;
+    return odDocShell("DRAFT ADMINISTRATIVE ORDER",body);
+}
+function docSwasthyasathiRecommendation() {
+    if (val('odRefundPaid') !== 'yes') return odDocShell("DRAFT — RECOMMENDATION AFTER REFUND",'<p><b>Not ready:</b> mark refund as paid and enter the deposit date and challan/receipt number before preparing this recommendation.</p>');
+    const body = `<p>To<br>The District Inspector of Schools (S.E.), ${odEsc(val('district')||'Bankura')}</p>
+      <p><b>Sub:</b> Recommendation for consideration of request for surrender/deletion of Swasthya Sathi beneficiary/card details after refund of verified overdrawn Medical Allowance.</p>
+      <p>With reference to the application submitted by ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))} of ${odEsc(val('odSchoolName'))}, it is reported that the calculated overdrawn amount of Rs. ${odAmountText()} is shown as refunded/deposited on ${odEsc(val('odRefundDate')||'________')}, vide challan/receipt no. ${odEsc(val('odRefundChallanNo')||'________')}, subject to verification of the original treasury receipt.</p>
+      <p>The employee has requested that the Swasthya Sathi beneficiary/card record be surrendered/deleted or otherwise corrected, as applicable. The institution recommends that the competent Swasthya Sathi authority examine the request and take action under the applicable scheme rules. This recommendation is not an order cancelling a card and does not itself establish eligibility or guarantee acceptance.</p>
+      <p><b>Reason for overdrawal:</b> ${odEsc(val('reasonText'))}</p>`;
+    return odDocShell("DRAFT RECOMMENDATION OF THE D.I. (S.E.) / COMPETENT AUTHORITY",body);
+}
+function docHraDeclarationAndHoiCertificate() {
+    const body = `<p><b>EMPLOYEE DECLARATION</b></p><p>I, ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))} of ${odEsc(val('odSchoolName'))}, declare that the particulars and supporting documents relating to my HRA entitlement for the period ${odEsc(odPeriodText())} are true to the best of my knowledge. I understand that any excess drawal, if confirmed, shall be calculated and refunded as per applicable rules. Reason: ${odEsc(val('reasonText'))}.</p>
+      <p style="text-align:right;">Signature of Employee: __________________ Date: __________</p><hr style="margin:22px 0;">
+      <p><b>HOI CERTIFICATE</b></p><p>Certified that the HRA-related records/declarations available in the institution have been checked to the extent possible. The alleged overdrawal of Rs. ${odAmountText()} for ${odEsc(odPeriodText())} is forwarded for scrutiny and confirmation by the competent authority. This certificate is subject to verification of residence, entitlement, declarations and applicable Government orders.</p>`;
+    return odDocShell("HRA DECLARATION AND HOI CERTIFICATE",body);
+}
+
 function showDoc(type) {
     let content = "";
     if (type === 'annex1' || type === 'annex' || type === 'dacalc' || type === 'daannex1') {
@@ -6234,6 +6353,12 @@ function showDoc(type) {
     else if (type === 'correction') content = docCorrection();
     else if (type === 'daannex') { ensureDaCaseReady(); generateDaCaseTable(); content = docDaAnnexure(); }
     else if (type === 'dacalc') content = docDaCalcSheet();
+    else if (type === 'odcalc') { setPrintOrientation('landscape'); content = docOverdrawnCalcSheet(); }
+    else if (type === 'odapp') content = docOverdrawnApplication();
+    else if (type === 'odhoi') content = docOverdrawnHoiReport();
+    else if (type === 'odadmin') content = docOverdrawnAdminOrder();
+    else if (type === 'odswasthyasathi') content = docSwasthyasathiRecommendation();
+    else if (type === 'odhra') content = docHraDeclarationAndHoiCertificate();
     else if (type === 'checklist') content = `
     <div style="font-family:'Times New Roman',Times,serif;color:#000;padding:12px;">
         <div style="text-align:center;font-weight:bold;font-size:1.15rem;margin:10px 0;text-decoration:underline;">CHECK LIST FOR ARREAR BILL</div>
@@ -6905,6 +7030,9 @@ window.addEventListener('DOMContentLoaded', function () {
     try { processFixationTimeline(); } catch (e) { console.warn('Auto pay-table build failed:', e); }
     generateArrearTable();
     seedDefaultOverdrawnRows();
+    toggleOdPaymentFields();
+    const ssCard = document.getElementById('odSwasthyasathiRecCard'); if (ssCard) ssCard.style.display = 'none';
+    const hraCard = document.getElementById('odHraDocCard'); if (hraCard) hraCard.style.display = 'none';
     renderOdTable();
     renderLwpTable();
     autoDeriveDaBasicSegments();
