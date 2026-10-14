@@ -328,6 +328,27 @@
     #printArea { padding: 25px 30px; font-family: 'Times New Roman', Times, serif; color: #000; }
     #sbPrintArea { display: none; }
 
+    /* ===== Over-drawal application set (letters) ===== */
+    .ofc-page { font-family: 'Times New Roman', Times, serif; color:#000; font-size:11.5pt; line-height:1.36; background:#fff;
+                padding:12mm 14mm; margin:0 auto 14px; box-shadow:0 0 0 1px #cbd5e1; box-sizing:border-box; text-align:justify; }
+    .ofc-page:focus { outline:2px solid #38bdf8; }
+    .ofc-page p { margin:4px 0; }
+    .ofc-hd { text-align:center; font-weight:bold; }
+    .ofc-memo { width:100%; margin:4px 0 6px; font-size:12pt; }
+    .ofc-memo td { border:none !important; padding:0 !important; text-align:left !important; }
+    .ofc-memo td:last-child { text-align:right !important; }
+    .ofc-tbl { border-collapse:collapse; width:100%; margin:8px 0; }
+    .ofc-tbl td, .ofc-tbl th { border:1px solid #000; padding:3px 7px; font-size:11pt; vertical-align:top; text-align:left !important; }
+    .ofc-sig { margin-top:14px; font-size:11.5pt; line-height:1.4; page-break-inside:avoid; break-inside:avoid; }
+    .ofc-enc { margin-top:8px; font-size:10pt; }
+    .ofc-ol { margin:6px 0 6px 22px; padding:0; }
+    .ofc-ol li { margin:3px 0; }
+    @media print {
+        .ofc-noprint { display:none !important; }
+        .ofc-page { box-shadow:none !important; margin:0 !important; padding:2mm 6mm !important; page-break-after:always; break-after:page; }
+        .ofc-page:last-child { page-break-after:auto; break-after:auto; }
+    }
+
     /* Screen-only helpers for the calculation-sheet signature row */
     .calc-sign-row { display: grid; grid-template-columns: 1fr 1fr 1fr; column-gap: 12mm; margin-top: 35px; font-size: 0.85rem; font-weight: bold; align-items: end; }
     .calc-sign-row .sig { border-top: 1px solid #000; padding-top: 3px; text-align: center; margin-top: 2mm; }
@@ -675,7 +696,7 @@
     <!-- TAB NAVIGATION -->
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchTab('tabPayable')" data-tab="tabPayable" title="Payable Pay &amp; Fixation Arrear System">1. Pay Fixation &amp; Arrear</button>
-      <button class="tab-btn ref-tab" onclick="switchTab('tabOverdrawn')" data-tab="tabOverdrawn" title="Over Drawn Salary &amp; T.R. Form No.7 Refund">2. Over Drawn &amp; T.R. 7 Refund</button>
+      <button class="tab-btn ref-tab" onclick="switchTab('tabOverdrawn')" data-tab="tabOverdrawn" title="Over Drawn Salary &amp; T.R. Form No.7 Refund">2. Over Drawn, T.R. 7 &amp; Application Set</button>
       <button class="tab-btn ref-tab" onclick="switchTab('tabDaCase')" data-tab="tabDaCase" style="background:#7c3aed; color:#fff;" title="DA Case (Auto Arrear Calculation)">3. DA Case</button>
     </div>
   </div>
@@ -1364,48 +1385,13 @@
     <div class="panel">
         <div class="grid">
             <div class="fg wide">
+                <label>Reason Dropdown <em>(pick a typical reason &mdash; it fills the Sub box below and sets the document set in Section 5; the box stays fully editable)</em></label>
+                <select id="reasonPreset" onchange="ofcApplyReasonPreset()"></select>
+            </div>
+            <div class="fg wide">
                 <label>Sub:- (auto-prefixed with "Over drawl Calculation due to")</label>
                 <textarea id="reasonText" onchange="refreshAllOverdrawn()">08 days LWP-on 29.11.10, 02.12.10, 03.12.10, 04.12.10, 13.12.10, 18.12.10, 23.12.10, 10.01.11 during the months Nov-10, Dec-10 and Jan-11. As he enjoyed 08 days LWP within two years completion of his service and as he has been appointed against Additional post but full salary was credited in the respective months.</textarea>
             </div>
-        </div>
-    </div>
-
-    <div class="panel" id="odReasonToolsPanel">
-        <div class="grid">
-            <div class="fg wide">
-                <label>Reason Template (select to auto-fill; subject text remains editable)</label>
-                <select id="odReasonType" onchange="applyOverdrawnReasonTemplate()">
-                    <option value="lwp">LWP / excess salary drawal</option>
-                    <option value="swasthyasathi">Medical Allowance overdrawal — Swasthya Sathi card</option>
-                    <option value="hra">HRA overdrawal — incorrect / changed HRA entitlement</option>
-                    <option value="salary">Salary overdrawal — pay fixation / admissibility / other cause</option>
-                    <option value="other">Other reason (edit subject below)</option>
-                </select>
-            </div>
-            <div class="fg"><label>Refund Payment Status</label>
-                <select id="odRefundPaid" onchange="toggleOdPaymentFields()">
-                    <option value="no">Not yet paid</option><option value="yes">Refund paid / challan deposited</option>
-                </select>
-            </div>
-            <div class="fg"><label>Date of Refund / Deposit</label><input type="date" id="odRefundDate"></div>
-            <div class="fg"><label>Treasury Challan / Receipt No.</label><input id="odRefundChallanNo" placeholder="Enter receipt/challan number"></div>
-            <div class="fg"><label>Swasthya Sathi surrender/deletion status</label><select id="odCardSurrenderStatus"><option value="pending">Not yet completed</option><option value="submitted">Request/declaration submitted</option><option value="completed">Surrender/deletion/correction confirmed</option></select></div>
-            <div class="fg"><label>Surrender/deletion date</label><input type="date" id="odCardSurrenderDate"></div>
-            <div class="fg"><label>Reference / acknowledgement no.</label><input id="odCardSurrenderRef" placeholder="Portal / BSK / authority reference"></div>
-            <div class="fg wide"><div class="side-note">Select a reason template to populate the subject. The text remains editable. Drafts require verification and signature by the competent authority. Official references: <a href="https://swasthyasathi.gov.in/" target="_blank" rel="noopener">Swasthya Sathi portal</a> · <a href="https://bsk.wb.gov.in/formdwn" target="_blank" rel="noopener">Bangla Sahayata Kendra official forms (includes Form D for name deletion)</a>. I could not verify a separate official “card surrender” form; the generated recommendation therefore asks the competent authority to decide under current rules.</div></div>
-        </div>
-    </div>
-
-    <h3>Reason-Based Document Generator</h3>
-    <div class="panel">
-        <div class="doc-grid">
-            <div class="doc-card"><b>Overdrawal Calculation Sheet</b><button class="btn-doc" onclick="showDoc('odcalc')">Preview / Print</button></div>
-            <div class="doc-card"><b>Applicant's Application</b><button class="btn-doc" onclick="showDoc('odapp')">Preview / Print</button></div>
-            <div class="doc-card"><b>HOI Report / Certificate</b><button class="btn-doc" onclick="showDoc('odhoi')">Preview / Print</button></div>
-            <div class="doc-card"><b>Administrator's Order</b><button class="btn-doc" onclick="showDoc('odadmin')">Preview / Print</button></div>
-            <div class="doc-card" id="odSwasthyasathiRecCard"><b>DI Recommendation — Swasthya Sathi Card Surrender</b><button class="btn-doc" onclick="showDoc('odswasthyasathi')">Preview / Print</button></div>
-            <div class="doc-card" id="odMaRestorationCard"><b>Post-Surrender Report, Employee Declaration &amp; Request to Restore Medical Allowance</b><button class="btn-doc" onclick="showDoc('odmarestoration')">Preview / Print</button></div>
-            <div class="doc-card" id="odHraDocCard"><b>HRA Declaration + HOI Certificate</b><button class="btn-doc" onclick="showDoc('odhra')">Preview / Print</button></div>
         </div>
     </div>
 
@@ -1507,6 +1493,96 @@
             </div>
         </div>
         <div class="output-box" id="chlAmountBox" style="margin-top:6px;">Amount: Rs. 0 &nbsp;|&nbsp; In Words: Zero Only</div>
+    </div>
+
+    <!-- ==================== 5. APPLICATION SET AUTO-GENERATOR ==================== -->
+    <h3>5. Application Set &mdash; Auto-Generate (Application, H.O.I. Report, Admin Order &amp; Case Documents)</h3>
+    <div class="output-box" style="background:#ecfeff; border-left-color:#0891b2; color:#164e63; font-size:0.82rem;">
+        Everything here is built from <b>Section 2 (Reason / Subject Line)</b>, the month-wise table and the challan data above.
+        Pick a reason from the dropdown in Section 2 (still editable) &mdash; the case type, documents and wording below follow it.
+        Every generated page opens in a preview where <u>any text can be clicked and edited</u> before printing.
+    </div>
+    <div class="panel" id="ofcPanel" style="border-left:4px solid #0891b2;">
+        <div class="grid">
+            <div class="fg"><label>Case Type <em>(follows the reason dropdown; override if needed)</em></label>
+                <select id="ofcCaseType" onchange="ofcOnCaseChange()">
+                    <option value="MA_SS">M.A. drawn &mdash; Swasthya Sathi card holder / beneficiary</option>
+                    <option value="HRA">H.R.A. over-drawal</option>
+                    <option value="SAL" selected>Salary / other over-drawal (LWP, pay, DA etc.)</option>
+                </select></div>
+            <div class="fg"><label>Authority Addressed (Application / Order)</label>
+                <select id="ofcAdminTitle" onchange="ofcRefreshDocList()">
+                    <option>The Administrator</option><option>The Secretary, Managing Committee</option><option>The President, Managing Committee</option><option>The Headmaster</option>
+                </select></div>
+            <div class="fg"><label>Head of Institution Designation</label>
+                <select id="ofcHoiTitle" onchange="ofcRefreshDocList()">
+                    <option>Teacher-in-Charge</option><option>Headmaster</option><option>Headmistress</option><option>Head of the Institution</option>
+                </select></div>
+            <div class="fg"><label>How the Over-Drawal Came to Notice</label>
+                <select id="ofcTriggerSel" onchange="ofcApplyTrigger()">
+                    <option value="PEN">Treasury Pension Clearance objection</option>
+                    <option value="AUD">Audit objection</option>
+                    <option value="DI">Pay verification by D.I. of Schools office</option>
+                    <option value="SELF">Detected by employee / DDO on self-check</option>
+                    <option value="OTH">Other (type below)</option>
+                </select></div>
+            <div class="fg wide"><label>Notice / Objection Wording <em>(editable &mdash; used in application, report &amp; order)</em></label>
+                <input id="ofcTriggerText" value="an objection has been raised in connection with Treasury Pension Clearance in favour of"></div>
+            <div class="fg wide"><label>Objection Compliance Purpose <em>(editable)</em></label>
+                <input id="ofcPurpose" value="Treasury Pension Clearance objection"></div>
+            <div class="fg"><label>Allowance Stopped From <em>(month)</em></label><input type="month" id="ofcStoppedFrom"></div>
+            <div class="fg"><label>Application Date</label><input type="date" id="ofcAppDate"></div>
+            <div class="fg"><label>Memo No. <em>(H.O.I. report / order)</em></label><input id="ofcMemoNo" placeholder="blank = line left for pen"></div>
+            <div class="fg"><label>Memo Date</label><input type="date" id="ofcMemoDate"></div>
+        </div>
+        <div class="fg wide" style="margin-bottom:10px;"><label>Employee&rsquo;s Statement of Cause <em>(auto-written from the reason dropdown &mdash; editable. Tags {HIS} {HE} {REL} {HOLDER} {PERIOD} {N} fill themselves in)</em></label>
+            <textarea id="ofcCause" rows="3" onchange="ofcRefreshDocList()">the excess drawal occurred unintentionally due to lack of awareness regarding the admissibility conditions and without any deliberate intention to claim an inadmissible benefit.</textarea></div>
+
+        <!-- Swasthya Sathi block -->
+        <div id="ofcSsBlock" style="display:none; border:1px solid #67e8f9; border-radius:6px; padding:10px; margin-bottom:10px; background:#f0fdfa;">
+            <div style="font-weight:bold; color:#0f766e; margin-bottom:6px;">Swasthya Sathi Card &mdash; Beneficiary &amp; Surrender (after payment of the over-drawn amount)</div>
+            <div class="grid">
+                <div class="fg"><label>Card Holder&rsquo;s Name</label><input id="ofcCardHolder" placeholder="e.g. Smt. Mamata Rakshit"></div>
+                <div class="fg"><label>Relation of Card Holder to Employee</label>
+                    <select id="ofcCardRel"><option>wife</option><option>husband</option><option>father</option><option>mother</option><option>son</option><option>daughter</option><option>himself / herself (self card)</option></select></div>
+                <div class="fg"><label>Swasthya Sathi Card No. / URN</label><input id="ofcCardNo"></div>
+                <div class="fg"><label>Employee WBHS / Enrolment Cert. No.</label><input id="ofcWbhsNo"></div>
+                <div class="fg"><label>Beneficiary Name(s) Whose Card Is Surrendered</label><input id="ofcBenName" placeholder="blank = applicant (employee)"></div>
+                <div class="fg"><label>Surrender Authority <em>(pick or type)</em></label>
+                    <select id="ofcSsAuthSel" onchange="ofcApplySsAuth()">
+                        <option value="DM">District Swasthya Sathi Section, O/o the District Magistrate</option>
+                        <option value="CMOH">Chief Medical Officer of Health</option>
+                        <option value="STATE">Swasthya Sathi Samiti, Health &amp; Family Welfare Dept.</option>
+                        <option value="OTH">Other (type below)</option>
+                    </select></div>
+                <div class="fg wide"><label>Surrender Authority &mdash; Full Address Block <em>(editable)</em></label>
+                    <input id="ofcSsAuth" value="The District Magistrate (Attn.: District Swasthya Sathi Nodal Officer / Health &amp; Swasthya Sathi Section), Bankura"></div>
+                <div class="fg wide"><label>D.I. Recommending Authority <em>(editable)</em></label>
+                    <input id="ofcDiAuth" value="The District Inspector of Schools (S.E.), Bankura"></div>
+                <div class="fg"><label>Challan / Treasury Receipt No.</label><input id="ofcChallanNo"></div>
+                <div class="fg"><label>Date of Deposit</label><input type="date" id="ofcPayDate"></div>
+                <div class="fg"><label>Surrender Acknowledgement No. / Date <em>(if available)</em></label><input id="ofcSurrAck"></div>
+            </div>
+            <div style="font-size:0.78rem; color:#115e59; line-height:1.5; margin-top:6px;">
+                <b>Web-verified rules (Finance Dept., Medical Cell, Order No. 92-F(MED)WB dt. 09.10.2026):</b>
+                all employees / pensioners and their beneficiaries holding Swasthya Sathi / Ayushman Bharat cards while enrolled under WBHS must surrender them to the <u>respective issuing authority</u>;
+                a declaration in <b>Annexure-A</b> with proof / acknowledgement of surrender goes to the <u>Head of Office</u>; last date <b>31.10.2026</b>.
+                District Swasthya Sathi sections work under the District Magistrate&rsquo;s office; portal <a href="https://swasthyasathi.gov.in" target="_blank" rel="noopener">swasthyasathi.gov.in</a>, helpline 1800-345-5384.
+                The official Annexure-A could not be downloaded, so the declaration printed here follows its stated content &mdash; <b>compare with the prescribed Annexure-A and the D.M. office&rsquo;s counter before submitting.</b>
+            </div>
+        </div>
+
+        <div id="ofcNaBox" style="display:none; font-size:0.8rem; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; border-radius:6px; padding:8px; margin-bottom:10px;"></div>
+
+        <div style="font-weight:bold; margin-bottom:4px;">Documents to Generate <em style="font-weight:normal; font-size:0.78rem; color:#64748b;">(portrait A4, one document per page)</em></div>
+        <div id="ofcDocList" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:4px 14px; font-size:0.84rem; margin-bottom:10px;"></div>
+        <div class="output-box" id="ofcSummaryBox" style="font-size:0.82rem;"></div>
+        <div class="btn-group">
+            <button type="button" class="btn-print" onclick="ofcPrintSelected()">Preview / Print Selected Documents</button>
+            <button type="button" class="btn-add" style="background:#475569;" onclick="ofcSelectAll(true)">Select All Applicable</button>
+            <button type="button" class="btn-add" style="background:#475569;" onclick="ofcSelectAll(false)">Clear</button>
+        </div>
+        <div style="font-size:0.76rem; color:#64748b; margin-top:6px;">Month-wise Calculation Sheet (landscape) and T.R. Form No. 7 Challan (4 copies) print from the buttons in the Over Drawn section above &mdash; they use the same table and challan data.</div>
     </div>
 
 </div>
@@ -4664,7 +4740,9 @@ function generateLongAllowanceOverdrawn() {
     odRows = (val('laApply') === 'append') ? odRows.concat(rows) : rows;
     odRows.sort((a, b) => a.month.localeCompare(b.month));
 
-    if (document.getElementById('laSetReason').checked) {
+    if (typeof ofcPresetActive === 'function' && ofcPresetActive()) {
+        ofcApplyReasonPreset(true);
+    } else if (document.getElementById('laSetReason').checked) {
         const names = [];
         if (useHra) names.push('House Rent Allowance (H.R.A.)');
         if (useMa) names.push('Medical Allowance (M.A.)');
@@ -6252,126 +6330,6 @@ function docCorrection() {
     </div>`;
 }
 
-function applyOverdrawnReasonTemplate() {
-    const type = val('odReasonType');
-    const templates = {
-        lwp: 'excess drawal of salary for the period stated in the month-wise calculation sheet due to Leave Without Pay / non-admissible service period.',
-        swasthyasathi: 'excess drawal of Medical Allowance for the period stated in the calculation sheet, as the employee/beneficiary was enrolled under Swasthya Sathi and the allowance was not admissible under the applicable rules.',
-        hra: 'excess drawal of House Rent Allowance for the period stated in the calculation sheet due to incorrect / changed HRA entitlement, subject to verification of the employee declaration and HOI certificate.',
-        salary: 'excess drawal of salary for the period stated in the calculation sheet due to incorrect pay fixation / inadmissible pay component / other salary-related discrepancy, as detailed in the supporting records.',
-        other: ''
-    };
-    const el = document.getElementById('reasonText');
-    if (el && templates[type] !== undefined) { el.value = templates[type]; refreshAllOverdrawn(); }
-    const ss = document.getElementById('odSwasthyasathiRecCard');
-    const hra = document.getElementById('odHraDocCard');
-    if (ss) ss.style.display = type === 'swasthyasathi' ? '' : 'none';
-    if (hra) hra.style.display = type === 'hra' ? '' : 'none';
-}
-function toggleOdPaymentFields() {
-    const paid = val('odRefundPaid') === 'yes';
-    ['odRefundDate','odRefundChallanNo'].forEach(id => { const e=document.getElementById(id); if(e) e.disabled=!paid; });
-}
-function odEsc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function odDocShell(title, body) {
-    return `<div style="font-family:'Times New Roman',serif;color:#000;font-size:11pt;line-height:1.45;padding:12mm;">
-      <div style="text-align:center;font-weight:bold;font-size:14pt;">${odEsc(val('odSchoolName') || val('schoolName'))}</div>
-      <div style="text-align:center;">${odEsc(val('odPoName'))}, District: ${odEsc(val('odDistrict')||'Bankura')}</div>
-      <h3 style="text-align:center;text-decoration:underline;margin:18px 0;color:#000;border:0;">${title}</h3>
-      ${body}
-      <div style="margin-top:34px;display:flex;justify-content:space-between;gap:20px;text-align:center;">
-        <div>________________________<br>Signature of Employee / Applicant</div>
-        <div>________________________<br>Head of the Institution<br>(with seal)</div>
-      </div></div>`;
-}
-function odPeriodText() {
-    const rows = window.odRows || window.overdrawnRows || [];
-    const months = rows.map(r => r.month || r.m || '').filter(Boolean);
-    return months.length ? `${months[0]} to ${months[months.length-1]}` : 'the period shown in the calculation sheet';
-}
-function odAmountText() { return Number((window._odSums||{}).overDrawn||0).toLocaleString('en-IN'); }
-function docOverdrawnCalcSheet() {
-    const table = document.getElementById('odTable');
-    const clone = table ? table.outerHTML : '<p>Month-wise calculation table is not available. Generate the overdrawal table first.</p>';
-    return `<div style="font-family:'Times New Roman',serif;color:#000;padding:5mm;">
-      <h3 style="text-align:center;color:#000;border:0;">OVER-DRAWAL CALCULATION SHEET</h3>
-      <p><b>Employee:</b> ${odEsc(val('odEmpName'))}; <b>Designation:</b> ${odEsc(val('odEmpDesig'))}; <b>School:</b> ${odEsc(val('odSchoolName'))}</p>
-      <p><b>Reason:</b> ${odEsc(val('reasonText'))}</p>${clone}
-      <p style="text-align:right;margin-top:20px;">Prepared / checked by: ____________________</p></div>`;
-}
-function docOverdrawnApplication() {
-    const isMA = val('odReasonType') === 'swasthyasathi';
-    const body = `<p>To<br>The District Inspector of Schools (S.E.), ${odEsc(val('odDistrict')||'Bankura')}<br>Through: The Head of the Institution / Administrator, ${odEsc(val('odSchoolName'))}</p>
-      <p><b>Sub:</b> Prayer for condonation/regularisation, subject to rules, of excess drawal of ${isMA?'Medical Allowance':'salary/allowance'} amounting to Rs. ${odAmountText()} (${odEsc(numberToWords(Number((window._odSums||{}).overDrawn||0)))} only), arising from misunderstanding/misconception and inadvertent continuation of the benefit.</p>
-      <p>Respected Sir/Madam,</p>
-      <p>I, ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))} of ${odEsc(val('odSchoolName'))}, most respectfully submit that the discrepancy relating to the above-mentioned overdrawal has come to notice during scrutiny of my service/pay records. The matter arose due to a misunderstanding/misconception regarding the admissibility and interaction of the relevant benefit(s), and not with any intention to obtain an inadmissible financial benefit. I regret the lapse and sincerely request that my explanation may kindly be considered sympathetically, subject to the applicable Government orders and rules.</p>
-      ${isMA?`<p>I understand that Medical Allowance and the Swasthya Sathi card/beneficiary facility cannot be retained/enjoyed simultaneously where the applicable rules prohibit such dual benefit. I therefore undertake to surrender/delete/correct my Swasthya Sathi beneficiary/card record through the competent authority and to submit the official acknowledgement/report and a signed declaration as evidence. I further undertake not to claim or enjoy both benefits simultaneously and to comply with any direction issued by the competent authority.</p>`:''}
-      <p>The overdrawal has been worked out at Rs. ${odAmountText()} for ${odEsc(odPeriodText())}, as detailed in the attached month-wise calculation sheet. I request permission to deposit/refund the verified amount through the prescribed Treasury process, or the amount already deposited may kindly be verified against the original challan/receipt and regularised as per rules.</p>
-      <p>I further request that the matter be considered and forwarded to the competent authority with the verified records, so that avoidable complications in my service record, salary bill, and future admissible entitlements may be prevented. I am ready to produce all original documents and comply with any further direction.</p>
-      <p><b>Prayer:</b> I humbly pray for consideration/condonation of the inadvertent lapse, acceptance of the explanation and refund, and such further order as may be permissible under the rules. I understand that condonation or restoration of any allowance is not automatic and shall depend on the competent authority's decision.</p>
-      <p>Yours faithfully,<br>Signature: __________________________<br>${odEsc(val('odEmpName'))}<br>${odEsc(val('odEmpDesig'))}<br>Date: __________ &nbsp; Place: __________</p>
-      <p><b>Enclosures:</b> (1) Month-wise calculation sheet; (2) salary bills/acquittance-roll extracts for the relevant period; (3) service-book/pay records; (4) Treasury challan/receipt, if deposited; ${isMA?'(5) Swasthya Sathi surrender/deletion/correction request and acknowledgement; (6) employee declaration;':''} (7) other relevant records.</p>`;
-    return odDocShell("DETAILED APPLICATION OF THE EMPLOYEE",body);
-}
-function docOverdrawnHoiReport() {
-    const isMA = val('odReasonType') === 'swasthyasathi';
-    const body = `<p>To<br>The District Inspector of Schools (S.E.), ${odEsc(val('odDistrict')||'Bankura')}<br>Through the Administrator, ${odEsc(val('odSchoolName'))}</p>
-      <p><b>Sub:</b> Verified report and recommendation regarding excess drawal of ${isMA?'Medical Allowance':'salary/allowance'} of Rs. ${odAmountText()} in respect of ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))}.</p>
-      <p>With reference to the employee's application, the undersigned reports that the matter has been examined with reference to the records available in the institution. The explanation furnished is that the discrepancy occurred due to misunderstanding/misconception regarding admissibility and was inadvertent. The institution does not treat this explanation alone as proof of admissibility; the matter is placed for decision under the applicable rules.</p>
-      <p><b>Records checked / to be enclosed:</b> service book and relevant service entries; monthly salary bills/requisition and bill abstracts; acquittance rolls/payment records for each affected month; allowance/pay particulars showing drawn and admissible amounts; attendance/leave records where relevant; employee's application and declaration; calculation sheet; and Treasury challan/receipt, if paid. The verified period and amount should be cross-checked with original records before this report is signed. Any record not available or not verified must be specifically noted rather than treated as verified.</p>
-      <p><b>Finding:</b> The calculation sheet indicates a provisional excess drawal of Rs. ${odAmountText()} for ${odEsc(odPeriodText())}, for the stated reason: ${odEsc(val('reasonText'))}. The amount is subject to reconciliation with the original salary bills and acquittance rolls and confirmation by the competent authority.</p>
-      ${isMA?`<p>The employee has been advised that Medical Allowance and the Swasthya Sathi facility cannot be availed simultaneously where prohibited by the applicable rules. The employee's signed declaration and proof/acknowledgement of surrender/deletion/correction of the Swasthya Sathi beneficiary/card record should be attached. Present status: <b>${odEsc(val('odCardSurrenderStatus')==='completed'?'surrender/deletion/correction stated as completed':val('odCardSurrenderStatus')==='submitted'?'request submitted; final confirmation pending':'not yet completed')}</b>. Reference/date: ${odEsc(val('odCardSurrenderRef')||'not entered')} / ${odEsc(val('odCardSurrenderDate')||'not entered')}.</p>`:''}
-      <p><b>Refund status:</b> ${val('odRefundPaid')==='yes'?'Shown as deposited on '+odEsc(val('odRefundDate')||'________')+', challan/receipt no. '+odEsc(val('odRefundChallanNo')||'________')+'; original receipt must be verified.':'Not yet shown as deposited; deposit/receipt verification remains pending.'}</p>
-      <p><b>Recommendation:</b> The case, together with the employee's explanation and supporting records, is forwarded for the District Inspector's/competent authority's scrutiny and appropriate order. The Administrator/HOI should not treat this report as authority to condone the excess drawal or to restore an allowance without the required approval.</p>
-      <p style="text-align:right;margin-top:28px;">Head of the Institution<br>Signature &amp; seal: __________________<br>Date: __________</p>`;
-    return odDocShell("DETAILED HOI VERIFICATION REPORT",body);
-}
-function docOverdrawnAdminOrder() {
-    const isMA = val('odReasonType') === 'swasthyasathi';
-    const body = `<p><b>Order / Memo No.:</b> __________ &nbsp; <b>Date:</b> __________</p>
-      <p><b>Subject:</b> Processing of excess drawal of ${isMA?'Medical Allowance':'salary/allowance'} of Rs. ${odAmountText()} in respect of ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))}.</p>
-      <p>Having considered the employee's detailed application and the report of the Head of the Institution, the matter is recorded for administrative processing. The employee's explanation of misunderstanding/misconception is to be placed before the competent authority along with the supporting documentary evidence; no condonation is deemed to have been granted by this administrative note.</p>
-      <p>The Head of the Institution is directed to compile and attest, after actual verification, the relevant service-book entries, monthly salary bills/requisition, bill abstracts, acquittance rolls/payment records, calculation sheet and any leave/attendance or allowance-specific records. The amount and period shall be reconciled with original records. Any refund challan/receipt must be checked against the original Treasury record.</p>
-      ${isMA?`<p>The employee shall furnish a signed declaration acknowledging that Medical Allowance and the Swasthya Sathi facility cannot be enjoyed simultaneously where prohibited by applicable rules, and shall submit the official request/acknowledgement and final report/order regarding surrender/deletion/correction of the Swasthya Sathi beneficiary/card record. The competent Swasthya Sathi authority's process must be followed.</p>`:''}
-      <p><b>Direction:</b> The Administrator, as the administrative representative, strictly recommends that the complete case be forwarded to the District Inspector of Schools (S.E.), Bankura, for examination and a reasoned decision under the applicable rules, so that future service-book, salary-bill and entitlement complications may be avoided. The Administrator shall not independently condone the overdrawal, certify unverified facts, or sanction restoration of Medical Allowance where approval of a higher/competent authority is required.</p>
-      <p>${isMA?'Any request to draw Medical Allowance again from the month following confirmed surrender/deletion of the Swasthya Sathi facility shall be separately placed before the competent authority with the employee declaration and proof of surrender. It may be processed from the next month only if permitted by the applicable rules and approved in writing; it is not automatic.':'Any adjustment or recovery shall be carried out only as directed by the competent authority.'}</p>
-      <p style="margin-top:35px;text-align:right;">________________________<br>Administrator / Administrative Representative<br>${odEsc(val('odSchoolName'))}</p>`;
-    return odDocShell("ADMINISTRATIVE NOTE AND STRICT RECOMMENDATION TO D.I. (S.E.)",body);
-}
-function docSwasthyasathiRecommendation() {
-    const paid = val('odRefundPaid') === 'yes';
-    const body = `<p>To<br>The District Inspector of Schools (S.E.), Bankura<br>Through: The Head of the Institution / Administrator, ${odEsc(val('odSchoolName'))}</p>
-      <p><b>Sub:</b> Strict recommendation for consideration of the employee's explanation, verified refund, and Swasthya Sathi surrender/deletion/correction, with a request to avoid future service and salary-bill complications.</p>
-      <p>The employee ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))}, has submitted a detailed application explaining that the simultaneous continuation/receipt of Medical Allowance and Swasthya Sathi facility arose from a misunderstanding/misconception regarding admissibility. The employee has expressed regret and undertaken not to claim or enjoy both facilities simultaneously where prohibited by applicable rules.</p>
-      <p>The provisional overdrawn Medical Allowance is Rs. ${odAmountText()} for ${odEsc(odPeriodText())}. Refund status: <b>${paid?'reported deposited':'not yet reported deposited'}</b>. ${paid?'Date: '+odEsc(val('odRefundDate')||'________')+'; challan/receipt no.: '+odEsc(val('odRefundChallanNo')||'________')+'. The original receipt and amount must be verified.':'The employee should deposit the amount as directed and submit the authenticated Treasury receipt before the case is treated as refunded.'}</p>
-      <p>The institution requests that the employee's declaration and the Swasthya Sathi authority's acknowledgement/final report regarding surrender, deletion or correction of the beneficiary/card record be examined. Current status recorded in this generator: <b>${odEsc(val('odCardSurrenderStatus')==='completed'?'completed (supporting proof must be attached)':val('odCardSurrenderStatus')==='submitted'?'request submitted; final confirmation pending':'not completed')}</b>; date: ${odEsc(val('odCardSurrenderDate')||'________')}; reference: ${odEsc(val('odCardSurrenderRef')||'________')}.</p>
-      <p>The Administrator, as administrative representative, <b>strictly recommends</b> that the District Inspector of Schools (S.E.), Bankura, examine the full case on merit, verify the service book, salary bills, acquittance rolls and supporting documents, and pass appropriate orders under the applicable rules. This recommendation is made to regularise the matter through the proper channel and avoid future service-record, salary-bill and entitlement complications. It is not a finding that condonation must be granted and is not an order cancelling a Swasthya Sathi card.</p>
-      <p>Submitted for kind consideration and necessary order.</p><p style="text-align:right;margin-top:30px;">Administrator / Administrative Representative<br>Signature &amp; seal: __________________<br>Date: __________</p>`;
-    return odDocShell("STRICT RECOMMENDATION TO THE D.I. (S.E.), BANKURA",body);
-}
-function docMaRestorationAfterSurrender() {
-    const status = val('odCardSurrenderStatus');
-    const body = `<p><b>PART A — EMPLOYEE'S DECLARATION AFTER SURRENDER / DELETION</b></p>
-      <p>I, ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))} of ${odEsc(val('odSchoolName'))}, solemnly declare that I have applied for and, where confirmed by the competent Swasthya Sathi authority, surrendered/deleted/corrected my Swasthya Sathi beneficiary/card record. Status entered: <b>${odEsc(status==='completed'?'completed (proof to be attached)':status==='submitted'?'request submitted; final confirmation pending':'not yet completed')}</b>. Date: ${odEsc(val('odCardSurrenderDate')||'________')}; acknowledgement/reference no.: ${odEsc(val('odCardSurrenderRef')||'________')}.</p>
-      <p>I understand that Medical Allowance and Swasthya Sathi facility cannot be enjoyed simultaneously where the applicable rules prohibit dual benefit. I undertake not to claim or receive both simultaneously, to inform the Head of the Institution immediately if any beneficiary/card status changes, and to refund any amount found inadmissible in accordance with lawful directions. I declare that the information and documents submitted by me are true to the best of my knowledge.</p>
-      <p>Signature of employee: __________________ &nbsp; Date: __________</p><hr style="margin:18px 0;">
-      <p><b>PART B — HOI REPORT AFTER SURRENDER</b></p>
-      <p>The employee's declaration and the submitted Swasthya Sathi surrender/deletion/correction acknowledgement/report have been examined to the extent available. The document/reference noted above is enclosed for verification. The institution shall not certify final surrender unless supported by confirmation from the competent Swasthya Sathi authority.</p>
-      <p><b>Refund verification:</b> ${val('odRefundPaid')==='yes'?'Refund is entered as deposited on '+odEsc(val('odRefundDate')||'________')+' vide challan/receipt '+odEsc(val('odRefundChallanNo')||'________')+'; original receipt and reconciliation with the calculated amount must be checked.':'Refund is not entered as paid; this report must not be treated as refund clearance.'}</p>
-      <p><b>Request regarding Medical Allowance:</b> In view of the employee's declaration and the attached surrender/deletion/correction proof, the case is submitted to the District Inspector of Schools (S.E.), Bankura / competent authority for permission, if admissible, to resume Medical Allowance from the month immediately following the effective date of confirmed surrender/deletion, subject to the applicable rules and written approval. The institution will include the allowance in the salary bill only after receipt of the required approval and confirmation that no dual benefit will continue.</p>
-      <p style="text-align:right;margin-top:24px;">Head of the Institution<br>Signature &amp; seal: __________________ &nbsp; Date: __________</p><hr style="margin:18px 0;">
-      <p><b>PART C — FORWARDING / REQUEST TO D.I. (S.E.)</b></p>
-      <p>The employee's declaration, authority acknowledgement/report, refund challan/receipt and relevant salary-bill/acquittance-roll verification are forwarded for kind consideration. It is strictly recommended that, after confirming surrender/deletion and refund reconciliation, the competent authority may allow Medical Allowance from the next month, if permissible under the prevailing rules, to prevent any future ambiguity or service/salary complication. No allowance should be drawn before written sanction/confirmation where required.</p>
-      <p style="text-align:right;margin-top:24px;">Administrator / Administrative Representative<br>Signature &amp; seal: __________________ &nbsp; Date: __________</p>`;
-    return odDocShell("POST-SURRENDER DECLARATION, HOI REPORT & REQUEST FOR MEDICAL ALLOWANCE",body);
-}
-function docHraDeclarationAndHoiCertificate() {
-    const body = `<p><b>EMPLOYEE DECLARATION</b></p><p>I, ${odEsc(val('odEmpName'))}, ${odEsc(val('odEmpDesig'))} of ${odEsc(val('odSchoolName'))}, declare that the particulars and supporting documents relating to my HRA entitlement for the period ${odEsc(odPeriodText())} are true to the best of my knowledge. I understand that any excess drawal, if confirmed, shall be calculated and refunded as per applicable rules. Reason: ${odEsc(val('reasonText'))}.</p>
-      <p style="text-align:right;">Signature of Employee: __________________ Date: __________</p><hr style="margin:22px 0;">
-      <p><b>HOI CERTIFICATE</b></p><p>Certified that the HRA-related records/declarations available in the institution have been checked to the extent possible. The alleged overdrawal of Rs. ${odAmountText()} for ${odEsc(odPeriodText())} is forwarded for scrutiny and confirmation by the competent authority. This certificate is subject to verification of residence, entitlement, declarations and applicable Government orders.</p>`;
-    return odDocShell("HRA DECLARATION AND HOI CERTIFICATE",body);
-}
-
 function showDoc(type) {
     let content = "";
     if (type === 'annex1' || type === 'annex' || type === 'dacalc' || type === 'daannex1') {
@@ -6393,13 +6351,6 @@ function showDoc(type) {
     else if (type === 'correction') content = docCorrection();
     else if (type === 'daannex') { ensureDaCaseReady(); generateDaCaseTable(); content = docDaAnnexure(); }
     else if (type === 'dacalc') content = docDaCalcSheet();
-    else if (type === 'odcalc') { setPrintOrientation('landscape'); content = docOverdrawnCalcSheet(); }
-    else if (type === 'odapp') content = docOverdrawnApplication();
-    else if (type === 'odhoi') content = docOverdrawnHoiReport();
-    else if (type === 'odadmin') content = docOverdrawnAdminOrder();
-    else if (type === 'odswasthyasathi') content = docSwasthyasathiRecommendation();
-    else if (type === 'odmarestoration') content = docMaRestorationAfterSurrender();
-    else if (type === 'odhra') content = docHraDeclarationAndHoiCertificate();
     else if (type === 'checklist') content = `
     <div style="font-family:'Times New Roman',Times,serif;color:#000;padding:12px;">
         <div style="text-align:center;font-weight:bold;font-size:1.15rem;margin:10px 0;text-decoration:underline;">CHECK LIST FOR ARREAR BILL</div>
@@ -7071,9 +7022,6 @@ window.addEventListener('DOMContentLoaded', function () {
     try { processFixationTimeline(); } catch (e) { console.warn('Auto pay-table build failed:', e); }
     generateArrearTable();
     seedDefaultOverdrawnRows();
-    toggleOdPaymentFields();
-    const ssCard = document.getElementById('odSwasthyasathiRecCard'); if (ssCard) ssCard.style.display = 'none';
-    const hraCard = document.getElementById('odHraDocCard'); if (hraCard) hraCard.style.display = 'none';
     renderOdTable();
     renderLwpTable();
     autoDeriveDaBasicSegments();
@@ -7082,6 +7030,444 @@ window.addEventListener('DOMContentLoaded', function () {
     // (right after Firebase init, above) once a real signed-in user is confirmed --
     // not here, since at DOMContentLoaded time we don't yet know if anyone is signed in.
 });
+</script>
+
+<script>
+// =====================================================================================
+// OVER-DRAWAL APPLICATION SET  --  reason dropdown, auto-generated Application / H.O.I. Report /
+// Office Order / H.R.A. Declaration + H.O.I. Certificate / Salary O.D. Issue Note /
+// Swasthya Sathi card-surrender pack (employee application, Annexure-A type declaration,
+// H.O.I. forwarding, D.I. recommendation).  Every generated page is contenteditable.
+// =====================================================================================
+const OFC_PRESETS = {
+  CUSTOM:   { label:'\u2014 Custom / keep the text as typed \u2014' },
+  MA_SS:    { label:'M.A. drawn while enrolled as beneficiary under Swasthya Sathi card', grp:'MA_SS', la:'MA', item:'Medical Allowance (M.A.)',
+              reason:'excess drawal of Medical Allowance (M.A.) {RATE}from {PERIOD} ({N} months) as {HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, which made the allowance inadmissible.',
+              cause:'{HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, {HOLDER}. Due to lack of awareness regarding the admissibility conditions, Medical Allowance continued to be drawn inadvertently during the aforesaid period.' },
+  MA_SP:    { label:'M.A. drawn although also drawn / covered elsewhere (spouse / other scheme)', grp:'SAL', la:'MA', item:'Medical Allowance (M.A.)',
+              reason:'excess drawal of Medical Allowance (M.A.) {RATE}from {PERIOD} ({N} months), the allowance being inadmissible as the medical benefit was also available to {HIM} through {HIS} spouse / another health scheme.',
+              cause:'Medical Allowance continued to be drawn inadvertently during the aforesaid period, as the medical benefit was also available through {HIS} spouse / another health scheme, due to lack of awareness regarding the admissibility conditions.' },
+  HRA_QTR:  { label:'H.R.A. drawn while residing in Government / rent-free accommodation', grp:'HRA', la:'HRA', item:'House Rent Allowance (H.R.A.)',
+              reason:'excess drawal of House Rent Allowance (H.R.A.) from {PERIOD} ({N} months), which was not admissible as {HE} was residing in Government / rent-free accommodation during the period.',
+              cause:'{HE} was residing in Government / rent-free accommodation during the aforesaid period and H.R.A. continued to be drawn inadvertently, due to lack of awareness regarding the admissibility conditions.' },
+  HRA_SP:   { label:'H.R.A. drawn while spouse was also drawing H.R.A. for the same residence', grp:'HRA', la:'HRA', item:'House Rent Allowance (H.R.A.)',
+              reason:'excess drawal of House Rent Allowance (H.R.A.) from {PERIOD} ({N} months), which was not admissible as {HIS} spouse was also drawing H.R.A. for the same residence during the period.',
+              cause:'{HIS} spouse was also drawing H.R.A. for the same residence during the aforesaid period and H.R.A. continued to be drawn inadvertently, due to lack of awareness regarding the admissibility conditions.' },
+  HRA_RATE: { label:'H.R.A. drawn at a higher rate than admissible', grp:'HRA', la:'HRA', item:'House Rent Allowance (H.R.A.)',
+              reason:'excess drawal of House Rent Allowance (H.R.A.) from {PERIOD} ({N} months) at a rate higher than the admissible rate.',
+              cause:'H.R.A. was drawn at a rate higher than the admissible rate during the aforesaid period, inadvertently and without any deliberate intention.' },
+  SAL_LWP:  { label:'Salary drawn in full for period of Leave Without Pay (LWP)', grp:'SAL', item:'salary (pay and allowances)',
+              reason:'Leave Without Pay (LWP) availed during {PERIOD}, full salary having been credited in the respective months.',
+              cause:'Leave Without Pay (LWP) was availed during the aforesaid period, but full salary was credited in the respective months through oversight.' },
+  SAL_FIX:  { label:'Excess pay drawn due to wrong pay fixation / increment', grp:'SAL', item:'salary (pay and allowances)',
+              reason:'excess pay and allowances drawn during {PERIOD} due to wrong pay fixation / wrong grant of increment.',
+              cause:'Pay was fixed / increment was granted at a higher amount than admissible, which came to notice on verification, and the excess pay and allowances were drawn inadvertently during the aforesaid period.' },
+  SAL_DA:   { label:'D.A. / I.R. drawn at a rate higher than admissible', grp:'SAL', item:'salary (D.A. / I.R. component)',
+              reason:'excess drawal of D.A. / I.R. during {PERIOD} at a rate higher than the admissible rate.',
+              cause:'D.A. / I.R. was drawn at a rate higher than the admissible rate during the aforesaid period, inadvertently and without any deliberate intention.' },
+  SAL_ABS:  { label:'Salary drawn for period of unauthorised absence / dies-non', grp:'SAL', item:'salary (pay and allowances)',
+              reason:'salary drawn for the period of unauthorised absence / dies-non during {PERIOD}, which is not admissible.',
+              cause:'Salary was drawn for the period of unauthorised absence / dies-non during the aforesaid period through oversight.' }
+};
+const OFC_TRIGGERS = {
+  PEN:  { t:'an objection has been raised in connection with Treasury Pension Clearance in favour of', p:'Treasury Pension Clearance objection' },
+  AUD:  { t:'an audit objection has been raised in respect of', p:'audit objection' },
+  DI:   { t:'an objection has been raised during pay verification by the office of the District Inspector of Schools in respect of', p:'pay verification objection' },
+  SELF: { t:'it has been noticed, on verification of the pay bills, in the case of', p:'pay regularisation requirement' },
+  OTH:  { t:'an objection has been raised in respect of', p:'objection' }
+};
+const OFC_SSAUTH = {
+  DM:    'The District Magistrate (Attn.: District Swasthya Sathi Nodal Officer / Health & Swasthya Sathi Section), Bankura',
+  CMOH:  'The Chief Medical Officer of Health, Bankura',
+  STATE: 'The Swasthya Sathi Samiti, Department of Health & Family Welfare, Government of West Bengal, Kolkata'
+};
+const OFC_DOCS = [
+  { id:'app',     cases:['MA_SS','HRA','SAL'], stage:'Before payment', label:'Application of the employee (prayer for permission & arrangement of refund)', fn:'ofcDocApp' },
+  { id:'hoi',     cases:['MA_SS','HRA','SAL'], stage:'Before payment', label:'Report of the Head of the Institution', fn:'ofcDocHoi' },
+  { id:'ord',     cases:['MA_SS','HRA','SAL'], stage:'Before payment', label:'Office Order (by the Administrator)', fn:'ofcDocOrder' },
+  { id:'hradecl', cases:['HRA'],               stage:'Before payment', label:'Declaration by the employee regarding H.R.A.', fn:'ofcDocHraDecl' },
+  { id:'hracert', cases:['HRA'],               stage:'Before payment', label:'Certificate of the Head of the Institution regarding H.R.A.', fn:'ofcDocHraCert' },
+  { id:'salnote', cases:['SAL'],               stage:'Before payment', label:'Salary Over-Drawal Issue Note (editable statement of facts)', fn:'ofcDocSalNote' },
+  { id:'ssapp',   cases:['MA_SS'],             stage:'After payment',  label:'Employee\u2019s application for surrender of Swasthya Sathi card', fn:'ofcDocSsApp' },
+  { id:'ssdecl',  cases:['MA_SS'],             stage:'After payment',  label:'Declaration of employee (Annexure-A type, Fin. Dept. Order 92-F(MED)WB)', fn:'ofcDocSsDecl' },
+  { id:'sshoi',   cases:['MA_SS'],             stage:'After payment',  label:'H.O.I. forwarding to D.I. (S.E.) after refund', fn:'ofcDocSsHoi' },
+  { id:'ssdi',    cases:['MA_SS'],             stage:'After payment',  label:'D.I. (S.E.) recommendation \u2014 accept card surrender', fn:'ofcDocSsDi' }
+];
+
+// ------------------------------- helpers -------------------------------------------
+function ofcEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function ofcCase(){ return val('ofcCaseType') || 'SAL'; }
+function ofcFemale(){ return /^f/i.test(val('staffSex') || ''); }
+function ofcPerson(){
+  const n = (val('odEmpName') || val('staffName') || '').trim();
+  if (/^(shri|smt|sri|sk|mr|mrs|ms|dr)\b/i.test(n)) return n;
+  return (ofcFemale() ? 'Smt. ' : 'Shri ') + n;
+}
+function ofcDesig(){
+  const d = (val('odEmpDesig') || val('designation') || '').trim();
+  const m = { 'A.T.':'Assistant Teacher','A.T':'Assistant Teacher','AT':'Assistant Teacher','H.M.':'Headmaster','H.M':'Headmaster','H/M':'Headmaster','T.I.C.':'Teacher-in-Charge' };
+  return m[d.toUpperCase()] || d;
+}
+function ofcStrip(s){ return String(s || '').replace(/^\s*the\s+/i, ''); }
+function ofcTitleCase(s){ return String(s || '').toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase()); }
+function ofcCap(s){ s = String(s || '').trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function ofcDot(s){ s = String(s || '').trim(); return s && !/[.!?]$/.test(s) ? s + '.' : s; }
+function ofcD(v){ return v ? fmtDMY(v) : '________________'; }
+function ofcB(v, w){ return (v && String(v).trim()) ? ofcEsc(v) : '_'.repeat(w || 18); }
+function ofcMoney(n){ return '\u20B9' + Number(n || 0).toLocaleString('en-IN') + '/-'; }
+function ofcAdmin(){ return val('ofcAdminTitle') || 'The Administrator'; }
+function ofcHoi(){ return val('ofcHoiTitle') || 'Teacher-in-Charge'; }
+function ofcHoiSig(){ const h = ofcHoi().toUpperCase(); return /HEAD OF THE INSTITUTION/.test(h) ? h : h + ' / HEAD OF THE INSTITUTION'; }
+function ofcDiName(){ return val('diOffice') || 'The District Inspector of Schools (S.E.), Bankura'; }
+function ofcDistrict(){ return ofcTitleCase(val('odDistrict') || 'Bankura'); }
+function ofcSchool(){ return val('odSchoolName') || val('schoolName'); }
+
+function ofcSummary(){
+  const act = [];
+  (typeof odRows !== 'undefined' ? odRows : []).forEach(r => {
+    const c = computeOdRow(r); const a = Math.round(c.overDrawn);
+    if (a !== 0) act.push({ m:r.month, a:a });
+  });
+  act.sort((x, y) => x.m.localeCompare(y.m));
+  const n = act.length, total = act.reduce((t, x) => t + x.a, 0);
+  const rates = Array.from(new Set(act.map(x => x.a)));
+  const lab = m => { const p = m.split('-').map(Number); return monthLabel(p[0], p[1]); };
+  const f = n ? act[0].m : '', t = n ? act[n - 1].m : '';
+  return { n, total, single: rates.length === 1 ? rates[0] : null, from:f, to:t,
+           periodLong: n ? (f === t ? lab(f) : lab(f) + ' to ' + lab(t)) : '',
+           periodShort: n ? (f === t ? monthLabelShort(f) : monthLabelShort(f) + ' to ' + monthLabelShort(t)) : '' };
+}
+
+// Tag resolver. mode 'first' => I / my / me ; 'third' => he|she / his|her / him|her
+function ofcResolve(text, mode){
+  const f = ofcFemale(), s = ofcSummary(), first = (mode === 'first');
+  const map = {
+    HE:   first ? 'I'  : (f ? 'she' : 'he'),
+    HIS:  first ? 'my' : (f ? 'her' : 'his'),
+    HIM:  first ? 'me' : (f ? 'her' : 'him'),
+    NAME: ofcPerson(), DESIG: ofcDesig(),
+    REL:  val('ofcCardRel') || 'spouse',
+    HOLDER: (val('ofcCardHolder') || '').trim() || '(card holder)',
+    PERIOD: s.periodShort, N: String(s.n),
+    RATE: s.single ? '@ Rs.' + s.single.toLocaleString('en-IN') + '/- p.m. ' : '',
+    AMT: ofcMoney(s.total)
+  };
+  return String(text || '').replace(/\{([A-Z]+)\}/g, (m, k) => (k in map) ? map[k] : m);
+}
+function ofcItem(){
+  const p = OFC_PRESETS[val('reasonPreset')];
+  if (p && p.item) return p.item;
+  const c = ofcCase();
+  return c === 'MA_SS' ? 'Medical Allowance (M.A.)' : c === 'HRA' ? 'House Rent Allowance (H.R.A.)' : 'salary (pay and allowances)';
+}
+function ofcCauseText(mode){ return ofcDot(ofcCap(ofcResolve(val('ofcCause'), mode))); }
+function ofcCauseInline(mode){
+  const t = ofcCauseText(mode);
+  const m = t.match(/^([A-Za-z]+)(\b)/);
+  if (m && m[1] !== 'I' && /^[A-Z][a-z]+$/.test(m[1])) return m[1].toLowerCase() + t.slice(m[1].length);
+  return t;
+}
+
+// ------------------------- reason dropdown & form behaviour ---------------------------
+function ofcInitPresetSelect(){
+  const sel = document.getElementById('reasonPreset');
+  if (!sel || sel.options.length) return;
+  Object.keys(OFC_PRESETS).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = OFC_PRESETS[k].label; sel.appendChild(o); });
+  sel.value = 'CUSTOM';
+}
+function ofcPresetActive(){ const k = val('reasonPreset'); return !!(k && k !== 'CUSTOM' && OFC_PRESETS[k]); }
+function ofcApplyReasonPreset(silent){
+  const k = val('reasonPreset'); const p = OFC_PRESETS[k];
+  if (!p || k === 'CUSTOM') return;
+  const rt = document.getElementById('reasonText');
+  if (rt) rt.value = ofcResolve(p.reason, 'third');
+  if (silent !== true) {                       // user changed the dropdown => also switch case, cause text and generator type
+    const ct = document.getElementById('ofcCaseType'); if (ct) ct.value = p.grp;
+    const cz = document.getElementById('ofcCause'); if (cz) cz.value = p.cause;
+    if (p.la && document.getElementById('laType')) { document.getElementById('laType').value = p.la; if (typeof laToggleGroups === 'function') laToggleGroups(); }
+  }
+  ofcOnCaseChange();
+  if (typeof refreshAllOverdrawn === 'function') refreshAllOverdrawn();
+}
+function ofcApplyTrigger(){
+  const k = val('ofcTriggerSel'); const t = OFC_TRIGGERS[k]; if (!t) return;
+  if (k !== 'OTH') { document.getElementById('ofcTriggerText').value = t.t; document.getElementById('ofcPurpose').value = t.p; }
+  ofcRefreshDocList();
+}
+function ofcApplySsAuth(){
+  const k = val('ofcSsAuthSel'); if (OFC_SSAUTH[k]) document.getElementById('ofcSsAuth').value = OFC_SSAUTH[k];
+}
+function ofcOnCaseChange(){
+  const c = ofcCase();
+  const ss = document.getElementById('ofcSsBlock'); if (ss) ss.style.display = (c === 'MA_SS') ? '' : 'none';
+  const na = document.getElementById('ofcNaBox');
+  if (na) {
+    if (c === 'MA_SS') na.style.display = 'none';
+    else {
+      na.style.display = '';
+      na.innerHTML = '<b>Swasthya Sathi card surrender &mdash; not applicable for this case.</b> ' + (c === 'HRA'
+        ? 'It is replaced by the <b>Employee\u2019s H.R.A. Declaration</b> and the <b>H.O.I. Certificate</b> (both generated below).'
+        : 'It is replaced by the <b>Salary Over-Drawal Issue Note</b> (editable, generated below).');
+    }
+  }
+  ofcRefreshDocList();
+}
+function ofcBuildDocList(){
+  const box = document.getElementById('ofcDocList'); if (!box || box.children.length) return;
+  OFC_DOCS.forEach(d => {
+    const lab = document.createElement('label');
+    lab.id = 'ofcDocRow_' + d.id; lab.style.cssText = 'display:flex;gap:6px;align-items:flex-start;cursor:pointer;';
+    lab.innerHTML = '<input type="checkbox" id="ofcDoc_' + d.id + '" checked style="width:auto;margin-top:3px;"><span>' + d.label +
+                    ' <em style="color:' + (d.stage === 'After payment' ? '#b45309' : '#64748b') + ';font-size:0.74rem;">[' + d.stage + ']</em></span>';
+    box.appendChild(lab);
+  });
+}
+function ofcRefreshDocList(){
+  ofcBuildDocList();
+  const c = ofcCase();
+  OFC_DOCS.forEach(d => { const r = document.getElementById('ofcDocRow_' + d.id); if (r) r.style.display = d.cases.includes(c) ? 'flex' : 'none'; });
+  const s = ofcSummary(), box = document.getElementById('ofcSummaryBox');
+  if (box) {
+    box.innerHTML = s.n
+      ? 'Over-drawn: <b>' + ofcMoney(s.total) + '</b> (Rupees ' + numberToWords(s.total) + ' Only) &nbsp;|&nbsp; ' + s.n + ' month(s), ' + s.periodShort +
+        (s.single ? ' &nbsp;|&nbsp; ' + ofcMoney(s.single) + ' \u00D7 ' + s.n : ' &nbsp;|&nbsp; varying monthly amounts (shown as per calculation sheet)')
+      : '<span style="color:#b91c1c;">No over-drawn months found yet &mdash; use the Long-Period generator or Auto-Fetch above first.</span>';
+  }
+}
+function ofcSelectAll(on){ OFC_DOCS.forEach(d => { const e = document.getElementById('ofcDoc_' + d.id); if (e) e.checked = on; }); }
+
+// ------------------------------- page builders -----------------------------------------
+function ofcPage(inner){ return '<div class="ofc-page" contenteditable="true" spellcheck="false">' + inner + '</div>'; }
+function ofcHead(){
+  return '<div class="ofc-hd" style="font-size:15pt;">' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+         '<div class="ofc-hd" style="font-size:10.5pt;margin-bottom:6px;">' + ofcEsc(val('schoolAddress')).toUpperCase() + '</div>';
+}
+function ofcMemo(){
+  return '<table class="ofc-memo"><tr><td>Memo No.: ' + ofcB(val('ofcMemoNo'), 22) + '</td><td style="text-align:right;">Date: ' + ofcD(val('ofcMemoDate')) + '</td></tr></table>';
+}
+function ofcCalcTable(){
+  const s = ofcSummary();
+  const rd = s.single ? ofcMoney(s.single) + ' \u00D7 ' + s.n + ' months' : 'As per month-wise calculation sheet (' + s.n + ' months)';
+  return '<table class="ofc-tbl"><tr><th style="width:42%;text-align:left;">Particulars</th><th style="text-align:left;">Details / Amount</th></tr>' +
+    '<tr><td>Period of excess drawal</td><td>' + ofcEsc(s.periodLong) + '</td></tr>' +
+    '<tr><td>Rate and duration</td><td>' + rd + '</td></tr>' +
+    '<tr><td><b>Total amount to be refunded</b></td><td><b>' + ofcMoney(s.total) + ' (Rupees ' + numberToWords(s.total) + ' only)</b></td></tr></table>';
+}
+function ofcSigBlock(label, extra){
+  return '<div class="ofc-sig"><div>Signature: ______________________________</div>' + label + (extra || '') + '</div>';
+}
+function ofcTriggerPhrase(){ return ofcEsc(val('ofcTriggerText') || OFC_TRIGGERS.PEN.t); }
+function ofcPurposeTxt(){ return ofcEsc(val('ofcPurpose') || 'objection'); }
+function ofcReasonLine(){
+  return '<p><b>Reason for over-drawal:</b> ' + ofcEsc(val('reasonText')) + '</p>';
+}
+function ofcPayRef(){
+  const no = ofcB(val('ofcChallanNo'), 14), dt = ofcD(val('ofcPayDate') || val('chlDate')), tr = ofcEsc(val('chlTreasury') || 'Treasury');
+  return 'T.R. Form No. 7 challan / Treasury Receipted Challan No. ' + no + ' dated ' + dt + ' at ' + tr + ' Treasury';
+}
+
+// 1. APPLICATION (first person)
+function ofcDocApp(){
+  const s = ofcSummary(), item = ofcItem(), amt = ofcMoney(s.total);
+  return ofcPage(
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(ofcAdmin()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '<br>' + ofcEsc(val('schoolAddress')) +
+   '<br><b>Through: The ' + ofcEsc(ofcHoi()) + '</b></div>' +
+   '<p><b>Subject: Prayer for permission and necessary arrangement for refund of excess ' + ofcEsc(item) + ' amounting to ' + amt + ' in respect of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + '.</b></p>' +
+   '<p>Respected Sir,</p>' +
+   '<p>With due respect, I beg to submit that ' + ofcTriggerPhrase() + ' me, ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, regarding excess drawal of ' + ofcEsc(item) +
+   ' for the period from ' + ofcEsc(s.periodLong) + ', covering ' + s.n + ' month' + (s.n === 1 ? '' : 's') + '.</p>' +
+   ofcReasonLine() +
+   '<p>As reported, ' + ofcEsc(ofcCauseInline('first')) + '</p>' +
+   '<p>The amount liable to be refunded is calculated as follows (month-wise calculation sheet enclosed):</p>' + ofcCalcTable() +
+   '<p>I respectfully submit that the excess drawal occurred unintentionally and without any deliberate intention to claim an inadmissible benefit. I therefore request your good office to kindly accord necessary permission and make the required arrangement for refund/deposit of ' + amt +
+   ' in the prescribed manner, as directed by the competent authority, so that the ' + ofcPurposeTxt() + ' may be complied with.</p>' +
+   '<p>I shall remain grateful for your kind consideration and necessary action.</p>' +
+   '<div style="margin-top:6px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + '<br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcHoi()).toUpperCase() + '</b></div>' +
+   '<div class="ofc-enc">Enclosure: Month-wise calculation sheet.</div>');
+}
+// 2. HOI REPORT (third person)
+function ofcDocHoi(){
+  const s = ofcSummary(), item = ofcItem(), amt = ofcMoney(s.total);
+  const rate = s.single ? ofcMoney(s.single) + ' per month' : 'As per month-wise calculation sheet';
+  return ofcPage(ofcHead() + ofcMemo() +
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:8px 0;">REPORT OF THE HEAD OF THE INSTITUTION</div>' +
+   '<div>To<br><b>' + ofcEsc(ofcAdmin()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+   '<p><b>Subject: Report regarding excess drawal and proposed refund of ' + ofcEsc(item) + ' by ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', for compliance with ' + ofcPurposeTxt() + '.</b></p>' +
+   '<p>With reference to the ' + ofcPurposeTxt() + ' in respect of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this institution, it is reported that ' + ofcTriggerPhrase() + ' the said employee, relating to the drawal of ' + ofcEsc(item) +
+   ' for the period from ' + ofcEsc(s.periodLong) + ', covering ' + s.n + ' month' + (s.n === 1 ? '' : 's') + '.</p>' +
+   ofcReasonLine() +
+   '<p>As stated by the concerned employee, ' + ofcEsc(ofcCauseInline('third')) + ' The employee has expressed willingness to refund the entire amount.</p>' +
+   '<table class="ofc-tbl"><tr><th style="width:42%;text-align:left;">Particulars</th><th style="text-align:left;">Amount / Details</th></tr>' +
+   '<tr><td>Monthly over-drawn amount</td><td>' + rate + '</td></tr><tr><td>Period</td><td>' + s.n + ' months (' + ofcEsc(s.periodLong) + ')</td></tr>' +
+   '<tr><td><b>Total excess amount</b></td><td><b>' + amt + ' (Rupees ' + numberToWords(s.total) + ' only)</b></td></tr></table>' +
+   '<p>The matter is submitted for kind consideration and necessary orders regarding acceptance/deposit of the refund in the prescribed manner and issuance of the requisite compliance report to the competent authority for removal of the ' + ofcPurposeTxt() + '.</p>' +
+   '<p>Submitted for necessary action.</p>' +
+   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   '<div class="ofc-enc">Enclosures: (1) Application of the concerned employee. (2) Month-wise calculation sheet.</div>');
+}
+// 3. OFFICE ORDER
+function ofcDocOrder(){
+  const s = ofcSummary(), item = ofcItem(), amt = ofcMoney(s.total), adm = ofcStrip(ofcAdmin());
+  return ofcPage(ofcHead() + ofcMemo() +
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:8px 0;">OFFICE ORDER</div>' +
+   '<p><b>Subject: Order regarding refund of excess ' + ofcEsc(item) + ' amounting to ' + amt + ' by ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', for compliance with ' + ofcPurposeTxt() + '.</b></p>' +
+   '<p>Whereas ' + ofcTriggerPhrase() + ' ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, regarding excess drawal of ' + ofcEsc(item) + ' for the period from ' + ofcEsc(s.periodLong) + ';</p>' +
+   '<p>And whereas the over-drawal is stated to be due to: ' + ofcEsc(val('reasonText')) + '</p>' +
+   '<p>And whereas the concerned employee has reported that ' + ofcEsc(ofcCauseInline('third')) + '</p>' +
+   '<p>And whereas the amount has been calculated as ' + (s.single ? ofcMoney(s.single) + ' per month for ' + s.n + ' months' : 'per the month-wise calculation sheet for ' + s.n + ' months') + ', aggregating to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only);</p>' +
+   '<p>Now, therefore, upon consideration of the report of the ' + ofcEsc(ofcHoi()) + ' and the application of the concerned employee, the case is hereby directed to be processed for refund/deposit of the said amount of ' + amt + ' in the prescribed manner, subject to applicable rules and directions of the competent authority.</p>' +
+   '<p>The ' + ofcEsc(ofcHoi()) + ' is directed to facilitate the necessary formalities, obtain the prescribed treasury challan/receipt or other valid proof of deposit, and submit the compliance documents to the competent authority, including the Assistant Inspector of Schools / ' + ofcEsc(ofcStrip(ofcDiName())) + ', as applicable, for removal of the objection and further processing of the case.</p>' +
+   '<p>This order shall not be treated as a substitute for any sanction or approval required from the competent authority under the applicable rules.</p>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:14px;">By Order of ' + ofcEsc(ofcAdmin().replace(/^The/, 'the')) + '<br><br>Signature: ______________________________<br><b>' + ofcEsc(adm).toUpperCase() + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded / Countersigned by:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcHoi()).toUpperCase() + '</b></div>');
+}
+// 4. HRA DECLARATION (employee)
+function ofcDocHraDecl(){
+  const s = ofcSummary(), amt = ofcMoney(s.total);
+  return ofcPage(ofcHead() +
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:10px 0;">DECLARATION BY THE EMPLOYEE REGARDING HOUSE RENT ALLOWANCE (H.R.A.)</div>' +
+   '<p>I, <b>' + ofcEsc(ofcPerson()) + '</b>, ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', do hereby solemnly declare as follows:</p>' +
+   '<ol class="ofc-ol">' +
+   '<li>That I drew House Rent Allowance (H.R.A.) for the period from <b>' + ofcEsc(s.periodLong) + '</b> (' + s.n + ' month' + (s.n === 1 ? '' : 's') + '), the over-drawn amount being <b>' + amt + '</b> (Rupees ' + numberToWords(s.total) + ' only) as per the enclosed calculation sheet.</li>' +
+   '<li>That the H.R.A. so drawn was not admissible to me for the said period: ' + ofcEsc(ofcCauseInline('first')) + '</li>' +
+   '<li>That ' + (val('ofcStoppedFrom') ? 'H.R.A. has been stopped / is not being drawn with effect from <b>' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) + '</b>' : 'H.R.A. has been stopped / is not being drawn with effect from ____________') + ', and I shall not claim it in future unless I fulfil all admissibility conditions under the rules.</li>' +
+   '<li>That I shall inform the Head of the Institution in writing immediately about any change in my residence, accommodation or my spouse\u2019s employment / allowance status that may affect admissibility of H.R.A.</li>' +
+   '<li>That I undertake to refund the over-drawn amount of ' + amt + ' in lump sum by T.R. Form No. 7 challan, failing which the amount may be recovered from my salary as per rules.</li>' +
+   '<li>That the above statements are true to the best of my knowledge and belief, and I am aware that any false declaration may attract disciplinary action under the service rules.</li></ol>' +
+   '<div style="margin-top:14px;display:flex;justify-content:space-between;"><div>Place: ' + ofcEsc(val('odPoName') || '') + '<br>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div style="text-align:center;">Signature of the Employee: ______________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + '</div></div>');
+}
+// 5. HRA - HOI CERTIFICATE
+function ofcDocHraCert(){
+  const s = ofcSummary(), amt = ofcMoney(s.total);
+  return ofcPage(ofcHead() + ofcMemo() +
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:10px 0;">CERTIFICATE OF THE HEAD OF THE INSTITUTION</div>' +
+   '<p>Certified that:</p>' +
+   '<ol class="ofc-ol">' +
+   '<li>' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, drew House Rent Allowance (H.R.A.) for the period from ' + ofcEsc(s.periodLong) + ' (' + s.n + ' month' + (s.n === 1 ? '' : 's') + '), which was not admissible, the total over-drawn amount being ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only), as per the enclosed calculation sheet.</li>' +
+   '<li>The employee has furnished a written declaration regarding H.R.A., which has been verified and kept in the office record.</li>' +
+   '<li>H.R.A. has been stopped in the pay bill with effect from ' + (val('ofcStoppedFrom') ? '<b>' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) + '</b>' : '____________') + '.</li>' +
+   '<li>Reason for over-drawal: ' + ofcEsc(val('reasonText')) + '</li>' +
+   '<li>The employee has undertaken to refund the entire over-drawn amount by T.R. Form No. 7 challan, and the particulars of deposit will be furnished to the competent authority for compliance with the ' + ofcPurposeTxt() + '.</li>' +
+   '<li>The over-drawal has been noted in the over-drawal register / service book of the employee.</li></ol>' +
+   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   '<div class="ofc-enc">Enclosures: (1) Declaration of the employee. (2) Month-wise calculation sheet.</div>');
+}
+// 6. SALARY OD ISSUE NOTE (editable)
+function ofcDocSalNote(){
+  const s = ofcSummary(), item = ofcItem(), amt = ofcMoney(s.total);
+  return ofcPage(ofcHead() + ofcMemo() +
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:10px 0;">SALARY OVER-DRAWAL ISSUE NOTE</div>' +
+   '<p><b>Subject: Note on the issue of over-drawal of ' + ofcEsc(item) + ' by ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', for the period ' + ofcEsc(s.periodLong) + '.</b></p>' +
+   '<table class="ofc-tbl"><tr><td style="width:42%;">Name &amp; designation of employee</td><td>' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + '</td></tr>' +
+   '<tr><td>Nature of over-drawal</td><td>' + ofcEsc(ofcCap(item)) + '</td></tr><tr><td>Period</td><td>' + ofcEsc(s.periodLong) + ' (' + s.n + ' month' + (s.n === 1 ? '' : 's') + ')</td></tr>' +
+   '<tr><td><b>Total over-drawn amount</b></td><td><b>' + amt + ' (Rupees ' + numberToWords(s.total) + ' only)</b></td></tr></table>' +
+   '<p><b>1. Facts of the case:</b> ' + ofcEsc(val('reasonText')) + '</p>' +
+   '<p><b>2. Cause of over-drawal:</b> ' + ofcEsc(ofcCauseText('third')) + '</p>' +
+   '<p><b>3. Calculation:</b> The pay and allowances actually drawn have been compared month by month with the admissible pay and allowances as per the pay-revision rules applicable to each month, and the difference has been worked out in the enclosed month-wise calculation sheet.</p>' +
+   '<p><b>4. Proposed action:</b> The employee has agreed to refund the entire amount of ' + amt + ' in lump sum by T.R. Form No. 7 challan (' + ofcEsc(val('chlTreasury') || 'Treasury') + ' Treasury). The proof of deposit will be furnished to the competent authority for compliance with the ' + ofcPurposeTxt() + '.</p>' +
+   '<p><b>5. Preventive measure:</b> In future, the pay bills will be prepared after verification of the admissible pay and allowances against the service book and the leave / LWP register, so that such over-drawal does not recur.</p>' +
+   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   '<div class="ofc-enc">Enclosure: Month-wise calculation sheet.</div>');
+}
+// 7. SS - EMPLOYEE APPLICATION FOR CARD SURRENDER
+function ofcSsBen(){ return (val('ofcBenName') || '').trim() || ofcPerson(); }
+function ofcDocSsApp(){
+  const s = ofcSummary(), amt = ofcMoney(s.total);
+  return ofcPage(
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b><br><b>Through:</b> (1) The ' + ofcEsc(ofcHoi()) + ', ' + ofcEsc(ofcSchool()) + '; (2) ' + ofcEsc(ofcDiName()) + '</div>' +
+   '<p><b>Subject: Prayer for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(val('ofcCardHolder') || '__________') + ', in which my name / the name of the beneficiary is included.</b></p>' +
+   '<p>Respected Sir,</p>' +
+   '<p>With due respect, I, ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', beg to state that ' + ofcEsc(ofcResolve('{HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, {HOLDER} (Card No. / URN: ', 'first')) + ofcB(val('ofcCardNo'), 14) + ').</p>' +
+   '<p>I am an employee covered under the West Bengal Health Scheme (WBHS)' + (val('ofcWbhsNo') ? ' (Enrolment Certificate No. ' + ofcEsc(val('ofcWbhsNo')) + ')' : '') + '. In view of the Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026 directing mandatory surrender of Swasthya Sathi / Ayushman Bharat cards by employees and their beneficiaries, I request that the surrender of the above card, in respect of <b>' + ofcEsc(ofcSsBen()) + '</b>, may kindly be accepted and the card / the name of the beneficiary may be deactivated.</p>' +
+   '<p>I further state that the Medical Allowance drawn by me for the period ' + ofcEsc(s.periodLong) + ' amounting to ' + amt + ' has been refunded by deposit through ' + ofcPayRef() + ', as per the order of the competent authority, and the proof of deposit is enclosed.</p>' +
+   '<p>I therefore pray that the surrender may kindly be accepted and an acknowledgement / proof of surrender may be issued to me so that the same can be submitted to the Head of Office along with my declaration within the stipulated date.</p>' +
+   '<div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+   '<div class="ofc-enc">Enclosures: (1) Copy of Swasthya Sathi card / URN details. (2) Copy of T.R. Form No. 7 challan / treasury receipt. (3) Copy of Office Order. (4) Declaration (Annexure-A type). (5) Recommendation of D.I. (S.E.).</div>');
+}
+// 8. SS - ANNEXURE-A TYPE DECLARATION
+function ofcDocSsDecl(){
+  return ofcPage(ofcHead() +
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:10px 0 2px;">DECLARATION</div>' +
+   '<div class="ofc-hd" style="font-size:10.5pt;margin-bottom:8px;">(Surrender of Swasthya Sathi / Ayushman Bharat Card &mdash; Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026)</div>' +
+   '<p>I, <b>' + ofcEsc(ofcPerson()) + '</b>, ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', hereby declare that:</p>' +
+   '<table class="ofc-tbl">' +
+   '<tr><td style="width:46%;">Name &amp; designation of the employee</td><td>' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + '</td></tr>' +
+   '<tr><td>Office / Head of Office</td><td>' + ofcEsc(ofcSchool()) + ' / ' + ofcEsc(ofcHoi()) + '</td></tr>' +
+   '<tr><td>WBHS Enrolment Certificate No.</td><td>' + ofcB(val('ofcWbhsNo'), 22) + '</td></tr>' +
+   '<tr><td>Swasthya Sathi / Ayushman Bharat card holder</td><td>' + ofcEsc(val('ofcCardHolder') || '____________') + ' (' + ofcEsc(val('ofcCardRel') || '') + ')</td></tr>' +
+   '<tr><td>Card No. / URN</td><td>' + ofcB(val('ofcCardNo'), 22) + '</td></tr>' +
+   '<tr><td>Name(s) of beneficiary / beneficiaries whose card is surrendered</td><td>' + ofcEsc(ofcSsBen()) + '</td></tr>' +
+   '<tr><td>Surrendered to (issuing authority)</td><td>' + ofcEsc(val('ofcSsAuth')) + '</td></tr>' +
+   '<tr><td>Date of surrender / Acknowledgement No.</td><td>' + ofcB(val('ofcSurrAck'), 28) + '</td></tr></table>' +
+   '<ol class="ofc-ol">' +
+   '<li>I / my beneficiaries held or hold the above card(s) while being enrolled under the West Bengal Health Scheme (WBHS).</li>' +
+   '<li>I have surrendered the above card(s) to the issuing authority, and the proof / acknowledgement of surrender is enclosed.</li>' +
+   '<li>I shall not use the above card(s) for any treatment hereafter.</li>' +
+   '<li>The above statements are true to the best of my knowledge and belief. I am aware that non-compliance may result in suspension of medical facilities under WBHS and disciplinary action under the service rules.</li></ol>' +
+   '<div style="margin-top:14px;display:flex;justify-content:space-between;"><div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div style="text-align:center;">Signature of the Employee: ______________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b></div></div>' +
+   '<div class="ofc-sig" style="margin-top:12px;">Received &amp; verified (proof of surrender checked; entered in compliance log):<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcHoi()).toUpperCase() + '</b></div>' +
+   '<div class="ofc-enc">Note: this page follows the content stated in the Order. Where the prescribed Annexure-A format is available, copy the entries onto it.</div>');
+}
+// 9. SS - HOI FORWARDING TO DI (after refund)
+function ofcDocSsHoi(){
+  const s = ofcSummary(), amt = ofcMoney(s.total);
+  return ofcPage(ofcHead() + ofcMemo() +
+   '<div>To<br><b>' + ofcEsc(ofcDiName()) + '</b></div>' +
+   '<p><b>Subject: Forwarding of application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', for surrender of Swasthya Sathi card after refund of excess Medical Allowance &mdash; request for recommendation.</b></p>' +
+   '<p>Sir,</p>' +
+   '<p>I have the honour to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(val('ofcCardHolder') || '__________') + ', in which the name of the employee / beneficiary is included.</p>' +
+   '<p>It is reported that Medical Allowance for the period ' + ofcEsc(s.periodLong) + ' (' + s.n + ' months), amounting to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only), had been drawn although the allowance was inadmissible on account of the above card. The employee has refunded the entire amount by ' + ofcPayRef() + ', as directed in the Office Order, and the proof of deposit is enclosed. Medical Allowance has been stopped ' + (val('ofcStoppedFrom') ? 'with effect from ' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) : 'in the pay bill') + '.</p>' +
+   '<p>In view of the Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026, the matter is submitted for kind recommendation to the authority concerned for acceptance of the surrender of the card at an early date, positively before 31.10.2026.</p>' +
+   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   '<div class="ofc-enc">Enclosures: (1) Application for surrender. (2) Declaration. (3) Copy of challan / treasury receipt. (4) Office Order and H.O.I. report. (5) Calculation sheet.</div>');
+}
+// 10. SS - DI RECOMMENDATION
+function ofcDocSsDi(){
+  const s = ofcSummary(), amt = ofcMoney(s.total);
+  return ofcPage(
+   '<div class="ofc-hd" style="font-size:14pt;">OFFICE OF THE ' + ofcEsc(ofcStrip(ofcDiName())).toUpperCase() + '</div>' +
+   '<div class="ofc-hd" style="font-size:10.5pt;margin-bottom:6px;">GOVERNMENT OF WEST BENGAL &mdash; SECONDARY EDUCATION</div>' + ofcMemo() +
+   '<div>To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b></div>' +
+   '<p><b>Subject: Recommendation for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '.</b></p>' +
+   '<p><b>Ref:</b> (1) Application of the employee dated ' + ofcD(val('ofcAppDate')) + '. (2) Report / forwarding of the ' + ofcEsc(ofcHoi()) + ' of the school. (3) Finance Dept. (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</p>' +
+   '<p>Sir / Madam,</p>' +
+   '<p>With reference to the above, I am to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', for surrender of the Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(val('ofcCardHolder') || '__________') + ', in which ' + ofcEsc(ofcSsBen()) + ' is included as beneficiary.</p>' +
+   '<p>It is reported by the school authority that the employee had drawn Medical Allowance for the period ' + ofcEsc(s.periodLong) + ' amounting to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only), which was inadmissible on account of the said card, and that the entire amount has been refunded by ' + ofcPayRef() + '. The proof of deposit has been enclosed with the application.</p>' +
+   '<p>As the over-drawn amount has been fully refunded and the employee is willing to surrender the card in terms of the above Order, the request is <b>recommended for acceptance</b>. You are requested to kindly accept the surrender, deactivate the card / the name of the beneficiary and issue an acknowledgement / proof of surrender to the employee, so that he/she may comply with the Order within the stipulated date (31.10.2026).</p>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcStrip(ofcDiName())).toUpperCase() + '</b></div>' +
+   '<div class="ofc-enc">Enclosures: As above. &nbsp;Copy to: (1) ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcSchool()) + '. (2) The ' + ofcEsc(ofcHoi()) + ', ' + ofcEsc(ofcSchool()) + ', for information.</div>');
+}
+
+// ------------------------------- print --------------------------------------------------
+function ofcPrintSelected(){
+  const s = ofcSummary();
+  if (!s.n) { alert('No over-drawn months yet. Generate the month-wise rows first (Long-Period generator or Auto-Fetch).'); return; }
+  const c = ofcCase();
+  const docs = OFC_DOCS.filter(d => d.cases.includes(c) && document.getElementById('ofcDoc_' + d.id) && document.getElementById('ofcDoc_' + d.id).checked);
+  if (!docs.length) { alert('Tick at least one document.'); return; }
+  setPrintOrientation('portrait');
+  const banner = '<div class="ofc-noprint" style="background:#ecfeff;border:1px solid #67e8f9;color:#164e63;padding:8px 12px;margin:0 0 10px;font:13px Arial,sans-serif;">&#9998; Click on any text in the pages below to edit it before printing. Pages: ' + docs.length + '.</div>';
+  document.getElementById('printArea').innerHTML = banner + docs.map(d => window[d.fn]()).join('');
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+// keep things in step after a saved record is loaded
+(function(){
+  ofcInitPresetSelect(); ofcBuildDocList(); ofcOnCaseChange();
+  if (typeof applyFormFields === 'function') {
+    const _orig = applyFormFields;
+    applyFormFields = function(d){ _orig(d); try { ofcOnCaseChange(); } catch(e) {} };
+  }
+  if (typeof renderOdTable === 'function') {
+    const _r = renderOdTable;
+    renderOdTable = function(){ const r = _r.apply(this, arguments); try { ofcRefreshDocList(); } catch(e) {} return r; };
+  }
+})();
 </script>
 
 </body>
