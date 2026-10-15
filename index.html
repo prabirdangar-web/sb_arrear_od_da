@@ -341,6 +341,9 @@
     .ofc-tbl td, .ofc-tbl th { border:1px solid #000; padding:3px 7px; font-size:11pt; vertical-align:top; text-align:left !important; }
     .ofc-sig { margin-top:14px; font-size:11.5pt; line-height:1.4; page-break-inside:avoid; break-inside:avoid; }
     .ofc-enc { margin-top:8px; font-size:10pt; }
+    .ofc-ul { margin:6px 0 6px 20px; padding:0; }
+    .ofc-ul li { margin:5px 0; }
+    .ofc-line { display:inline-block; min-width:210px; border-bottom:1px solid #000; font-weight:bold; padding:0 4px; }
     .ofc-ol { margin:6px 0 6px 22px; padding:0; }
     .ofc-ol li { margin:3px 0; }
     @media print {
@@ -1488,8 +1491,9 @@
             <div class="fg wide"><label>By Whom Tendered &ndash; Name &amp; Address <em>(auto, editable)</em></label>
                 <input id="chlTenderedBy" value="HM / Secy, TALDANGRA FULMATI HIGH SCHOOL(H.S.), P.O.-TALDANGRA, Block-TALDANGRA, Dist.-BANKURA" onchange="refreshAllOverdrawn()">
             </div>
-            <div class="fg wide"><label>Departmental Officer on whose behalf money is deposited <em>(auto, editable)</em></label>
-                <input id="chlDeptOfficer" value="D.I. of Schools (S.E.), Bankura" onchange="refreshAllOverdrawn()">
+            <datalist id="chlDeptList"><option value="D.I. of Schools (S.E.), Bankura"><option value="A.I. of Schools (S.E.), Khatra Circle, Bankura"></datalist>
+            <div class="fg wide"><label>Departmental Officer (item 7) &mdash; D.I. / A.I. must sign before deposit <em>(auto, editable)</em></label>
+                <input id="chlDeptOfficer" list="chlDeptList" value="D.I. of Schools (S.E.), Bankura" onchange="refreshAllOverdrawn()">
             </div>
         </div>
         <div class="output-box" id="chlAmountBox" style="margin-top:6px;">Amount: Rs. 0 &nbsp;|&nbsp; In Words: Zero Only</div>
@@ -1534,6 +1538,8 @@
             <div class="fg"><label>Application Date</label><input type="date" id="ofcAppDate"></div>
             <div class="fg"><label>Memo No. <em>(H.O.I. report / order)</em></label><input id="ofcMemoNo" placeholder="blank = line left for pen"></div>
             <div class="fg"><label>Memo Date</label><input type="date" id="ofcMemoDate"></div>
+            <div class="fg"><label>Applicant Is the H.O.I. Himself / Herself?</label>
+                <select id="ofcSelfHoi" onchange="ofcRefreshDocList()"><option value="N" selected>No</option><option value="Y">Yes &mdash; route via D.I./A.I. &amp; Administrator</option></select></div>
         </div>
         <div class="fg wide" style="margin-bottom:10px;"><label>Employee&rsquo;s Statement of Cause <em>(auto-written from the reason dropdown &mdash; editable. Tags {HIS} {HE} {REL} {HOLDER} {PERIOD} {N} fill themselves in)</em></label>
             <textarea id="ofcCause" rows="3" onchange="ofcRefreshDocList()">the excess drawal occurred unintentionally due to lack of awareness regarding the admissibility conditions and without any deliberate intention to claim an inadmissible benefit.</textarea></div>
@@ -1542,7 +1548,9 @@
         <div id="ofcSsBlock" style="display:none; border:1px solid #67e8f9; border-radius:6px; padding:10px; margin-bottom:10px; background:#f0fdfa;">
             <div style="font-weight:bold; color:#0f766e; margin-bottom:6px;">Swasthya Sathi Card &mdash; Beneficiary &amp; Surrender (after payment of the over-drawn amount)</div>
             <div class="grid">
-                <div class="fg"><label>Card Holder&rsquo;s Name</label><input id="ofcCardHolder" placeholder="e.g. Smt. Mamata Rakshit"></div>
+                <div class="fg"><label>Employee Is</label>
+                    <select id="ofcHolderType" onchange="ofcOnHolderChange()"><option value="BEN">Beneficiary under card of a family member</option><option value="SELF">Card holder himself / herself</option></select></div>
+                <div class="fg"><label>Card Holder&rsquo;s Name <em>(ignored if self)</em></label><input id="ofcCardHolder" placeholder="e.g. Smt. Mamata Rakshit"></div>
                 <div class="fg"><label>Relation of Card Holder to Employee</label>
                     <select id="ofcCardRel"><option>wife</option><option>husband</option><option>father</option><option>mother</option><option>son</option><option>daughter</option><option>himself / herself (self card)</option></select></div>
                 <div class="fg"><label>Swasthya Sathi Card No. / URN</label><input id="ofcCardNo"></div>
@@ -1562,13 +1570,30 @@
                 <div class="fg"><label>Challan / Treasury Receipt No.</label><input id="ofcChallanNo"></div>
                 <div class="fg"><label>Date of Deposit</label><input type="date" id="ofcPayDate"></div>
                 <div class="fg"><label>Surrender Acknowledgement No. / Date <em>(if available)</em></label><input id="ofcSurrAck"></div>
+                <div class="fg"><label>Card Issue Date <em>(M.A. over-drawal starts this month)</em></label><input type="date" id="ofcCardIssue"></div>
+                <div class="fg"><label>M.A. Drawn Up To <em>(last month, blank = month before &ldquo;Allowance Stopped From&rdquo;)</em></label><input type="month" id="ofcMaTo"></div>
+                <div class="fg"><label>Aadhaar No. of Employee</label><input id="ofcAadhaar" maxlength="14"></div>
+                <div class="fg"><label>HRMS ID</label><input id="ofcHrms"></div>
+                <div class="fg"><label>GPF A/C No.</label><input id="ofcGpf"></div>
+                <div class="fg"><label>Mobile No.</label><input id="ofcMobile"></div>
+                <div class="fg"><label>Ayushman Bharat / ABHA ID <em>(if any)</em></label><input id="ofcAbha"></div>
+                <div class="fg wide"><label>Card Holder / Family Address <em>(for Form D)</em></label><input id="ofcCardAddr"></div>
+            </div>
+            <div style="font-weight:bold;font-size:0.82rem;margin:2px 0 4px;">Dependent Beneficiaries Whose Card Is Surrendered <em style="font-weight:normal;color:#64748b;">(Annexure-A &amp; Form D table; leave blank = employee + card holder are filled automatically)</em></div>
+            <div class="grid">
+                <div class="fg"><label>1. Name</label><input id="ofcB1n"></div><div class="fg"><label>Relationship</label><input id="ofcB1r"></div><div class="fg"><label>Aadhaar</label><input id="ofcB1a"></div>
+                <div class="fg"><label>2. Name</label><input id="ofcB2n"></div><div class="fg"><label>Relationship</label><input id="ofcB2r"></div><div class="fg"><label>Aadhaar</label><input id="ofcB2a"></div>
+                <div class="fg"><label>3. Name</label><input id="ofcB3n"></div><div class="fg"><label>Relationship</label><input id="ofcB3r"></div><div class="fg"><label>Aadhaar</label><input id="ofcB3a"></div>
+            </div>
+            <div class="btn-group" style="margin:4px 0 8px;">
+                <button type="button" class="btn-sync" onclick="ofcGenMaFromCard()">&#9889; Auto-Generate M.A. Over-Drawal from Card Issue Date</button>
             </div>
             <div style="font-size:0.78rem; color:#115e59; line-height:1.5; margin-top:6px;">
                 <b>Web-verified rules (Finance Dept., Medical Cell, Order No. 92-F(MED)WB dt. 09.10.2026):</b>
                 all employees / pensioners and their beneficiaries holding Swasthya Sathi / Ayushman Bharat cards while enrolled under WBHS must surrender them to the <u>respective issuing authority</u>;
                 a declaration in <b>Annexure-A</b> with proof / acknowledgement of surrender goes to the <u>Head of Office</u>; last date <b>31.10.2026</b>.
                 District Swasthya Sathi sections work under the District Magistrate&rsquo;s office; portal <a href="https://swasthyasathi.gov.in" target="_blank" rel="noopener">swasthyasathi.gov.in</a>, helpline 1800-345-5384.
-                The official Annexure-A could not be downloaded, so the declaration printed here follows its stated content &mdash; <b>compare with the prescribed Annexure-A and the D.M. office&rsquo;s counter before submitting.</b>
+                Annexure-A is printed exactly as in the Order you uploaded. <b>Form D</b> (name deletion after receiving the card) is a Swasthya Sathi Cell form; its official layout could not be downloaded, so the page printed here carries the same particulars &mdash; <b>copy onto the official Form D if the D.M. office insists.</b>
             </div>
         </div>
 
@@ -7042,8 +7067,11 @@ window.addEventListener('DOMContentLoaded', function () {
 const OFC_PRESETS = {
   CUSTOM:   { label:'\u2014 Custom / keep the text as typed \u2014' },
   MA_SS:    { label:'M.A. drawn while enrolled as beneficiary under Swasthya Sathi card', grp:'MA_SS', la:'MA', item:'Medical Allowance (M.A.)',
-              reason:'excess drawal of Medical Allowance (M.A.) {RATE}from {PERIOD} ({N} months) as {HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, which made the allowance inadmissible.',
-              cause:'{HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, {HOLDER}. Due to lack of awareness regarding the admissibility conditions, Medical Allowance continued to be drawn inadvertently during the aforesaid period.' },
+              reason:'excess drawal of Medical Allowance (M.A.) {RATE}from {PERIOD} ({N} months) as {HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}{CARDISS}, which made the allowance inadmissible.',
+              cause:'{HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, {HOLDER}{CARDISS}. Due to lack of awareness regarding the admissibility conditions, Medical Allowance continued to be drawn inadvertently during the aforesaid period.' },
+  MA_SS_SELF:{ label:'M.A. drawn while holding a Swasthya Sathi card in own name (employee is card holder)', grp:'MA_SS', la:'MA', item:'Medical Allowance (M.A.)',
+              reason:'excess drawal of Medical Allowance (M.A.) {RATE}from {PERIOD} ({N} months) as {HE} held a Swasthya Sathi card in {HIS} own name{CARDISS}, which made the allowance inadmissible.',
+              cause:'{HE} held a Swasthya Sathi card (No. {CARDNO}) in {HIS} own name{CARDISS}. Due to lack of awareness regarding the admissibility conditions, Medical Allowance continued to be drawn inadvertently during the aforesaid period.' },
   MA_SP:    { label:'M.A. drawn although also drawn / covered elsewhere (spouse / other scheme)', grp:'SAL', la:'MA', item:'Medical Allowance (M.A.)',
               reason:'excess drawal of Medical Allowance (M.A.) {RATE}from {PERIOD} ({N} months), the allowance being inadmissible as the medical benefit was also available to {HIM} through {HIS} spouse / another health scheme.',
               cause:'Medical Allowance continued to be drawn inadvertently during the aforesaid period, as the medical benefit was also available through {HIS} spouse / another health scheme, due to lack of awareness regarding the admissibility conditions.' },
@@ -7082,16 +7110,19 @@ const OFC_SSAUTH = {
   STATE: 'The Swasthya Sathi Samiti, Department of Health & Family Welfare, Government of West Bengal, Kolkata'
 };
 const OFC_DOCS = [
-  { id:'app',     cases:['MA_SS','HRA','SAL'], stage:'Before payment', label:'Application of the employee (prayer for permission & arrangement of refund)', fn:'ofcDocApp' },
-  { id:'hoi',     cases:['MA_SS','HRA','SAL'], stage:'Before payment', label:'Report of the Head of the Institution', fn:'ofcDocHoi' },
-  { id:'ord',     cases:['MA_SS','HRA','SAL'], stage:'Before payment', label:'Office Order (by the Administrator)', fn:'ofcDocOrder' },
-  { id:'hradecl', cases:['HRA'],               stage:'Before payment', label:'Declaration by the employee regarding H.R.A.', fn:'ofcDocHraDecl' },
-  { id:'hracert', cases:['HRA'],               stage:'Before payment', label:'Certificate of the Head of the Institution regarding H.R.A.', fn:'ofcDocHraCert' },
-  { id:'salnote', cases:['SAL'],               stage:'Before payment', label:'Salary Over-Drawal Issue Note (editable statement of facts)', fn:'ofcDocSalNote' },
-  { id:'ssapp',   cases:['MA_SS'],             stage:'After payment',  label:'Employee\u2019s application for surrender of Swasthya Sathi card', fn:'ofcDocSsApp' },
-  { id:'ssdecl',  cases:['MA_SS'],             stage:'After payment',  label:'Declaration of employee (Annexure-A type, Fin. Dept. Order 92-F(MED)WB)', fn:'ofcDocSsDecl' },
-  { id:'sshoi',   cases:['MA_SS'],             stage:'After payment',  label:'H.O.I. forwarding to D.I. (S.E.) after refund', fn:'ofcDocSsHoi' },
-  { id:'ssdi',    cases:['MA_SS'],             stage:'After payment',  label:'D.I. (S.E.) recommendation \u2014 accept card surrender', fn:'ofcDocSsDi' }
+  { id:'app',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Application of the employee (prayer for permission & arrangement of refund)', fn:'ofcDocApp' },
+  { id:'hoi',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Report of the Head of the Institution', fn:'ofcDocHoi' },
+  { id:'ord',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Office Order (by the Administrator)', fn:'ofcDocOrder' },
+  { id:'trsig',   cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Request to D.I. / A.I. (S.E.) to sign T.R. Form No. 7 (item 7) before deposit', fn:'ofcDocTrSig' },
+  { id:'hradecl', cases:['HRA'],               stage:'Before deposit', label:'Declaration by the employee regarding H.R.A.', fn:'ofcDocHraDecl' },
+  { id:'hracert', cases:['HRA'],               stage:'Before deposit', label:'Certificate of the Head of the Institution regarding H.R.A.', fn:'ofcDocHraCert' },
+  { id:'salnote', cases:['SAL'],               stage:'Before deposit', label:'Salary Over-Drawal Issue Note (editable statement of facts)', fn:'ofcDocSalNote' },
+  { id:'ssapp',   cases:['MA_SS'],             stage:'After deposit',  label:'Employee\u2019s application for surrender of Swasthya Sathi card', fn:'ofcDocSsApp' },
+  { id:'ssformd', cases:['MA_SS'],             stage:'After deposit',  label:'Swasthya Sathi Form D \u2014 name deletion / surrender (auto-filled)', fn:'ofcDocSsFormD' },
+  { id:'sshoi',   cases:['MA_SS'],             stage:'After deposit',  label:'H.O.I. forwarding to D.I. (S.E.) \u2014 accept / consider surrender', fn:'ofcDocSsHoi' },
+  { id:'ssdi',    cases:['MA_SS'],             stage:'After deposit',  label:'D.I. (S.E.) recommendation to higher authority \u2014 accept card surrender', fn:'ofcDocSsDi' },
+  { id:'ssdecl',  cases:['MA_SS'],             stage:'After surrender', label:'Annexure-A declaration of surrender (exact format of Order 92-F(MED)WB)', fn:'ofcDocSsDecl' },
+  { id:'ssddo',   cases:['MA_SS'],             stage:'After surrender', label:'Declaration to DDO (D.I.): refunded, card surrendered \u2014 regularise the matter', fn:'ofcDocSsDdo' }
 ];
 
 // ------------------------------- helpers -------------------------------------------
@@ -7146,14 +7177,48 @@ function ofcResolve(text, mode){
     HIS:  first ? 'my' : (f ? 'her' : 'his'),
     HIM:  first ? 'me' : (f ? 'her' : 'him'),
     NAME: ofcPerson(), DESIG: ofcDesig(),
-    REL:  val('ofcCardRel') || 'spouse',
-    HOLDER: (val('ofcCardHolder') || '').trim() || '(card holder)',
+    REL:  ofcSelfCard() ? 'self' : (val('ofcCardRel') || 'spouse'),
+    HOLDER: ofcHolderName(),
+    CARDISS: val('ofcCardIssue') ? ' (card issued on ' + fmtDMY(val('ofcCardIssue')) + ')' : '',
+    CARDNO: (val('ofcCardNo') || '').trim() || '________',
     PERIOD: s.periodShort, N: String(s.n),
     RATE: s.single ? '@ Rs.' + s.single.toLocaleString('en-IN') + '/- p.m. ' : '',
     AMT: ofcMoney(s.total)
   };
   return String(text || '').replace(/\{([A-Z]+)\}/g, (m, k) => (k in map) ? map[k] : m);
 }
+function ofcSelfCard(){ return val('ofcHolderType') === 'SELF'; }
+function ofcHolderName(){ return ofcSelfCard() ? ofcPerson() : ((val('ofcCardHolder') || '').trim() || '(card holder)'); }
+function ofcSelf(){ return val('ofcSelfHoi') === 'Y'; }
+function ofcFwdTitle(){ return ofcSelf() ? ofcStrip(ofcAdmin()) : ofcHoi(); }
+function ofcFwdSig(){ return ofcSelf() ? ofcStrip(ofcAdmin()).toUpperCase() : ofcHoiSig(); }
+function ofcThrough(){ return ofcSelf() ? 'The Assistant Inspector of Schools / District Inspector of Schools (S.E.), ' + ofcDistrict() : 'The ' + ofcHoi(); }
+function ofcDeptOfficer(){ return val('chlDeptOfficer') || ofcDiName(); }
+function ofcOnHolderChange(){ ofcApplyReasonPreset(true); ofcRefreshDocList(); }
+function ofcMonthMinus1(m){ const p = m.split('-').map(Number); let y = p[0], mm = p[1] - 1; if (mm < 1) { mm = 12; y--; } return y + '-' + String(mm).padStart(2, '0'); }
+function ofcGenMaFromCard(){
+  const iss = val('ofcCardIssue'); if (!iss) { alert('Enter the Card Issue Date first.'); return; }
+  let to = val('ofcMaTo'); if (!to && val('ofcStoppedFrom')) to = ofcMonthMinus1(val('ofcStoppedFrom'));
+  if (!to) { alert('Enter "M.A. Drawn Up To" (last month) or "Allowance Stopped From".'); return; }
+  const from = iss.slice(0, 7); if (from > to) { alert('Card issue month is later than the last month of M.A.'); return; }
+  document.getElementById('ofcMaTo').value = to;
+  document.getElementById('laType').value = 'MA'; if (typeof laToggleGroups === 'function') laToggleGroups();
+  document.getElementById('laFrom').value = from; document.getElementById('laTo').value = to;
+  document.getElementById('laApply').value = 'replace'; document.getElementById('laMaAdmMode').value = 'nil'; document.getElementById('laMaDrMode').value = 'auto';
+  const k = ofcSelfCard() ? 'MA_SS_SELF' : 'MA_SS';
+  document.getElementById('reasonPreset').value = k;
+  ofcApplyReasonPreset();
+  generateLongAllowanceOverdrawn();
+}
+function ofcBenRows(){
+  const rows = [];
+  [1, 2, 3].forEach(i => { const n = (val('ofcB' + i + 'n') || '').trim(); if (n) rows.push({ n: n, r: val('ofcB' + i + 'r'), a: val('ofcB' + i + 'a') }); });
+  if (rows.length) return rows;
+  rows.push({ n: (val('odEmpName') || val('staffName') || '').toUpperCase(), r: 'Self (employee)', a: val('ofcAadhaar') });
+  if (!ofcSelfCard() && (val('ofcCardHolder') || '').trim()) rows.push({ n: val('ofcCardHolder').trim().toUpperCase(), r: val('ofcCardRel') + ' (card holder)', a: '' });
+  return rows;
+}
+function ofcFill(v, w){ return '<span class="ofc-line" style="min-width:' + (w || 210) + 'px;">' + (v ? ofcEsc(v) : '&nbsp;') + '</span>'; }
 function ofcItem(){
   const p = OFC_PRESETS[val('reasonPreset')];
   if (p && p.item) return p.item;
@@ -7184,6 +7249,7 @@ function ofcApplyReasonPreset(silent){
   if (silent !== true) {                       // user changed the dropdown => also switch case, cause text and generator type
     const ct = document.getElementById('ofcCaseType'); if (ct) ct.value = p.grp;
     const cz = document.getElementById('ofcCause'); if (cz) cz.value = p.cause;
+    const ht = document.getElementById('ofcHolderType'); if (ht && (k === 'MA_SS' || k === 'MA_SS_SELF')) ht.value = (k === 'MA_SS_SELF') ? 'SELF' : 'BEN';
     if (p.la && document.getElementById('laType')) { document.getElementById('laType').value = p.la; if (typeof laToggleGroups === 'function') laToggleGroups(); }
   }
   ofcOnCaseChange();
@@ -7218,7 +7284,7 @@ function ofcBuildDocList(){
     const lab = document.createElement('label');
     lab.id = 'ofcDocRow_' + d.id; lab.style.cssText = 'display:flex;gap:6px;align-items:flex-start;cursor:pointer;';
     lab.innerHTML = '<input type="checkbox" id="ofcDoc_' + d.id + '" checked style="width:auto;margin-top:3px;"><span>' + d.label +
-                    ' <em style="color:' + (d.stage === 'After payment' ? '#b45309' : '#64748b') + ';font-size:0.74rem;">[' + d.stage + ']</em></span>';
+                    ' <em style="color:' + (/^After/.test(d.stage) ? '#b45309' : '#64748b') + ';font-size:0.74rem;">[' + d.stage + ']</em></span>';
     box.appendChild(lab);
   });
 }
@@ -7271,7 +7337,7 @@ function ofcDocApp(){
   const s = ofcSummary(), item = ofcItem(), amt = ofcMoney(s.total);
   return ofcPage(
    '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(ofcAdmin()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '<br>' + ofcEsc(val('schoolAddress')) +
-   '<br><b>Through: The ' + ofcEsc(ofcHoi()) + '</b></div>' +
+   '<br><b>Through: ' + ofcEsc(ofcThrough()) + '</b></div>' +
    '<p><b>Subject: Prayer for permission and necessary arrangement for refund of excess ' + ofcEsc(item) + ' amounting to ' + amt + ' in respect of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + '.</b></p>' +
    '<p>Respected Sir,</p>' +
    '<p>With due respect, I beg to submit that ' + ofcTriggerPhrase() + ' me, ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, regarding excess drawal of ' + ofcEsc(item) +
@@ -7284,7 +7350,7 @@ function ofcDocApp(){
    '<p>I shall remain grateful for your kind consideration and necessary action.</p>' +
    '<div style="margin-top:6px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + '<br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
-   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcHoi()).toUpperCase() + '</b></div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b></div>' +
    '<div class="ofc-enc">Enclosure: Month-wise calculation sheet.</div>');
 }
 // 2. HOI REPORT (third person)
@@ -7292,8 +7358,8 @@ function ofcDocHoi(){
   const s = ofcSummary(), item = ofcItem(), amt = ofcMoney(s.total);
   const rate = s.single ? ofcMoney(s.single) + ' per month' : 'As per month-wise calculation sheet';
   return ofcPage(ofcHead() + ofcMemo() +
-   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:8px 0;">REPORT OF THE HEAD OF THE INSTITUTION</div>' +
-   '<div>To<br><b>' + ofcEsc(ofcAdmin()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:8px 0;">' + (ofcSelf() ? 'REPORT OF THE ADMINISTRATOR (HEAD OF THE INSTITUTION BEING THE APPLICANT)' : 'REPORT OF THE HEAD OF THE INSTITUTION') + '</div>' +
+   '<div>To<br><b>' + ofcEsc(ofcSelf() ? ofcDiName() : ofcAdmin()) + '</b>' + (ofcSelf() ? '' : '<br>' + ofcEsc(ofcSchool()).toUpperCase()) + '</div>' +
    '<p><b>Subject: Report regarding excess drawal and proposed refund of ' + ofcEsc(item) + ' by ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', for compliance with ' + ofcPurposeTxt() + '.</b></p>' +
    '<p>With reference to the ' + ofcPurposeTxt() + ' in respect of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this institution, it is reported that ' + ofcTriggerPhrase() + ' the said employee, relating to the drawal of ' + ofcEsc(item) +
    ' for the period from ' + ofcEsc(s.periodLong) + ', covering ' + s.n + ' month' + (s.n === 1 ? '' : 's') + '.</p>' +
@@ -7304,7 +7370,7 @@ function ofcDocHoi(){
    '<tr><td><b>Total excess amount</b></td><td><b>' + amt + ' (Rupees ' + numberToWords(s.total) + ' only)</b></td></tr></table>' +
    '<p>The matter is submitted for kind consideration and necessary orders regarding acceptance/deposit of the refund in the prescribed manner and issuance of the requisite compliance report to the competent authority for removal of the ' + ofcPurposeTxt() + '.</p>' +
    '<p>Submitted for necessary action.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Application of the concerned employee. (2) Month-wise calculation sheet.</div>');
 }
 // 3. OFFICE ORDER
@@ -7317,11 +7383,11 @@ function ofcDocOrder(){
    '<p>And whereas the over-drawal is stated to be due to: ' + ofcEsc(val('reasonText')) + '</p>' +
    '<p>And whereas the concerned employee has reported that ' + ofcEsc(ofcCauseInline('third')) + '</p>' +
    '<p>And whereas the amount has been calculated as ' + (s.single ? ofcMoney(s.single) + ' per month for ' + s.n + ' months' : 'per the month-wise calculation sheet for ' + s.n + ' months') + ', aggregating to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only);</p>' +
-   '<p>Now, therefore, upon consideration of the report of the ' + ofcEsc(ofcHoi()) + ' and the application of the concerned employee, the case is hereby directed to be processed for refund/deposit of the said amount of ' + amt + ' in the prescribed manner, subject to applicable rules and directions of the competent authority.</p>' +
-   '<p>The ' + ofcEsc(ofcHoi()) + ' is directed to facilitate the necessary formalities, obtain the prescribed treasury challan/receipt or other valid proof of deposit, and submit the compliance documents to the competent authority, including the Assistant Inspector of Schools / ' + ofcEsc(ofcStrip(ofcDiName())) + ', as applicable, for removal of the objection and further processing of the case.</p>' +
+   '<p>Now, therefore, upon consideration of the report of the ' + ofcEsc(ofcFwdTitle()) + ' and the application of the concerned employee, the case is hereby directed to be processed for refund/deposit of the said amount of ' + amt + ' in the prescribed manner, subject to applicable rules and directions of the competent authority.</p>' +
+   '<p>' + (ofcSelf() ? 'The concerned Head of the Institution' : 'The ' + ofcEsc(ofcFwdTitle())) + ' is directed to facilitate the necessary formalities, obtain the prescribed treasury challan/receipt or other valid proof of deposit, and submit the compliance documents to the competent authority, including the Assistant Inspector of Schools / ' + ofcEsc(ofcStrip(ofcDiName())) + ', as applicable, for removal of the objection and further processing of the case.</p>' +
    '<p>This order shall not be treated as a substitute for any sanction or approval required from the competent authority under the applicable rules.</p>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">By Order of ' + ofcEsc(ofcAdmin().replace(/^The/, 'the')) + '<br><br>Signature: ______________________________<br><b>' + ofcEsc(adm).toUpperCase() + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
-   '<div class="ofc-sig" style="margin-top:10px;">Forwarded / Countersigned by:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcHoi()).toUpperCase() + '</b></div>');
+   (ofcSelf() ? '' : '<div class="ofc-sig" style="margin-top:10px;">Forwarded / Countersigned by:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b></div>'));
 }
 // 4. HRA DECLARATION (employee)
 function ofcDocHraDecl(){
@@ -7352,7 +7418,7 @@ function ofcDocHraCert(){
    '<li>Reason for over-drawal: ' + ofcEsc(val('reasonText')) + '</li>' +
    '<li>The employee has undertaken to refund the entire over-drawn amount by T.R. Form No. 7 challan, and the particulars of deposit will be furnished to the competent authority for compliance with the ' + ofcPurposeTxt() + '.</li>' +
    '<li>The over-drawal has been noted in the over-drawal register / service book of the employee.</li></ol>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Declaration of the employee. (2) Month-wise calculation sheet.</div>');
 }
 // 6. SALARY OD ISSUE NOTE (editable)
@@ -7369,7 +7435,7 @@ function ofcDocSalNote(){
    '<p><b>3. Calculation:</b> The pay and allowances actually drawn have been compared month by month with the admissible pay and allowances as per the pay-revision rules applicable to each month, and the difference has been worked out in the enclosed month-wise calculation sheet.</p>' +
    '<p><b>4. Proposed action:</b> The employee has agreed to refund the entire amount of ' + amt + ' in lump sum by T.R. Form No. 7 challan (' + ofcEsc(val('chlTreasury') || 'Treasury') + ' Treasury). The proof of deposit will be furnished to the competent authority for compliance with the ' + ofcPurposeTxt() + '.</p>' +
    '<p><b>5. Preventive measure:</b> In future, the pay bills will be prepared after verification of the admissible pay and allowances against the service book and the leave / LWP register, so that such over-drawal does not recur.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosure: Month-wise calculation sheet.</div>');
 }
 // 7. SS - EMPLOYEE APPLICATION FOR CARD SURRENDER
@@ -7377,41 +7443,16 @@ function ofcSsBen(){ return (val('ofcBenName') || '').trim() || ofcPerson(); }
 function ofcDocSsApp(){
   const s = ofcSummary(), amt = ofcMoney(s.total);
   return ofcPage(
-   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b><br><b>Through:</b> (1) The ' + ofcEsc(ofcHoi()) + ', ' + ofcEsc(ofcSchool()) + '; (2) ' + ofcEsc(ofcDiName()) + '</div>' +
-   '<p><b>Subject: Prayer for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(val('ofcCardHolder') || '__________') + ', in which my name / the name of the beneficiary is included.</b></p>' +
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b><br><b>Through:</b> (1) The ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + '; (2) ' + ofcEsc(ofcDiName()) + '</div>' +
+   '<p><b>Subject: Prayer for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(ofcHolderName()) + ', in which my name / the name of the beneficiary is included.</b></p>' +
    '<p>Respected Sir,</p>' +
-   '<p>With due respect, I, ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', beg to state that ' + ofcEsc(ofcResolve('{HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, {HOLDER} (Card No. / URN: ', 'first')) + ofcB(val('ofcCardNo'), 14) + ').</p>' +
+   '<p>With due respect, I, ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', beg to state that ' + ofcEsc(ofcSelfCard() ? 'I hold a Swasthya Sathi card in my own name (Card No. / URN: ' : ofcResolve('{HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, {HOLDER} (Card No. / URN: ', 'first')) + ofcB(val('ofcCardNo'), 14) + ').</p>' +
    '<p>I am an employee covered under the West Bengal Health Scheme (WBHS)' + (val('ofcWbhsNo') ? ' (Enrolment Certificate No. ' + ofcEsc(val('ofcWbhsNo')) + ')' : '') + '. In view of the Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026 directing mandatory surrender of Swasthya Sathi / Ayushman Bharat cards by employees and their beneficiaries, I request that the surrender of the above card, in respect of <b>' + ofcEsc(ofcSsBen()) + '</b>, may kindly be accepted and the card / the name of the beneficiary may be deactivated.</p>' +
    '<p>I further state that the Medical Allowance drawn by me for the period ' + ofcEsc(s.periodLong) + ' amounting to ' + amt + ' has been refunded by deposit through ' + ofcPayRef() + ', as per the order of the competent authority, and the proof of deposit is enclosed.</p>' +
    '<p>I therefore pray that the surrender may kindly be accepted and an acknowledgement / proof of surrender may be issued to me so that the same can be submitted to the Head of Office along with my declaration within the stipulated date.</p>' +
    '<div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
-   '<div class="ofc-enc">Enclosures: (1) Copy of Swasthya Sathi card / URN details. (2) Copy of T.R. Form No. 7 challan / treasury receipt. (3) Copy of Office Order. (4) Declaration (Annexure-A type). (5) Recommendation of D.I. (S.E.).</div>');
-}
-// 8. SS - ANNEXURE-A TYPE DECLARATION
-function ofcDocSsDecl(){
-  return ofcPage(ofcHead() +
-   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:10px 0 2px;">DECLARATION</div>' +
-   '<div class="ofc-hd" style="font-size:10.5pt;margin-bottom:8px;">(Surrender of Swasthya Sathi / Ayushman Bharat Card &mdash; Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026)</div>' +
-   '<p>I, <b>' + ofcEsc(ofcPerson()) + '</b>, ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', hereby declare that:</p>' +
-   '<table class="ofc-tbl">' +
-   '<tr><td style="width:46%;">Name &amp; designation of the employee</td><td>' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + '</td></tr>' +
-   '<tr><td>Office / Head of Office</td><td>' + ofcEsc(ofcSchool()) + ' / ' + ofcEsc(ofcHoi()) + '</td></tr>' +
-   '<tr><td>WBHS Enrolment Certificate No.</td><td>' + ofcB(val('ofcWbhsNo'), 22) + '</td></tr>' +
-   '<tr><td>Swasthya Sathi / Ayushman Bharat card holder</td><td>' + ofcEsc(val('ofcCardHolder') || '____________') + ' (' + ofcEsc(val('ofcCardRel') || '') + ')</td></tr>' +
-   '<tr><td>Card No. / URN</td><td>' + ofcB(val('ofcCardNo'), 22) + '</td></tr>' +
-   '<tr><td>Name(s) of beneficiary / beneficiaries whose card is surrendered</td><td>' + ofcEsc(ofcSsBen()) + '</td></tr>' +
-   '<tr><td>Surrendered to (issuing authority)</td><td>' + ofcEsc(val('ofcSsAuth')) + '</td></tr>' +
-   '<tr><td>Date of surrender / Acknowledgement No.</td><td>' + ofcB(val('ofcSurrAck'), 28) + '</td></tr></table>' +
-   '<ol class="ofc-ol">' +
-   '<li>I / my beneficiaries held or hold the above card(s) while being enrolled under the West Bengal Health Scheme (WBHS).</li>' +
-   '<li>I have surrendered the above card(s) to the issuing authority, and the proof / acknowledgement of surrender is enclosed.</li>' +
-   '<li>I shall not use the above card(s) for any treatment hereafter.</li>' +
-   '<li>The above statements are true to the best of my knowledge and belief. I am aware that non-compliance may result in suspension of medical facilities under WBHS and disciplinary action under the service rules.</li></ol>' +
-   '<div style="margin-top:14px;display:flex;justify-content:space-between;"><div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
-   '<div style="text-align:center;">Signature of the Employee: ______________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b></div></div>' +
-   '<div class="ofc-sig" style="margin-top:12px;">Received &amp; verified (proof of surrender checked; entered in compliance log):<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcHoi()).toUpperCase() + '</b></div>' +
-   '<div class="ofc-enc">Note: this page follows the content stated in the Order. Where the prescribed Annexure-A format is available, copy the entries onto it.</div>');
+   '<div class="ofc-enc">Enclosures: (1) Copy of Swasthya Sathi card / URN details. (2) Copy of T.R. Form No. 7 challan / treasury receipt. (3) Copy of Office Order. (4) Form D and Annexure-A declaration. (5) Recommendation of D.I. (S.E.).</div>');
 }
 // 9. SS - HOI FORWARDING TO DI (after refund)
 function ofcDocSsHoi(){
@@ -7420,10 +7461,10 @@ function ofcDocSsHoi(){
    '<div>To<br><b>' + ofcEsc(ofcDiName()) + '</b></div>' +
    '<p><b>Subject: Forwarding of application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', for surrender of Swasthya Sathi card after refund of excess Medical Allowance &mdash; request for recommendation.</b></p>' +
    '<p>Sir,</p>' +
-   '<p>I have the honour to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(val('ofcCardHolder') || '__________') + ', in which the name of the employee / beneficiary is included.</p>' +
+   '<p>I have the honour to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(ofcHolderName()) + ', in which the name of the employee / beneficiary is included.</p>' +
    '<p>It is reported that Medical Allowance for the period ' + ofcEsc(s.periodLong) + ' (' + s.n + ' months), amounting to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only), had been drawn although the allowance was inadmissible on account of the above card. The employee has refunded the entire amount by ' + ofcPayRef() + ', as directed in the Office Order, and the proof of deposit is enclosed. Medical Allowance has been stopped ' + (val('ofcStoppedFrom') ? 'with effect from ' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) : 'in the pay bill') + '.</p>' +
    '<p>In view of the Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026, the matter is submitted for kind recommendation to the authority concerned for acceptance of the surrender of the card at an early date, positively before 31.10.2026.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcHoiSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Application for surrender. (2) Declaration. (3) Copy of challan / treasury receipt. (4) Office Order and H.O.I. report. (5) Calculation sheet.</div>');
 }
 // 10. SS - DI RECOMMENDATION
@@ -7434,13 +7475,122 @@ function ofcDocSsDi(){
    '<div class="ofc-hd" style="font-size:10.5pt;margin-bottom:6px;">GOVERNMENT OF WEST BENGAL &mdash; SECONDARY EDUCATION</div>' + ofcMemo() +
    '<div>To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b></div>' +
    '<p><b>Subject: Recommendation for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '.</b></p>' +
-   '<p><b>Ref:</b> (1) Application of the employee dated ' + ofcD(val('ofcAppDate')) + '. (2) Report / forwarding of the ' + ofcEsc(ofcHoi()) + ' of the school. (3) Finance Dept. (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</p>' +
+   '<p><b>Ref:</b> (1) Application of the employee dated ' + ofcD(val('ofcAppDate')) + '. (2) Report / forwarding of the ' + ofcEsc(ofcFwdTitle()) + ' of the school. (3) Finance Dept. (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</p>' +
    '<p>Sir / Madam,</p>' +
-   '<p>With reference to the above, I am to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', for surrender of the Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(val('ofcCardHolder') || '__________') + ', in which ' + ofcEsc(ofcSsBen()) + ' is included as beneficiary.</p>' +
+   '<p>With reference to the above, I am to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', for surrender of the Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(ofcHolderName()) + ', in which ' + ofcEsc(ofcSsBen()) + ' is included as beneficiary.</p>' +
    '<p>It is reported by the school authority that the employee had drawn Medical Allowance for the period ' + ofcEsc(s.periodLong) + ' amounting to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only), which was inadmissible on account of the said card, and that the entire amount has been refunded by ' + ofcPayRef() + '. The proof of deposit has been enclosed with the application.</p>' +
    '<p>As the over-drawn amount has been fully refunded and the employee is willing to surrender the card in terms of the above Order, the request is <b>recommended for acceptance</b>. You are requested to kindly accept the surrender, deactivate the card / the name of the beneficiary and issue an acknowledgement / proof of surrender to the employee, so that he/she may comply with the Order within the stipulated date (31.10.2026).</p>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcStrip(ofcDiName())).toUpperCase() + '</b></div>' +
-   '<div class="ofc-enc">Enclosures: As above. &nbsp;Copy to: (1) ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcSchool()) + '. (2) The ' + ofcEsc(ofcHoi()) + ', ' + ofcEsc(ofcSchool()) + ', for information.</div>');
+   '<div class="ofc-enc">Enclosures: As above. &nbsp;Copy to: (1) ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcSchool()) + '. (2) The ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + ', for information.</div>');
+}
+
+
+// 3b. REQUEST TO DI / AI FOR SIGNATURE ON T.R. 7 (before deposit)
+function ofcDocTrSig(){
+  const s = ofcSummary(), amt = ofcMoney(s.total), item = ofcItem();
+  return ofcPage(
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(ofcDeptOfficer()) + '</b><br><b>Through: ' + ofcEsc(ofcThrough()) + '</b></div>' +
+   '<p><b>Subject: Prayer for signature / verification on T.R. Form No. 7 (item 7 &mdash; Departmental Officer) for deposit of over-drawn ' + ofcEsc(item) + ' of ' + amt + ' by ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '.</b></p>' +
+   '<p>Respected Sir,</p>' +
+   '<p>With due respect, I beg to state that excess ' + ofcEsc(item) + ' amounting to <b>' + amt + '</b> (Rupees ' + numberToWords(s.total) + ' only) was drawn by me for the period ' + ofcEsc(s.periodLong) + ' (' + s.n + ' month' + (s.n === 1 ? '' : 's') + '), and the amount is now to be refunded for compliance with the ' + ofcPurposeTxt() + '.</p>' +
+   ofcReasonLine() +
+   '<p>The amount is to be deposited by T.R. Form No. 7 challan as per the particulars below. Since item 7 of the challan requires the name, designation and address of the Departmental Officer on whose behalf the money is paid, and the challan is to be verified by the Departmental Officer before it is presented to the Treasury / Bank, I request you to kindly put your signature (item 7 and the verification box) on the enclosed challan (all four copies).</p>' +
+   '<table class="ofc-tbl"><tr><td style="width:42%;">Amount to be deposited</td><td><b>' + amt + '</b></td></tr>' +
+   '<tr><td>Treasury / Bank</td><td>' + ofcEsc(val('chlTreasury')) + ' Treasury / ' + ofcEsc(val('chlBank')) + '</td></tr>' +
+   '<tr><td>Account Code (14 digits)</td><td>' + ofcB(val('chlAccountCode14'), 14) + '</td></tr>' +
+   '<tr><td>Detail Head of Account</td><td>' + ofcEsc(val('chlHead')) + '</td></tr>' +
+   '<tr><td>Departmental Officer (item 7)</td><td>' + ofcEsc(ofcDeptOfficer()) + '</td></tr></table>' +
+   '<p>After deposit, I shall submit the receipted challan to your office' + (val('ofcCardIssue') || ofcCase() === 'MA_SS' ? ' and shall move the authority concerned for acceptance of surrender of the Swasthya Sathi card' : '') + ', so that the matter may be regularised.</p>' +
+   '<p>I shall remain grateful for your kind consideration and necessary action.</p>' +
+   '<div style="margin-top:6px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcStrip(ofcThrough())).toUpperCase() + '</b></div>' +
+   '<div class="ofc-enc">Enclosures: (1) T.R. Form No. 7 challan, 4 copies (duly filled). (2) Office Order and calculation sheet.</div>');
+}
+// 7b. SWASTHYA SATHI FORM D (name deletion after receiving card)
+function ofcDocSsFormD(){
+  const rows = ofcBenRows(); let tr = '';
+  for (let i = 0; i < Math.max(3, rows.length); i++) {
+    const r = rows[i] || { n:'', r:'', a:'' };
+    tr += '<tr><td style="text-align:center !important;">' + (i + 1) + '</td><td>' + ofcEsc(r.n) + '&nbsp;</td><td>' + ofcEsc(r.r) + '</td><td>' + ofcEsc(r.a) + '</td></tr>';
+  }
+  return ofcPage(
+   '<div class="ofc-noprint" style="background:#fffbeb;border:1px dashed #d97706;padding:4px 8px;font:12px Arial;margin-bottom:6px;">Note (preview only): official Form D layout could not be downloaded; this page carries the same particulars. Copy onto the official Form D if the D.M. office requires it.</div>' +
+   '<div class="ofc-hd" style="font-size:14pt;text-decoration:underline;">FORM D</div>' +
+   '<div class="ofc-hd" style="font-size:11.5pt;margin-bottom:8px;">APPLICATION FOR NAME DELETION UNDER SWASTHYA SATHI AFTER RECEIVING THE CARD</div>' +
+   '<div>To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b></div>' +
+   '<p><b>Subject: Surrender of Swasthya Sathi card / deletion of name(s) of beneficiary(ies) &mdash; Finance Dept. Order No. 92-F(MED)WB dated 09.10.2026.</b></p>' +
+   '<table class="ofc-tbl">' +
+   '<tr><td style="width:44%;">Swasthya Sathi Card No. / URN</td><td>' + ofcB(val('ofcCardNo'), 22) + '</td></tr>' +
+   '<tr><td>Name of Card Holder / Head of Family</td><td>' + ofcEsc(ofcHolderName()) + '</td></tr>' +
+   '<tr><td>Card issued on</td><td>' + (val('ofcCardIssue') ? fmtDMY(val('ofcCardIssue')) : '________________') + '</td></tr>' +
+   '<tr><td>Address (Vill / P.O. / Block / District)</td><td>' + ofcEsc(val('ofcCardAddr') || (val('schoolAddress'))) + '</td></tr>' +
+   '<tr><td>Mobile No.</td><td>' + ofcB(val('ofcMobile'), 14) + '</td></tr>' +
+   '<tr><td>Applicant (Government employee enrolled under WBHS)</td><td>' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '</td></tr></table>' +
+   '<p><b>Particulars of member(s) whose name is to be deleted / card surrendered:</b></p>' +
+   '<table class="ofc-tbl"><tr><th style="width:8%;">Sl. No.</th><th>Name of Member</th><th>Relationship</th><th>Aadhaar No.</th></tr>' + tr + '</table>' +
+   '<p><b>Reason for deletion:</b> Mandatory surrender of Swasthya Sathi card by Government employee and beneficiaries enrolled under the West Bengal Health Scheme (WBHS), as per Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</p>' +
+   '<p>I declare that the above particulars are true and correct, and I shall not use the card hereafter. I request that the name(s) above be deleted / the card be deactivated and an acknowledgement of surrender be issued.</p>' +
+   '<div style="margin-top:12px;display:flex;justify-content:space-between;"><div>Date: ' + ofcD(val('ofcAppDate')) + '<br>Place: ' + ofcEsc(val('odPoName') || '') + '</div>' +
+   '<div style="text-align:center;">Signature of Applicant: ______________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b></div></div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded by: ______________________ <b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b>, ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>');
+}
+// 8. ANNEXURE-A (exact format of Order 92-F(MED)WB dated 09.10.2026)
+function ofcDocSsDecl(){
+  const rows = ofcBenRows(); let tr = '';
+  for (let i = 0; i < Math.max(3, rows.length); i++) {
+    const r = rows[i] || { n:'', r:'', a:'' };
+    tr += '<tr><td style="text-align:center !important;height:26px;">' + (r.n ? i + 1 : '') + '</td><td>' + ofcEsc(r.n) + '</td><td>' + ofcEsc(r.r) + '</td><td>' + ofcEsc(r.a) + '</td></tr>';
+  }
+  const nm = ofcEsc((val('odEmpName') || val('staffName') || '').toUpperCase());
+  return ofcPage(
+   '<div class="ofc-hd" style="font-size:12.5pt;text-decoration:underline;">ANNEXURE - A</div>' +
+   '<div class="ofc-hd" style="font-size:12pt;margin:8px 0 2px;">DECLARATION OF SURRENDER BY THE EMPLOYEE / PENSIONER ENROLLED<br>UNDER WBHS</div>' +
+   '<div style="text-align:center;font-style:italic;font-size:10.5pt;">(To be submitted only by those who hold/held SwasthyaSathi and/or Ayushman Bharat cards)</div>' +
+   '<ul class="ofc-ul" style="text-align:left;">' +
+   '<li>Name of the Employee/Pensioner (in Block Letters): ' + ofcFill(nm, 300) + '</li>' +
+   '<li>Aadhaar Number: ' + ofcFill(val('ofcAadhaar'), 200) + '</li>' +
+   '<li>Designation / Last Designation Held: ' + ofcFill(ofcDesig(), 240) + '</li>' +
+   '<li>Office/Department Name: ' + ofcFill(ofcSchool() + (val('departmentName') ? ', ' + val('departmentName') : ''), 300) + '</li>' +
+   '<li>WBHS Enrolment ID No: ' + ofcFill(val('ofcWbhsNo'), 200) + '</li>' +
+   '<li>HRMS Id <i>(For Employees only)</i>: ' + ofcFill(val('ofcHrms'), 200) + '</li>' +
+   '<li>GPF A/C No <i>(For Employees only)</i>: ' + ofcFill(val('ofcGpf'), 200) + '</li>' +
+   '<li>PPO Number <i>(For Pensioners only)</i>: ' + ofcFill('N.A.', 200) + '</li>' +
+   '<li>Mobile Number: ' + ofcFill(val('ofcMobile'), 200) + '</li></ul>' +
+   '<div class="ofc-hd" style="margin:8px 0 4px;">DECLARATION</div>' +
+   '<p>I, Shri/Smt. ' + ofcFill(nm, 260) + ', hereby declare that I / my dependent beneficiary(ies) listed below held the following healthcare card(s), which have now been successfully surrendered to the respective issuing authority:</p>' +
+   '<div style="text-align:center;font-style:italic;font-size:10.5pt;">(Please fill in the card details as applicable)</div>' +
+   '<ul class="ofc-ul" style="text-align:left;">' +
+   '<li><b>Swasthya Sathi Card</b> (Card No: ' + ofcFill(val('ofcCardNo'), 220) + ')</li>' +
+   '<li><b>Ayushman Bharat Card / PM-JAY</b> (ABHA ID/Card No: ' + ofcFill(val('ofcAbha'), 200) + ')</li></ul>' +
+   '<div class="ofc-hd" style="margin:6px 0 0;">DEPENDENT BENEFICIARY DETAILS</div>' +
+   '<div style="text-align:center;font-style:italic;font-size:10.5pt;">(Please list all dependent beneficiaries who held the surrendered cards)</div>' +
+   '<table class="ofc-tbl"><tr><th style="width:8%;text-align:center !important;">Sl. No.</th><th style="text-align:center !important;">Name of the Beneficiary</th><th style="text-align:center !important;">Relationship with the Enrolled person</th><th style="text-align:center !important;">Aadhaar Number</th></tr>' + tr + '</table>' +
+   '<p>As required, a copy of the official surrender acknowledgment/receipt issued by the respective authority is enclosed herewith as proof.</p>' +
+   '<p>I hereby certify that the information provided above is <b>true and correct</b> to the best of my knowledge.</p>' +
+   '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;"><div><b>Date:</b> ' + ofcFill(val('ofcAppDate') ? fmtDMY(val('ofcAppDate')) : '', 140) + '<br><b>Place:</b> ' + ofcFill(val('odPoName'), 140) + '</div>' +
+   '<div style="text-align:center;margin-top:30px;"><b>(Signature of the Employee / Pensioner)</b></div></div>');
+}
+// 11. DECLARATION / REPORT TO DDO (D.I.) -- refunded, card surrendered, regularise
+function ofcDocSsDdo(){
+  const s = ofcSummary(), amt = ofcMoney(s.total);
+  return ofcPage(
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(ofcDiName()) + '</b> (D.D.O.)<br><b>Through: ' + ofcEsc(ofcThrough()) + '</b></div>' +
+   '<p><b>Subject: Submission of Annexure-A declaration with proof of surrender of Swasthya Sathi card and report of refund of excess Medical Allowance by ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' &mdash; request to regularise the matter.</b></p>' +
+   '<p><b>Ref:</b> Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</p>' +
+   '<p>Sir,</p>' +
+   '<p>In compliance with the above Order, I submit the following declaration and report:</p>' +
+   '<ol class="ofc-ol">' +
+   '<li>Medical Allowance for the period <b>' + ofcEsc(s.periodLong) + '</b> (' + s.n + ' month' + (s.n === 1 ? '' : 's') + ', from the issue of the card' + (val('ofcCardIssue') ? ' on ' + fmtDMY(val('ofcCardIssue')) : '') + ') was drawn although it was inadmissible as ' + (ofcSelfCard() ? 'I held a Swasthya Sathi card in my own name' : 'my name was included as a beneficiary under the Swasthya Sathi card of my ' + ofcEsc(val('ofcCardRel') || 'spouse') + ', ' + ofcEsc(ofcHolderName())) + ' (Card No. ' + ofcB(val('ofcCardNo'), 14) + ').</li>' +
+   '<li>The entire over-drawn amount of <b>' + amt + '</b> (Rupees ' + numberToWords(s.total) + ' only) has been refunded by ' + ofcPayRef() + ' after verification of the challan by the Departmental Officer, and the receipted challan is enclosed.</li>' +
+   '<li>The Swasthya Sathi card has been surrendered to ' + ofcEsc(val('ofcSsAuth')) + (val('ofcSurrAck') ? ' (Acknowledgement: ' + ofcEsc(val('ofcSurrAck')) + ')' : '') + ', and the proof / acknowledgement of surrender is enclosed.</li>' +
+   '<li>The declaration in the prescribed Annexure-A is enclosed.</li>' +
+   '<li>Medical Allowance has been stopped ' + (val('ofcStoppedFrom') ? 'with effect from <b>' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) + '</b>' : 'in the pay bill') + '.</li></ol>' +
+   '<p>I therefore request you to kindly receive the declaration, verify the proof of surrender, enter it in the compliance log and <b>regularise the matter</b>, including clearance of the ' + ofcPurposeTxt() + ', as applicable.</p>' +
+   '<div style="margin-top:6px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcStrip(ofcThrough())).toUpperCase() + '</b></div>' +
+   '<div class="ofc-enc">Enclosures: (1) Annexure-A declaration. (2) Surrender acknowledgement. (3) Receipted T.R. Form No. 7 challan. (4) Office Order. (5) Calculation sheet.</div>');
 }
 
 // ------------------------------- print --------------------------------------------------
