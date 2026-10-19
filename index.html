@@ -919,7 +919,7 @@
     </div>
 
     <!-- 2. STAFF DETAILS & UNIFIED LWP -->
-    <h3>2. Staff &amp; Service Details (Unified LWP Entry)</h3>
+    <h3>2. Service Details &amp; LWP <span style="font-weight:400;font-size:.78rem;color:#64748b;">(staff name, designation, DOB, DOJ etc. are in <b>Profile</b>)</span></h3>
     <div class="panel">
         <div class="grid">
             <div class="fg"><label>Name of Staff</label><input id="staffName" value="PRABIR KUMAR DANGAR" onchange="syncSharedFields()"></div>
@@ -1516,6 +1516,7 @@
         Fields below marked <strong>(auto)</strong> are pulled from the School/Employee/Over-Drawn data already entered above.
         Fields marked <strong>(fill once)</strong> have no matching data elsewhere in the dashboard &mdash; they stay
         <u>editable</u> here and, once filled, are printed exactly onto the T.R. Form No. 7 below.
+        <b>Treasury / bank, school code, account head, tendered-by and D.D.O. are kept once in the Profile window</b> (&#9998; Edit Profile, top of page).
     </div>
     <div class="panel">
         <div class="grid">
@@ -2170,6 +2171,7 @@ function buildFullRecord() {
         arrearRows: arrearRows,
         odRows: odRows,
         ow: (function () { try { return owExport(); } catch (e) { return null; } })(),
+        profile: (function () { try { return profCollect(); } catch (e) { return null; } })(),
         daBasicRows: daBasicRows,
         daCaseRowData: daCaseRowData,
         daSchedule: daSchedule,
@@ -8452,5 +8454,159 @@ function owSyncTabForMode(){
   if (c && c.classList.contains('active')) switchTab(owMode === 'SS' ? 'tabSwasthya' : 'tabOverdrawn');
 }
 </script>
+
+<script>
+// =====================================================================================
+// PROFILE WINDOW  --  one place to edit & save every "fill once" field
+//   * School / office, T.R.-7 treasury data, staff identity, staff IDs & contacts.
+//   * The existing input elements are MOVED (same ids, same handlers) into the Profile window,
+//     so every calculation, document, sync and the Save / Load of the staff record keep working.
+//   * Main tabs keep only the working (base) fields -> shorter, comfortable windows.
+//   * DB: staff record carries a "profile" block; school / office part is also kept once per
+//     school in  tfhs/arrearOdDaSystem -> schoolProfiles  (Save Profile / Load School Profile).
+// =====================================================================================
+const PROF_GROUPS = [
+  { t: 'School / Office', scope: 'school', ids: ['schoolName','schoolAddress','subDivision','block','district','hoiContact','schoolEmail','departmentName','diOffice','diAddress','gia1Date','ofcHoiName','ofcHoiTitle','ofcAdminTitle','ofcDdoOffice'] },
+  { t: 'T.R. Form No. 7 / Treasury (fill once)', scope: 'school', ids: ['chlTreasuryPreset','chlBank','chlTreasury','chlTreasuryCode','chlSchoolCode','chlHead','chlAccountCode14','chlTenderedBy','chlDeptOfficer'] },
+  { t: 'Staff', scope: 'staff', ids: ['staffName','designation','qualification','staffSex','dob','doj','dojSchool'] },
+  { t: 'Staff IDs & Contact', scope: 'staff', ids: ['ofcAadhaar','ofcHrms','ofcGpf','ofcMobile','ofcAbha','ofcWbhsNo','ofcCardAddr','ofcHolderAadhaar','ofcHolderMobile'] }
+];
+let profReady = false;
+function profEsc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function profCollect(){
+  const out = { school: {}, staff: {} };
+  PROF_GROUPS.forEach(g => g.ids.forEach(id => { const e = document.getElementById(id); if (e) out[g.scope][id] = (e.type === 'checkbox') ? e.checked : e.value; }));
+  return out;
+}
+function profSchoolSlug(){ return (val('schoolName') || '').trim().replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase(); }
+function profInit(){
+  if (profReady) return; profReady = true;
+  const cont = document.querySelector('.container'); if (!cont) return;
+  // panels that will be emptied / replaced
+  const emptied = [];
+  ['schoolName','odSchoolName','daSchoolName'].forEach(id => { const e = document.getElementById(id); const pn = e && e.closest('.panel'); if (pn) emptied.push(pn); });
+  const modal = document.createElement('div');
+  modal.id = 'profModal';
+  modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.55);align-items:flex-start;justify-content:center;padding:2vh 8px;overflow:auto;';
+  let body = '';
+  PROF_GROUPS.forEach((g, i) => { body += '<div style="margin-bottom:10px;"><div style="font-weight:700;font-size:.82rem;color:#0f172a;border-bottom:2px solid ' + (g.scope === 'school' ? '#0891b2' : '#7c3aed') + ';padding-bottom:3px;margin-bottom:6px;">' + profEsc(g.t) + ' <span style="font-weight:400;color:#64748b;">(' + (g.scope === 'school' ? 'common to all staff of the school' : 'this staff only') + ')</span></div><div class="grid" id="profGrid' + i + '"></div></div>'; });
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:10px;width:min(960px,100%);box-shadow:0 10px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;max-height:96vh;">' +
+      '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #e2e8f0;background:#0f172a;color:#fff;border-radius:10px 10px 0 0;">' +
+        '<span style="font-weight:700;font-size:1rem;">&#128100; Profile &mdash; School / Office &amp; Staff</span>' +
+        '<span id="profStatus" style="font-size:.74rem;opacity:.8;margin-left:auto;"></span>' +
+        '<button type="button" onclick="profClose()" style="background:#475569;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;">&#10005;</button>' +
+      '</div>' +
+      '<div id="profBody" style="padding:12px 14px;overflow:auto;">' + body + '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px;border-top:1px solid #e2e8f0;background:#f8fafc;border-radius:0 0 10px 10px;">' +
+        '<button type="button" class="btn-add" style="background:#059669;" onclick="profSaveToDB()">&#128190; Save Profile to DB</button>' +
+        '<button type="button" class="btn-add" style="background:#d97706;" onclick="profLoadSchool()">&#128193; Load School Profile</button>' +
+        '<button type="button" class="btn-add" style="background:#2563eb;margin-left:auto;" onclick="profApplyClose()">Apply &amp; Close</button>' +
+      '</div>' +
+    '</div>';
+  cont.insertBefore(modal, cont.firstChild);
+  modal.addEventListener('mousedown', ev => { if (ev.target === modal) profClose(); });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && modal.style.display !== 'none') profClose(); });
+  // move the existing fields (whole .fg blocks) into the Profile window
+  PROF_GROUPS.forEach((g, i) => {
+    const grid = document.getElementById('profGrid' + i);
+    g.ids.forEach(id => {
+      const e = document.getElementById(id); if (!e) return;
+      const fg = e.closest('.fg'); if (!fg || grid.contains(fg)) return;
+      grid.appendChild(fg);
+    });
+  });
+  // hide panels that became empty or only mirror profile data (their inputs stay in the DOM and stay synced)
+  emptied.forEach(pn => {
+    if (pn.id === 'ofcPanel') return;
+    const hasFg = pn.querySelector('.fg');
+    const mirror = pn.querySelector('#odSchoolName, #daSchoolName');
+    if (!hasFg || mirror) {
+      pn.style.display = 'none';
+      const h = pn.previousElementSibling; if (h && /^H3$/i.test(h.tagName)) h.style.display = 'none';
+    }
+  });
+  // compact profile strip (sticky area)
+  const strip = document.createElement('div');
+  strip.id = 'profileStrip';
+  strip.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 10px;background:#f1f5f9;border-bottom:1px solid #cbd5e1;font-size:.78rem;color:#0f172a;';
+  strip.innerHTML = '<span id="profStripText" style="flex:1;min-width:180px;line-height:1.35;"></span>' +
+    '<button type="button" onclick="profOpen()" style="background:#0f172a;color:#fff;border:none;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:.76rem;font-weight:600;">&#9998; Edit Profile</button>';
+  const sticky = document.querySelector('.app-sticky'); const appBar = sticky && sticky.querySelector('.app-bar');
+  if (sticky && appBar) appBar.insertAdjacentElement('afterend', strip); else cont.insertBefore(strip, modal.nextSibling);
+  profRefreshStrip();
+  setInterval(profRefreshStrip, 1500);
+}
+function profRefreshStrip(){
+  const t = document.getElementById('profStripText'); if (!t) return;
+  let dor = ''; try { const d = getDOR(); if (d) dor = ' &middot; DOR ' + formatDate(d); } catch (e) {}
+  const nm = val('staffName') || '(no staff name)';
+  t.innerHTML = '<b>' + profEsc(nm) + '</b>' + (val('designation') ? ' &middot; ' + profEsc(val('designation')) : '') +
+                (val('schoolName') ? ' &middot; ' + profEsc(val('schoolName')) : '') + dor;
+}
+function profOpen(){ profInit(); const m = document.getElementById('profModal'); if (m) { m.style.display = 'flex'; const b = document.getElementById('profBody'); if (b) b.scrollTop = 0; } }
+function profClose(){ const m = document.getElementById('profModal'); if (m) m.style.display = 'none'; profRefreshStrip(); }
+function profApplyClose(){
+  try { syncSharedFields(); } catch (e) { console.warn(e); }
+  try { calculateDOR(); } catch (e) {}
+  profClose();
+}
+function profStatus(msg){ const s = document.getElementById('profStatus'); if (s) s.textContent = msg || ''; }
+async function profSaveToDB(){
+  const slug = profSchoolSlug();
+  if (!slug || !(val('staffName') || '').trim()) { alert('Please enter School Name and Staff Name in the Profile first.'); return; }
+  try {
+    profStatus('Saving...');
+    const user = await ensureFirebaseAuth();
+    const prof = profCollect();
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(ARREAR_DOC_REF);
+      const data = snap.exists ? (snap.data() || {}) : {};
+      const sp = Object.assign({}, (data.schoolProfiles && typeof data.schoolProfiles === 'object') ? data.schoolProfiles : {});
+      sp[slug] = { schoolName: val('schoolName'), fields: prof.school, savedAt: new Date().toISOString() };
+      tx.set(ARREAR_DOC_REF, { schoolProfiles: sp, updatedAt: firebase.firestore.FieldValue.serverTimestamp(), lastSavedByUid: user.uid }, { merge: true });
+    });
+    profStatus('School profile saved. Saving staff record...');
+    await saveFullArrearDataToDB();      // staff record (carries the staff profile block too)
+    profStatus('Saved to DB');
+  } catch (err) {
+    console.error('Profile save failed:', err);
+    profStatus('Save failed');
+    alert('Error saving profile to Database:\n' + (err && err.message ? err.message : err));
+  }
+}
+async function profLoadSchool(){
+  const slug = profSchoolSlug();
+  try {
+    profStatus('Loading...');
+    await ensureFirebaseAuth();
+    const snap = await ARREAR_DOC_REF.get({ source: 'server' });
+    const sp = (snap.exists && snap.data().schoolProfiles) ? snap.data().schoolProfiles : {};
+    let key = sp[slug] ? slug : null;
+    if (!key) {
+      const keys = Object.keys(sp);
+      if (!keys.length) { alert('No saved school profile found in the Database yet. Use "Save Profile to DB" first.'); profStatus(''); return; }
+      if (keys.length === 1) key = keys[0];
+      else {
+        const names = keys.map((k, i) => (i + 1) + '. ' + (sp[k].schoolName || k)).join('\n');
+        const pick = parseInt(prompt('Saved school profiles:\n' + names + '\n\nEnter the number to load:', '1'), 10);
+        if (!(pick >= 1 && pick <= keys.length)) { profStatus(''); return; }
+        key = keys[pick - 1];
+      }
+    }
+    const f = (sp[key] && sp[key].fields) || {};
+    Object.keys(f).forEach(id => { const e = document.getElementById(id); if (e) { if (e.type === 'checkbox') e.checked = !!f[id]; else e.value = f[id]; } });
+    try { syncSharedFields(); } catch (e) {}
+    profStatus('School profile loaded');
+  } catch (err) {
+    console.error('Profile load failed:', err);
+    profStatus('Load failed');
+    alert('Error loading school profile:\n' + (err && err.message ? err.message : err));
+  }
+}
+document.addEventListener('DOMContentLoaded', function(){ setTimeout(function(){ try { profInit(); } catch (e) { console.warn('Profile init failed:', e); } }, 0); });
+if (document.readyState !== 'loading') { setTimeout(function(){ try { profInit(); } catch (e) { console.warn('Profile init failed:', e); } }, 0); }
+</script>
+<style>@media print { #profModal, #profileStrip { display: none !important; } }</style>
 </body>
 </html>
