@@ -849,7 +849,7 @@
         <div class="side-field"><label>Post Office</label><input id="ckPO" type="text" value="TALDANGRA"></div>
         <div class="side-field"><label>Police Station</label><input id="ckPS" type="text" value="TALDANGRA"></div>
         <div class="side-field"><label>PIN Code</label><input id="ckPin" type="text" value="722152"></div>
-        <div class="side-field"><label>Name of Head of Institution</label><input id="ckHoiName" type="text" placeholder="Name of HOI"></div>
+        <div class="side-field"><label>Name of Head of Institution</label><input id="ckHoiName" type="text" placeholder="Name of HOI" oninput="var o=document.getElementById('ofcHoiName'); if(o && o.value!==this.value) o.value=this.value;"></div>
         <div class="side-field"><label>Designation of HOI</label><input id="ckHoiDesig" type="text" value="HEADMASTER"></div>
         <div class="side-field"><label>iOSMS Employee Code of Claimant</label><input id="ckIosms" type="text" placeholder="iOSMS code"></div>
         <div class="side-field"><label>Date of Applicant's Prayer</label><input id="ckPrayerDate" type="date"></div>
@@ -1557,6 +1557,8 @@
                 <select id="ofcHoiTitle" onchange="ofcRefreshDocList()">
                     <option>Teacher-in-Charge</option><option>Headmaster</option><option>Headmistress</option><option>Head of the Institution</option>
                 </select></div>
+            <div class="fg"><label>Name of H.O.I. / D.D.O. <em>(same as Arrear sidebar &mdash; printed in every letter)</em></label>
+                <input id="ofcHoiName" type="text" placeholder="Name of HOI / DDO" oninput="ofcSyncHoiName(this.value)"></div>
             <div class="fg"><label>How the Over-Drawal Came to Notice</label>
                 <select id="ofcTriggerSel" onchange="ofcApplyTrigger()">
                     <option value="PEN">Treasury Pension Clearance objection</option>
@@ -7540,6 +7542,15 @@ function ofcB(v, w){ return (v && String(v).trim()) ? ofcEsc(v) : '_'.repeat(w |
 function ofcMoney(n){ return '\u20B9' + Number(n || 0).toLocaleString('en-IN') + '/-'; }
 function ofcAdmin(){ return val('ofcAdminTitle') || 'The Administrator'; }
 function ofcHoi(){ return val('ofcHoiTitle') || 'Teacher-in-Charge'; }
+function ofcHoiName(){ return (val('ckHoiName') || val('ofcHoiName') || '').trim(); }
+function ofcSyncHoiName(v){ const a = document.getElementById('ckHoiName'); if (a && a.value !== v) { a.value = v; try { a.dispatchEvent(new Event('input')); } catch(e){} } }
+// Signature block of the H.O.I./D.D.O. exactly as in the Arrear letters: NAME / designation / school
+function ofcFwdSigHtml(){
+  const nm = ofcSelf() ? '' : ofcHoiName();
+  return (nm ? '<b>' + ofcEsc(nm).toUpperCase() + '</b><br>' : '') + (nm ? ofcEsc(ofcFwdSig()) : '<b>' + ofcEsc(ofcFwdSig()) + '</b>') + '<br>';
+}
+// Name line to put above the title in 'Forwarded through / Countersigned by' blocks
+function ofcFwdNameLine(){ const nm = ofcSelf() ? '' : ofcHoiName(); return nm ? '<b>' + ofcEsc(nm).toUpperCase() + '</b><br>' : ''; }
 function ofcHoiSig(){ const h = ofcHoi().toUpperCase(); return /HEAD OF THE INSTITUTION/.test(h) ? h : h + ' / HEAD OF THE INSTITUTION'; }
 function ofcDiName(){ return val('diOffice') || 'The District Inspector of Schools (S.E.), Bankura'; }
 function ofcDistrict(){ return ofcTitleCase(val('odDistrict') || 'Bankura'); }
@@ -7790,7 +7801,7 @@ function ofcDocApp(){
    '<p>I shall remain grateful for your kind consideration and necessary action.</p>' +
    '<div style="margin-top:6px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + '<br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
-   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b></div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br>' + ofcFwdNameLine() + '<b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
    '<div class="ofc-enc">Enclosure: Month-wise calculation sheet.</div>');
 }
 // 2. HOI REPORT (third person)
@@ -7810,7 +7821,7 @@ function ofcDocHoi(){
    '<tr><td><b>Total excess amount</b></td><td><b>' + amt + ' (Rupees ' + numberToWords(s.total) + ' only)</b></td></tr></table>' +
    '<p>The matter is submitted for kind consideration and necessary orders regarding acceptance/deposit of the refund in the prescribed manner and issuance of the requisite compliance report to the competent authority for removal of the ' + ofcPurposeTxt() + '.</p>' +
    '<p>Submitted for necessary action.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock(ofcFwdSigHtml() + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Application of the concerned employee. (2) Month-wise calculation sheet.</div>');
 }
 // 3. OFFICE ORDER
@@ -7827,7 +7838,7 @@ function ofcDocOrder(){
    '<p>' + (ofcSelf() ? 'The concerned Head of the Institution' : 'The ' + ofcEsc(ofcFwdTitle())) + ' is directed to facilitate the necessary formalities, obtain the prescribed treasury challan/receipt or other valid proof of deposit, and submit the compliance documents to the competent authority, including the Assistant Inspector of Schools / ' + ofcEsc(ofcStrip(ofcDiName())) + ', as applicable, for removal of the objection and further processing of the case.</p>' +
    '<p>This order shall not be treated as a substitute for any sanction or approval required from the competent authority under the applicable rules.</p>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">By Order of ' + ofcEsc(ofcAdmin().replace(/^The/, 'the')) + '<br><br>Signature: ______________________________<br><b>' + ofcEsc(adm).toUpperCase() + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
-   (ofcSelf() ? '' : '<div class="ofc-sig" style="margin-top:10px;">Forwarded / Countersigned by:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b></div>'));
+   (ofcSelf() ? '' : '<div class="ofc-sig" style="margin-top:10px;">Forwarded / Countersigned by:<br><br>Signature: ______________________________<br>' + ofcFwdNameLine() + '<b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase() + '</div>'));
 }
 // 4. HRA DECLARATION (employee)
 function ofcDocHraDecl(){
@@ -7858,7 +7869,7 @@ function ofcDocHraCert(){
    '<li>Reason for over-drawal: ' + ofcEsc(val('reasonText')) + '</li>' +
    '<li>The employee has undertaken to refund the entire over-drawn amount by T.R. Form No. 7 challan, and the particulars of deposit will be furnished to the competent authority for compliance with the ' + ofcPurposeTxt() + '.</li>' +
    '<li>The over-drawal has been noted in the over-drawal register / service book of the employee.</li></ol>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock(ofcFwdSigHtml() + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Declaration of the employee. (2) Month-wise calculation sheet.</div>');
 }
 // 6. SALARY OD ISSUE NOTE (editable)
@@ -7875,7 +7886,7 @@ function ofcDocSalNote(){
    '<p><b>3. Calculation:</b> The pay and allowances actually drawn have been compared month by month with the admissible pay and allowances as per the pay-revision rules applicable to each month, and the difference has been worked out in the enclosed month-wise calculation sheet.</p>' +
    '<p><b>4. Proposed action:</b> The employee has agreed to refund the entire amount of ' + amt + ' in lump sum by T.R. Form No. 7 challan (' + ofcEsc(val('chlTreasury') || 'Treasury') + ' Treasury). The proof of deposit will be furnished to the competent authority for compliance with the ' + ofcPurposeTxt() + '.</p>' +
    '<p><b>5. Preventive measure:</b> In future, the pay bills will be prepared after verification of the admissible pay and allowances against the service book and the leave / LWP register, so that such over-drawal does not recur.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock(ofcFwdSigHtml() + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosure: Month-wise calculation sheet.</div>');
 }
 // 7. SS - EMPLOYEE APPLICATION FOR CARD SURRENDER
@@ -7904,7 +7915,7 @@ function ofcDocSsHoi(){
    '<p>I have the honour to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(ofcHolderName()) + ', in which the name of the employee / beneficiary is included.</p>' +
    '<p>It is reported that Medical Allowance for the period ' + ofcEsc(s.periodLong) + ' (' + s.n + ' months), amounting to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only), had been drawn although the allowance was inadmissible on account of the above card. The employee has refunded the entire amount by ' + ofcPayRef() + ', as directed in the Office Order, and the proof of deposit is enclosed. Medical Allowance has been stopped ' + (val('ofcStoppedFrom') ? 'with effect from ' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) : 'in the pay bill') + '.</p>' +
    '<p>In view of the Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026, the matter is submitted for kind recommendation to the authority concerned for acceptance of the surrender of the card at an early date, positively before 31.10.2026.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock(ofcFwdSigHtml() + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Application for surrender. (2) Declaration. (3) Copy of challan / treasury receipt. (4) Office Order and H.O.I. report. (5) Calculation sheet.</div>');
 }
 // 10. SS - DI RECOMMENDATION
@@ -7944,7 +7955,7 @@ function ofcDocTrSig(){
    '<p>I shall remain grateful for your kind consideration and necessary action.</p>' +
    '<div style="margin-top:6px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
-   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcStrip(ofcThrough())).toUpperCase() + '</b></div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br>' + ofcFwdNameLine() + '<b>' + ofcEsc(ofcStrip(ofcThrough())).toUpperCase() + '</b>' + (ofcSelf() ? '' : '<br>' + ofcEsc(ofcSchool()).toUpperCase()) + '</div>' +
    '<div class="ofc-enc">Enclosures: (1) T.R. Form No. 7 challan, 4 copies (duly filled). (2) Office Order and calculation sheet.</div>');
 }
 // 7b. SWASTHYA SATHI FORM D (name deletion after receiving card)
@@ -8029,7 +8040,7 @@ function ofcDocSsDdo(){
    '<p>I therefore request you to kindly receive the declaration, verify the proof of surrender, enter it in the compliance log and <b>regularise the matter</b>, including clearance of the ' + ofcPurposeTxt() + ', as applicable.</p>' +
    '<div style="margin-top:6px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
-   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcStrip(ofcThrough())).toUpperCase() + '</b></div>' +
+   '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br>' + ofcFwdNameLine() + '<b>' + ofcEsc(ofcStrip(ofcThrough())).toUpperCase() + '</b>' + (ofcSelf() ? '' : '<br>' + ofcEsc(ofcSchool()).toUpperCase()) + '</div>' +
    '<div class="ofc-enc">Enclosures: (1) Annexure-A declaration. (2) Surrender acknowledgement. (3) Receipted T.R. Form No. 7 challan. (4) Office Order. (5) Calculation sheet.</div>');
 }
 
@@ -8100,7 +8111,7 @@ function ofcDocNoMa(){
    '<li>The card holder, ' + ofcEsc(hol) + ', ' + ofcEsc(val('ofcCardRel') || '') + ' of the employee, is ' + ofcEsc(ofcHolderOccText()) + ', is not in any Government / semi-Government or other service, and draws no House Rent Allowance, Medical Allowance or other allowance. A self-declaration of the card holder is enclosed.</li>' +
    '<li>The employee has not claimed any reimbursement of medical expenses for himself / herself or the beneficiaries of the card during the period of the card.</li></ol>' +
    '<p>It is, therefore, submitted that no Medical Allowance over-drawal arises in this case and no recovery is called for. Since the card stands in the name of a non-employee spouse, the card holder shall surrender the card <b>directly</b> to the issuing authority in terms of the Order, and the Annexure-A declaration of the employee with proof of surrender will be furnished to your office thereafter. The matter may kindly be treated as regularised / the objection, if any, disposed of accordingly.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock(ofcFwdSigHtml() + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Copy of Swasthya Sathi card and family-member list. (2) Self-declaration of the card holder regarding non-employment. (3) Salary requisition / pay slips showing M.A. position. (4) Annexure-A declaration of the employee (after surrender).</div>');
 }
 
@@ -8133,7 +8144,7 @@ function ofcDocWvHoi(){
    '<p>With reference to the above, it is certified from the pay bills / salary requisitions of this school that ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcWaivedTxt() + '. The ' + ofcWvCardLine() + ' includes the employee as beneficiary' + (ofcSelfCard() ? '' : ' (card holder is a non-employee)') + '.</p>' +
    '<p>As no Medical Allowance has been drawn during the period of the card, <b>no over-drawal arises, no recovery / refund is called for, and no T.R. Form No. 7 challan is involved.</b> The employee’s declaration is enclosed.</p>' +
    '<p>' + (ofcRoute() === 'HOLDER' ? 'The card holder shall surrender the card directly to the issuing authority, and the Annexure-A declaration with proof of surrender will be furnished to this office / your office thereafter.' : 'The employee is surrendering the card to the issuing authority and the Annexure-A declaration will be furnished thereafter.') + ' The matter may kindly be treated as regularised.</p>' +
-   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   ofcSigBlock(ofcFwdSigHtml() + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Declaration of the employee. (2) Copy of card / family-member list. (3) Pay-bill extract showing no M.A. drawn.</div>');
 }
 function ofcDocWvHolder(){
