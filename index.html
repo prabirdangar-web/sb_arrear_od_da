@@ -805,7 +805,7 @@
                 <option value="Educational Institution">Educational Institution</option>
                 <option value="Private Service">Private Service</option>
                 <option value="Self-Employed">Self-Employed</option>
-                <option value="Housewife / Homemaker">Housewife / Homemaker</option>
+                <option value="Housewife / Homemaker" selected>Housewife / Homemaker</option>
                 <option value="Not Employed">Not Employed</option>
                 <option value="Retired">Retired</option>
                 <option value="Deceased">Deceased</option>
@@ -1617,6 +1617,8 @@
                     <b>Reference copy &mdash; Order No. 92-F(MED)WB dt. 09.10.2026 (Finance Dept., Medical Cell):</b>
                     <button type="button" class="btn-print" style="margin-left:8px;" onclick="ofcOpenOrder(false)">View Order PDF</button>
                     <button type="button" class="btn-print" style="margin-left:4px;" onclick="ofcOpenOrder(true)">Download</button></div></div>
+                <div class="fg wide"><label>Extent of Surrender <em>(Order 92-F(MED)WB directs surrender of the CARD, not deletion of a name)</em></label>
+                    <select id="ofcSurrExt" onchange="ofcRefreshDocList()"><option value="FULL" selected>FULL CARD surrender &mdash; entire card with all members cancelled (default)</option><option value="NAME">Only name(s) deleted from the card (if the issuing office permits)</option></select></div>
                 <div class="fg"><label>Service Status of Employee <em>(Order 92-F(MED)WB: employee &rarr; Head of Office; pensioner &rarr; office where WBHS claim is lodged)</em></label>
                     <select id="ofcSvcStatus" onchange="ofcOrderAdvice()"><option value="RUNNING" selected>Running service (not yet retired)</option><option value="PENSIONER">Retired / Pensioner</option></select></div>
                 <div class="fg"><label>PPO Number <em>(pensioner only)</em></label><input id="ofcPpo" onchange="ofcOrderAdvice()"></div>
@@ -1662,7 +1664,8 @@
                 all employees / pensioners and their beneficiaries holding Swasthya Sathi / Ayushman Bharat cards while enrolled under WBHS must surrender them to the <u>respective issuing authority</u>;
                 a declaration in <b>Annexure-A</b> with proof / acknowledgement of surrender goes to the <u>Head of Office</u>; last date <b>31.10.2026</b>.
                 District Swasthya Sathi sections work under the District Magistrate&rsquo;s office; portal <a href="https://swasthyasathi.gov.in" target="_blank" rel="noopener">swasthyasathi.gov.in</a>, helpline 1800-345-5384.
-                Annexure-A is printed exactly as in the Order you uploaded. <b>Form D</b> (name deletion after receiving the card) is a Swasthya Sathi Cell form; its official layout could not be downloaded, so the page printed here carries the same particulars &mdash; <b>copy onto the official Form D if the D.M. office insists.</b><br>
+                Annexure-A is printed exactly as in the Order you uploaded. <b>Form D</b> (surrender / cancellation of the card) is a Swasthya Sathi Cell form; its official layout could not be downloaded, so the page printed here carries the same particulars &mdash; <b>copy onto the official Form D if the D.M. office insists.</b><br>
+                <b>Default = FULL CARD surrender:</b> the Order directs surrender of the card itself (no partial name deletion is provided in it), so all letters ask for the entire card with all members to be cancelled; Form D and Annexure-A list every member. Switch &ldquo;Extent of Surrender&rdquo; only if the issuing office permits name deletion alone.<br>
                 <b>Who surrenders:</b> where the card is in the name of a non-employee spouse (wife / housewife), the <u>card holder herself</u> applies directly to the District Swasthya Sathi section / issuing authority, with a self-declaration of non-employment and the employee&rsquo;s Annexure-A. The D.I. (S.E.) is the controlling officer of the employee only and is not the authority for the spouse&rsquo;s card, so the D.I. is merely kept informed by copy. Documents for the D.I. route are shown only when &ldquo;Employee applies through H.O.I. / D.I.&rdquo; is chosen.
             </div>
         </div>
@@ -7613,6 +7616,8 @@ function ofcOrderAdvice(){
 function ofcApplyRecommended(){
   const r = ofcSvcRec(), sel = document.getElementById('ofcTriggerSel'); if (sel) { sel.value = r.k; ofcApplyTrigger(); }
 }
+function ofcFullCard(){ return (val('ofcSurrExt') || 'FULL') === 'FULL'; }
+function ofcCancelTxt(){ return ofcFullCard() ? 'the <b>entire card, with all members included in it,</b> be cancelled / deactivated' : 'the name(s) above be deleted from the card'; }
 function ofcMaPos(){ return ofcCase() === 'MA_SS' ? (val('ofcMaPos') || 'DRAWN') : 'DRAWN'; }
 function ofcDocVisible(d){ return d.cases.includes(ofcCase()) && (!d.route || d.route === ofcRoute()) && (!d.maPos || d.maPos === ofcMaPos()); }
 function ofcWaivedTxt(){ const m = val('ofcStoppedFrom'); return m ? 'has not drawn / has waived the Medical Allowance from ' + monthLabelShort(m) + ' onwards' : 'has been waiving (not drawing) the Medical Allowance from time to time'; }
@@ -7648,7 +7653,7 @@ function ofcBenRows(){
   const rows = [];
   [1, 2, 3].forEach(i => { const n = (val('ofcB' + i + 'n') || '').trim(); if (n) rows.push({ n: n, r: val('ofcB' + i + 'r'), a: val('ofcB' + i + 'a') }); });
   if (rows.length) return rows;
-  rows.push({ n: (val('odEmpName') || val('staffName') || '').toUpperCase(), r: 'Self (employee)', a: val('ofcAadhaar') });
+  rows.push({ n: (val('odEmpName') || val('staffName') || '').toUpperCase(), r: ofcSelfCard() ? 'Self (employee)' : 'Self (employee) \u2014 beneficiary in the card', a: val('ofcAadhaar') });
   if (!ofcSelfCard() && (val('ofcCardHolder') || '').trim()) rows.push({ n: val('ofcCardHolder').trim().toUpperCase(), r: val('ofcCardRel') + ' (card holder)', a: '' });
   return rows;
 }
@@ -7882,7 +7887,7 @@ function ofcDocSsApp(){
    '<p><b>Subject: Prayer for acceptance of surrender of Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(ofcHolderName()) + ', in which my name / the name of the beneficiary is included.</b></p>' +
    '<p>Respected Sir,</p>' +
    '<p>With due respect, I, ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', beg to state that ' + ofcEsc(ofcSelfCard() ? 'I hold a Swasthya Sathi card in my own name (Card No. / URN: ' : ofcResolve('{HIS} name was included as a beneficiary under the Swasthya Sathi card of {HIS} {REL}, {HOLDER} (Card No. / URN: ', 'first')) + ofcB(val('ofcCardNo'), 14) + ').</p>' +
-   '<p>I am an employee covered under the West Bengal Health Scheme (WBHS)' + (val('ofcWbhsNo') ? ' (Enrolment Certificate No. ' + ofcEsc(val('ofcWbhsNo')) + ')' : '') + '. In view of the Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026 directing mandatory surrender of Swasthya Sathi / Ayushman Bharat cards by employees and their beneficiaries, I request that the surrender of the above card, in respect of <b>' + ofcEsc(ofcSsBen()) + '</b>, may kindly be accepted and the card / the name of the beneficiary may be deactivated.</p>' +
+   '<p>I am an employee covered under the West Bengal Health Scheme (WBHS)' + (val('ofcWbhsNo') ? ' (Enrolment Certificate No. ' + ofcEsc(val('ofcWbhsNo')) + ')' : '') + '. In view of the Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026 directing mandatory surrender of Swasthya Sathi / Ayushman Bharat cards by employees and their beneficiaries, I request that the surrender of the above card, in respect of <b>' + ofcEsc(ofcSsBen()) + '</b>, may kindly be accepted and ' + (ofcFullCard() ? 'the entire card (with all members) may be cancelled / deactivated' : 'the card / the name of the beneficiary may be deactivated') + '.</p>' +
    '<p>I further state that the Medical Allowance drawn by me for the period ' + ofcEsc(s.periodLong) + ' amounting to ' + amt + ' has been refunded by deposit through ' + ofcPayRef() + ', as per the order of the competent authority, and the proof of deposit is enclosed.</p>' +
    '<p>I therefore pray that the surrender may kindly be accepted and an acknowledgement / proof of surrender may be issued to me so that the same can be submitted to the Head of Office along with my declaration within the stipulated date.</p>' +
    '<div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
@@ -7914,7 +7919,7 @@ function ofcDocSsDi(){
    '<p>Sir / Madam,</p>' +
    '<p>With reference to the above, I am to forward herewith the application of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of ' + ofcEsc(ofcSchool()) + ', for surrender of the Swasthya Sathi card (No. ' + ofcB(val('ofcCardNo'), 14) + ') held in the name of ' + ofcEsc(ofcHolderName()) + ', in which ' + ofcEsc(ofcSsBen()) + ' is included as beneficiary.</p>' +
    '<p>It is reported by the school authority that the employee had drawn Medical Allowance for the period ' + ofcEsc(s.periodLong) + ' amounting to ' + amt + ' (Rupees ' + numberToWords(s.total) + ' only), which was inadmissible on account of the said card, and that the entire amount has been refunded by ' + ofcPayRef() + '. The proof of deposit has been enclosed with the application.</p>' +
-   '<p>As the over-drawn amount has been fully refunded and the employee is willing to surrender the card in terms of the above Order, the request is <b>recommended for acceptance</b>. You are requested to kindly accept the surrender, deactivate the card / the name of the beneficiary and issue an acknowledgement / proof of surrender to the employee, so that he/she may comply with the Order within the stipulated date (31.10.2026).</p>' +
+   '<p>As the over-drawn amount has been fully refunded and the employee is willing to surrender the card in terms of the above Order, the request is <b>recommended for acceptance</b>. You are requested to kindly accept the surrender, ' + (ofcFullCard() ? 'cancel / deactivate the entire card (all members)' : 'deactivate the card / the name of the beneficiary') + ' and issue an acknowledgement / proof of surrender to the employee, so that he/she may comply with the Order within the stipulated date (31.10.2026).</p>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcStrip(ofcDiName())).toUpperCase() + '</b></div>' +
    '<div class="ofc-enc">Enclosures: As above. &nbsp;Copy to: (1) ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcSchool()) + '. (2) The ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + ', for information.</div>');
 }
@@ -7952,9 +7957,9 @@ function ofcDocSsFormD(){
   return ofcPage(
    '<div class="ofc-noprint" style="background:#fffbeb;border:1px dashed #d97706;padding:4px 8px;font:12px Arial;margin-bottom:6px;">Note (preview only): official Form D layout could not be downloaded; this page carries the same particulars. Copy onto the official Form D if the D.M. office requires it.</div>' +
    '<div class="ofc-hd" style="font-size:14pt;text-decoration:underline;">FORM D</div>' +
-   '<div class="ofc-hd" style="font-size:11.5pt;margin-bottom:8px;">APPLICATION FOR NAME DELETION UNDER SWASTHYA SATHI AFTER RECEIVING THE CARD</div>' +
+   '<div class="ofc-hd" style="font-size:11.5pt;margin-bottom:8px;">' + (ofcFullCard() ? 'APPLICATION FOR SURRENDER OF THE ENTIRE SWASTHYA SATHI CARD (ALL MEMBERS)' : 'APPLICATION FOR NAME DELETION UNDER SWASTHYA SATHI AFTER RECEIVING THE CARD') + '</div>' +
    '<div>To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b></div>' +
-   '<p><b>Subject: Surrender of Swasthya Sathi card / deletion of name(s) of beneficiary(ies) &mdash; Finance Dept. Order No. 92-F(MED)WB dated 09.10.2026.</b></p>' +
+   '<p><b>Subject: ' + (ofcFullCard() ? 'Surrender of the entire Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + ' (all members listed below)' : 'Surrender of Swasthya Sathi card / deletion of name(s) of beneficiary(ies)') + ' &mdash; Finance Dept. Order No. 92-F(MED)WB dated 09.10.2026.</b></p>' +
    '<table class="ofc-tbl">' +
    '<tr><td style="width:44%;">Swasthya Sathi Card No. / URN</td><td>' + ofcB(val('ofcCardNo'), 22) + '</td></tr>' +
    '<tr><td>Name of Card Holder / Head of Family</td><td>' + ofcEsc(ofcHolderName()) + '</td></tr>' +
@@ -7965,7 +7970,7 @@ function ofcDocSsFormD(){
    '<p><b>Particulars of member(s) whose name is to be deleted / card surrendered:</b></p>' +
    '<table class="ofc-tbl"><tr><th style="width:8%;">Sl. No.</th><th>Name of Member</th><th>Relationship</th><th>Aadhaar No.</th></tr>' + tr + '</table>' +
    '<p><b>Reason for deletion:</b> Mandatory surrender of Swasthya Sathi card by Government employee and beneficiaries enrolled under the West Bengal Health Scheme (WBHS), as per Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</p>' +
-   '<p>I declare that the above particulars are true and correct, and I shall not use the card hereafter. I request that the name(s) above be deleted / the card be deactivated and an acknowledgement of surrender be issued.</p>' +
+   '<p>I declare that the above particulars are true and correct, and I shall not use the card hereafter. I request that ' + ofcCancelTxt() + ' and an acknowledgement of surrender be issued.</p>' +
    '<div style="margin-top:12px;display:flex;justify-content:space-between;"><div>Date: ' + ofcD(val('ofcAppDate')) + '<br>Place: ' + ofcEsc(val('odPoName') || '') + '</div>' +
    '<div style="text-align:center;">Signature of Applicant: ______________________<br><b>' + ofcEsc((ofcRoute() === 'HOLDER' ? ofcHolderName() : ofcPerson())).toUpperCase() + '</b>' + (ofcRoute() === 'HOLDER' ? '<br>(Card Holder)' : '') + '</div></div>' +
    (ofcRoute() === 'HOLDER' ? '<div class="ofc-sig" style="margin-top:10px;">Copy (for information only) to: <b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b>, ' + ofcEsc(ofcSchool()).toUpperCase() + ' and ' + ofcEsc(ofcDiName()) + '.</div>' : '<div class="ofc-sig" style="margin-top:10px;">Forwarded by: ______________________ <b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b>, ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>'));
@@ -8052,7 +8057,7 @@ function ofcDocSsHolder(){
    '<li>In terms of the above Order, Government employees and their beneficiaries enrolled under WBHS who hold Swasthya Sathi / Ayushman Bharat cards are required to surrender such cards to the respective issuing authority, and to submit the Annexure-A declaration with proof of surrender to the Head of Office, positively by 31.10.2026.</li>' +
    refund +
    '<li><b>Justification for applying directly to your office:</b> the card stands in <u>my</u> name and I am not an employee of the Education Department. Only the card holder can surrender it, and the D.I. of Schools (S.E.) is the controlling officer of my ' + ofcEsc(rel) + ' for school-service matters only; the District Inspector has no administrative control over the Swasthya Sathi card of a non-employee family member. This application is therefore submitted by me directly to the competent issuing / nodal authority, and a copy is forwarded to the Head of Office of my ' + ofcEsc(rel) + ' for information and compliance record.</li></ol>' +
-   '<p>I therefore pray that the surrender of the above card may kindly be accepted, the card may be deactivated and the name(s) of the beneficiary(ies) shown in Form D may be deleted, and that an acknowledgement / proof of surrender may please be issued in my favour, so that it can be submitted to the Head of Office of my ' + ofcEsc(rel) + ' within the stipulated date.</p>' +
+   '<p>I therefore pray that the surrender of the above card may kindly be accepted, ' + (ofcFullCard() ? 'the <b>entire card, with all members shown in Form D,</b> may be cancelled / deactivated' : 'the card may be deactivated and the name(s) of the beneficiary(ies) shown in Form D may be deleted') + ', and that an acknowledgement / proof of surrender may please be issued in my favour, so that it can be submitted to the Head of Office of my ' + ofcEsc(rel) + ' within the stipulated date.</p>' +
    '<div>Date: ' + ofcD(val('ofcAppDate')) + '<br>Place: ' + ofcEsc(val('odPoName') || '') + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(hol).toUpperCase() + '</b><br>(Card Holder)</div>' +
    '<div class="ofc-enc"><b>Enclosures:</b><ol class="ofc-ol" style="font-size:10pt;">' + encl.map(x => '<li>' + x + '</li>').join('') + '</ol>' +
@@ -8067,7 +8072,7 @@ function ofcDocSsHolderDecl(){
    '<ol class="ofc-ol">' +
    '<li>I am the holder of Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + ' and I am ' + ofcEsc(ofcHolderOccText()) + '. I am not, and have not been during the period of the card, in any Government, semi-Government, Local Body, Undertaking or other service, and I do not draw any House Rent Allowance, Medical Allowance or other allowance from any source.</li>' +
    '<li>My ' + ofcEsc(rel) + ', ' + ofcEsc(emp) + ', is a Government-aided school employee enrolled under the West Bengal Health Scheme (WBHS), and his/her name is included in my card as a beneficiary.</li>' +
-   '<li>In compliance with Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026, I voluntarily and unconditionally surrender the above card, and consent to deactivation of the card / deletion of the names of the beneficiaries listed in Form D.</li>' +
+   '<li>In compliance with Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026, I voluntarily and unconditionally surrender the <b>' + (ofcFullCard() ? 'entire card (all members)' : 'above card') + '</b>, and consent to ' + (ofcFullCard() ? 'its cancellation / deactivation' : 'deactivation of the card / deletion of the names of the beneficiaries listed in Form D') + '.</li>' +
    '<li>No claim for treatment under the card is pending or will be made after the date of surrender.</li>' +
    '<li>The above statements are true and correct to the best of my knowledge and belief.</li></ol>' +
    '<div style="margin-top:14px;display:flex;justify-content:space-between;"><div>Place: ' + ofcEsc(val('odPoName') || '') + '<br>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
@@ -8139,7 +8144,7 @@ function ofcDocWvHolder(){
    '<p>Sir / Madam,</p>' +
    '<p>I, <b>' + ofcEsc(hol) + '</b>, ' + ofcEsc(ofcHolderOccText()) + ' (Aadhaar No. ' + ofcB(val('ofcHolderAadhaar'), 14) + '; Mobile ' + ofcB(val('ofcHolderMobile'), 12) + '), of ' + ofcEsc(val('ofcCardAddr') || val('schoolAddress')) + ', am the holder of the above card. My ' + ofcEsc(rel) + ', ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', is a WBHS enrolled employee and is included in the card.</p>' +
    '<p>As per the above Order, I hereby surrender the card voluntarily. Since the card is in my name and I am a non-employee, I am applying directly to your office. My ' + ofcEsc(rel) + ' ' + ofcWaivedTxt() + ', hence no Medical Allowance over-drawal arises and no refund is involved.</p>' +
-   '<p>I request you to kindly accept the surrender, deactivate the card, delete the names in Form D, and issue an acknowledgement / proof of surrender for submission to the Head of Office.</p>' +
+   '<p>I request you to kindly accept the surrender, ' + (ofcFullCard() ? 'cancel / deactivate the entire card (all members)' : 'deactivate the card, delete the names in Form D') + ', and issue an acknowledgement / proof of surrender for submission to the Head of Office.</p>' +
    '<div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________<br><b>' + ofcEsc(hol).toUpperCase() + '</b> (Card Holder)</div>' +
    '<div class="ofc-enc">Enclosures: (1) Card copy &amp; family list. (2) Aadhaar copies. (3) Form D. (4) Self-declaration of card holder. (5) Declaration of employee. (6) Certificate of H.O.I.<br>Copy (for information) to: ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + '; ' + ofcEsc(ofcDiName()) + '.</div>');
@@ -8150,7 +8155,7 @@ function ofcDocWvSurr(){
    '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b><br><b>Through:</b> The ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + '</div>' +
    '<p><b>Subject: Surrender of Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + ' &mdash; Order No. 92-F(MED)WB dated 09.10.2026.</b></p>' +
    '<p>Sir,</p>' +
-   '<p>I, ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', a WBHS enrolled employee, hold the above card in my own name and, in terms of the above Order, surrender it herewith. I ' + ofcWaivedTxt() + '; hence no Medical Allowance over-drawal and no refund is involved.</p>' +
+   '<p>I, ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', a WBHS enrolled employee, hold the above card in my own name and, in terms of the above Order, surrender the ' + (ofcFullCard() ? '<b>entire card (all members)</b>' : 'card') + ' herewith. I ' + ofcWaivedTxt() + '; hence no Medical Allowance over-drawal and no refund is involved.</p>' +
    '<p>Kindly accept the surrender and issue an acknowledgement / proof of surrender for submission to the Head of Office.</p>' +
    '<div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________<br><b>' + ofcEsc(emp).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '</div>' +
