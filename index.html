@@ -7501,6 +7501,7 @@ const OFC_DOCS = [
   { id:'hoi', maPos:'DRAWN',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Report of the Head of the Institution', fn:'ofcDocHoi' },
   { id:'ord', maPos:'DRAWN',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Office Order (by the Administrator)', fn:'ofcDocOrder' },
   { id:'trsig', maPos:'DRAWN',   cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Request to D.I. / A.I. (S.E.) to sign T.R. Form No. 7 (item 7) before deposit', fn:'ofcDocTrSig' },
+  { id:'trfl', maPos:'DRAWN',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Forwarding Letter (F/L) of the H.M. / H.O.I. to D.I. / A.I. (S.E.) \u2014 forwarding the employee\u2019s prayer for signature on T.R. Form No. 7', fn:'ofcDocTrFl' },
   { id:'hradecl', cases:['HRA'],               stage:'Before deposit', label:'Declaration by the employee regarding H.R.A.', fn:'ofcDocHraDecl' },
   { id:'hracert', cases:['HRA'],               stage:'Before deposit', label:'Certificate of the Head of the Institution regarding H.R.A.', fn:'ofcDocHraCert' },
   { id:'salnote', cases:['SAL'],               stage:'Before deposit', label:'Salary Over-Drawal Issue Note (editable statement of facts)', fn:'ofcDocSalNote' },
@@ -7957,6 +7958,19 @@ function ofcDocTrSig(){
    '<div class="ofc-sig" style="text-align:right;margin-top:16px;">Yours faithfully,<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcPerson()).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>' +
    '<div class="ofc-sig" style="margin-top:10px;">Forwarded through:<br><br>Signature: ______________________________<br>' + ofcFwdNameLine() + '<b>' + ofcEsc(ofcStrip(ofcThrough())).toUpperCase() + '</b>' + (ofcSelf() ? '' : '<br>' + ofcEsc(ofcSchool()).toUpperCase()) + '</div>' +
    '<div class="ofc-enc">Enclosures: (1) T.R. Form No. 7 challan, 4 copies (duly filled). (2) Office Order and calculation sheet.</div>');
+}
+// 3c. FORWARDING LETTER OF H.M. / H.O.I. TO D.I. / A.I. FOR SIGNATURE ON T.R. 7 (before deposit)
+function ofcDocTrFl(){
+  const s = ofcSummary(), amt = ofcMoney(s.total), item = ofcItem();
+  return ofcPage(ofcHead() + ofcMemo() +
+   '<div style="margin-top:6px;">To<br><b>' + ofcEsc(ofcDeptOfficer()) + '</b></div>' +
+   '<p><b>Subject: Forwarding of the prayer of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', for signature / verification on T.R. Form No. 7 (item 7 &mdash; Departmental Officer) for deposit of over-drawn ' + ofcEsc(item) + ' of ' + amt + '.</b></p>' +
+   '<p>Sir,</p>' +
+   '<p>I have the honour to forward herewith the prayer of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ' of this school, for your kind signature / verification in item 7 (Departmental Officer) of the T.R. Form No. 7 challan (all four copies), for refund of excess ' + ofcEsc(item) + ' amounting to <b>' + amt + '</b> (Rupees ' + numberToWords(s.total) + ' only), drawn for the period ' + ofcEsc(s.periodLong) + ' (' + s.n + ' month' + (s.n === 1 ? '' : 's') + ').</p>' +
+   '<p>It is reported that the particulars stated in the prayer have been verified from the records of the school, and that the over-drawal is due to: ' + ofcEsc(val('reasonText')) + ' The employee has agreed to refund the entire amount in lump sum, and the matter is being processed for compliance with the ' + ofcPurposeTxt() + '.</p>' +
+   '<p>The challan is to be deposited at ' + ofcEsc(val('chlTreasury')) + ' Treasury / ' + ofcEsc(val('chlBank')) + ' under Account Code ' + ofcB(val('chlAccountCode14'), 14) + '. You are therefore requested to kindly sign the challan and return it, so that the amount may be deposited and the receipted challan submitted to your office for regularisation of the matter.</p>' +
+   ofcSigBlock(ofcFwdSigHtml() + ofcEsc(ofcSchool()).toUpperCase()) +
+   '<div class="ofc-enc">Enclosures: (1) Prayer of the employee. (2) T.R. Form No. 7 challan, 4 copies (duly filled). (3) Office Order and month-wise calculation sheet.<br>Copy to: ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', for information.</div>');
 }
 // 7b. SWASTHYA SATHI FORM D (name deletion after receiving card)
 function ofcDocSsFormD(){
