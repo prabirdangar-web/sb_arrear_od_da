@@ -8469,7 +8469,7 @@ const PROF_GROUPS = [
   { t: 'School / Office', scope: 'school', ids: ['schoolName','schoolAddress','subDivision','block','district','hoiContact','schoolEmail','departmentName','diOffice','diAddress','gia1Date','ofcHoiName','ofcHoiTitle','ofcAdminTitle','ofcDdoOffice'] },
   { t: 'T.R. Form No. 7 / Treasury (fill once)', scope: 'school', ids: ['chlTreasuryPreset','chlBank','chlTreasury','chlTreasuryCode','chlSchoolCode','chlHead','chlAccountCode14','chlTenderedBy','chlDeptOfficer'] },
   { t: 'Staff', scope: 'staff', ids: ['staffName','designation','qualification','staffSex','dob','doj','dojSchool'] },
-  { t: 'Staff IDs & Contact', scope: 'staff', ids: ['ofcAadhaar','ofcHrms','ofcGpf','ofcMobile','ofcAbha','ofcWbhsNo','ofcCardAddr','ofcHolderAadhaar','ofcHolderMobile'] }
+  { t: 'Staff IDs & Contact', scope: 'staff', ids: ['ofcAadhaar','ofcHrms','ofcGpf','ofcMobile','ofcAbha','ofcWbhsNo','ofcCardNo','ofcCardHolder','ofcCardRel','ofcCardAddr','ofcHolderAadhaar','ofcHolderMobile'] }
 ];
 let profReady = false;
 function profEsc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
