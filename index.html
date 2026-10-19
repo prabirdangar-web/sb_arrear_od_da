@@ -5822,7 +5822,7 @@ function printStatement() {
     </div>`;
     });
 
-    window.__lastDocType = type;
+    window.__lastDocType = null; // not a showDoc() page
     document.getElementById('printArea').innerHTML = content;
     ckMakeEditable();
     document.getElementById('modalOverlay').classList.add('active');
@@ -5929,7 +5929,7 @@ function printChallan() {
     const copyTypes = ['ORIGINAL', 'DUPLICATE', 'TRIPLICATE', 'QUADRUPLICATE'];
     const content = copyTypes.map(ct => buildChallanPage(ct)).join('');
 
-    window.__lastDocType = type;
+    window.__lastDocType = null; // not a showDoc() page
     document.getElementById('printArea').innerHTML = content;
     ckMakeEditable();
     document.getElementById('modalOverlay').classList.add('active');
