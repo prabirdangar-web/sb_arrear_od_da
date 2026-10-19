@@ -1613,6 +1613,11 @@
                 <div class="fg"><label>Mobile No.</label><input id="ofcMobile"></div>
                 <div class="fg"><label>Ayushman Bharat / ABHA ID <em>(if any)</em></label><input id="ofcAbha"></div>
                 <div class="fg wide"><label>Card Holder / Family Address <em>(for Form D)</em></label><input id="ofcCardAddr"></div>
+                <div class="fg wide"><label>M.A. Position <em>(decides the whole document set)</em></label>
+                    <select id="ofcMaPos" onchange="ofcRefreshDocList()">
+                        <option value="DRAWN" selected>M.A. was DRAWN &mdash; over-drawn amount refunded (T.R. Form 7) &rarr; full refund set</option>
+                        <option value="WAIVED">NO over-drawal &mdash; M.A. waived / not drawn by employee from time to time &rarr; simple letters, NO T.R.-7 matter</option>
+                    </select></div>
                 <div class="fg wide"><label>Who Surrenders the Card? <em>(most cases: wife is the card holder &amp; non-employee)</em></label>
                     <select id="ofcSsRoute" onchange="ofcRefreshDocList()">
                         <option value="HOLDER" selected>Card holder applies DIRECTLY to the higher / issuing authority (D.I. is not the authority for a non-employee spouse&rsquo;s card)</option>
@@ -7478,22 +7483,26 @@ const OFC_SSAUTH = {
   STATE: 'The Swasthya Sathi Samiti, Department of Health & Family Welfare, Government of West Bengal, Kolkata'
 };
 const OFC_DOCS = [
-  { id:'app',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Application of the employee (prayer for permission & arrangement of refund)', fn:'ofcDocApp' },
-  { id:'hoi',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Report of the Head of the Institution', fn:'ofcDocHoi' },
-  { id:'ord',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Office Order (by the Administrator)', fn:'ofcDocOrder' },
-  { id:'trsig',   cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Request to D.I. / A.I. (S.E.) to sign T.R. Form No. 7 (item 7) before deposit', fn:'ofcDocTrSig' },
+  { id:'app', maPos:'DRAWN',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Application of the employee (prayer for permission & arrangement of refund)', fn:'ofcDocApp' },
+  { id:'hoi', maPos:'DRAWN',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Report of the Head of the Institution', fn:'ofcDocHoi' },
+  { id:'ord', maPos:'DRAWN',     cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Office Order (by the Administrator)', fn:'ofcDocOrder' },
+  { id:'trsig', maPos:'DRAWN',   cases:['MA_SS','HRA','SAL'], stage:'Before deposit', label:'Request to D.I. / A.I. (S.E.) to sign T.R. Form No. 7 (item 7) before deposit', fn:'ofcDocTrSig' },
   { id:'hradecl', cases:['HRA'],               stage:'Before deposit', label:'Declaration by the employee regarding H.R.A.', fn:'ofcDocHraDecl' },
   { id:'hracert', cases:['HRA'],               stage:'Before deposit', label:'Certificate of the Head of the Institution regarding H.R.A.', fn:'ofcDocHraCert' },
   { id:'salnote', cases:['SAL'],               stage:'Before deposit', label:'Salary Over-Drawal Issue Note (editable statement of facts)', fn:'ofcDocSalNote' },
+  { id:'wvemp',   maPos:'WAIVED', cases:['MA_SS'], stage:'Simple set \u2014 no over-drawal', label:'Employee\u2019s simple declaration: M.A. waived / not drawn from time to time \u2014 no over-drawal', fn:'ofcDocWvEmp', noAmt:true },
+  { id:'wvhoi',   maPos:'WAIVED', cases:['MA_SS'], stage:'Simple set \u2014 no over-drawal', label:'H.O.I. simple letter to D.I. / D.D.O.: no M.A. over-drawal, no refund / T.R.-7 matter', fn:'ofcDocWvHoi', noAmt:true },
+  { id:'wvhold',  maPos:'WAIVED', route:'HOLDER', cases:['MA_SS'], stage:'Simple set \u2014 no over-drawal', label:'Simple surrender letter by the CARD HOLDER (wife) directly to the issuing authority', fn:'ofcDocWvHolder', noAmt:true },
+  { id:'wvsurr',  maPos:'WAIVED', route:'EMP', cases:['MA_SS'], stage:'Simple set \u2014 no over-drawal', label:'Simple surrender letter by the EMPLOYEE (own card) through H.O.I.', fn:'ofcDocWvSurr', noAmt:true },
   { id:'nomaissue', cases:['MA_SS'],            stage:'Before deposit', label:'Letter: NO M.A. over-drawal issue / spouse is non-employee card holder (clarification to D.I. / D.D.O.)', fn:'ofcDocNoMa', noAmt:true },
-  { id:'sshold',  cases:['MA_SS'],             stage:'After deposit',  route:'HOLDER', label:'Application of the CARD HOLDER (wife) directly to the higher authority for surrender, with justification &amp; attachments', fn:'ofcDocSsHolder' },
-  { id:'ssholddecl', cases:['MA_SS'],          stage:'After deposit',  route:'HOLDER', label:'Self-declaration &amp; consent of the card holder (non-employment, voluntary surrender)', fn:'ofcDocSsHolderDecl' },
-  { id:'ssapp',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'Employee\u2019s application for surrender of Swasthya Sathi card (employee\u2019s own card)', fn:'ofcDocSsApp' },
-  { id:'ssformd', cases:['MA_SS'],             stage:'After deposit',  label:'Swasthya Sathi Form D \u2014 name deletion / surrender (signed by the card holder in holder route)', fn:'ofcDocSsFormD' },
-  { id:'sshoi',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'H.O.I. forwarding to D.I. (S.E.) \u2014 accept / consider surrender', fn:'ofcDocSsHoi' },
-  { id:'ssdi',    cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'D.I. (S.E.) recommendation to higher authority \u2014 accept card surrender', fn:'ofcDocSsDi' },
-  { id:'ssdecl',  cases:['MA_SS'],             stage:'After surrender', label:'Annexure-A declaration of surrender (exact format of Order 92-F(MED)WB)', fn:'ofcDocSsDecl' },
-  { id:'ssddo',   cases:['MA_SS'],             stage:'After surrender', label:'Declaration to DDO (D.I.): refunded, card surrendered \u2014 regularise the matter', fn:'ofcDocSsDdo' }
+  { id:'sshold', noAmt:true,  cases:['MA_SS'],             stage:'After deposit',  route:'HOLDER', label:'Application of the CARD HOLDER (wife) directly to the higher authority for surrender, with justification &amp; attachments', fn:'ofcDocSsHolder' },
+  { id:'ssholddecl', noAmt:true, cases:['MA_SS'],          stage:'After deposit',  route:'HOLDER', label:'Self-declaration &amp; consent of the card holder (non-employment, voluntary surrender)', fn:'ofcDocSsHolderDecl' },
+  { id:'ssapp', maPos:'DRAWN',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'Employee\u2019s application for surrender of Swasthya Sathi card (employee\u2019s own card)', fn:'ofcDocSsApp' },
+  { id:'ssformd', noAmt:true, cases:['MA_SS'],             stage:'After deposit',  label:'Swasthya Sathi Form D \u2014 name deletion / surrender (signed by the card holder in holder route)', fn:'ofcDocSsFormD' },
+  { id:'sshoi', maPos:'DRAWN',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'H.O.I. forwarding to D.I. (S.E.) \u2014 accept / consider surrender', fn:'ofcDocSsHoi' },
+  { id:'ssdi', maPos:'DRAWN',    cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'D.I. (S.E.) recommendation to higher authority \u2014 accept card surrender', fn:'ofcDocSsDi' },
+  { id:'ssdecl', noAmt:true,  cases:['MA_SS'],             stage:'After surrender', label:'Annexure-A declaration of surrender (exact format of Order 92-F(MED)WB)', fn:'ofcDocSsDecl' },
+  { id:'ssddo', maPos:'DRAWN',   cases:['MA_SS'],             stage:'After surrender', label:'Declaration to DDO (D.I.): refunded, card surrendered \u2014 regularise the matter', fn:'ofcDocSsDdo' }
 ];
 
 // ------------------------------- helpers -------------------------------------------
@@ -7560,7 +7569,9 @@ function ofcResolve(text, mode){
 }
 function ofcSelfCard(){ return val('ofcHolderType') === 'SELF'; }
 function ofcRoute(){ return ofcSelfCard() ? 'EMP' : (val('ofcSsRoute') || 'HOLDER'); }
-function ofcDocVisible(d){ return d.cases.includes(ofcCase()) && (!d.route || d.route === ofcRoute()); }
+function ofcMaPos(){ return ofcCase() === 'MA_SS' ? (val('ofcMaPos') || 'DRAWN') : 'DRAWN'; }
+function ofcDocVisible(d){ return d.cases.includes(ofcCase()) && (!d.route || d.route === ofcRoute()) && (!d.maPos || d.maPos === ofcMaPos()); }
+function ofcWaivedTxt(){ const m = val('ofcStoppedFrom'); return m ? 'has not drawn / has waived the Medical Allowance from ' + monthLabelShort(m) + ' onwards' : 'has been waiving (not drawing) the Medical Allowance from time to time'; }
 function ofcEmpRel(){ const r = (val('ofcCardRel') || '').toLowerCase(), f = ofcFemale();
   if (r === 'wife') return 'husband'; if (r === 'husband') return 'wife';
   if (r === 'father' || r === 'mother') return f ? 'daughter' : 'son';
@@ -8041,6 +8052,64 @@ function ofcDocNoMa(){
    '<p>It is, therefore, submitted that no Medical Allowance over-drawal arises in this case and no recovery is called for. Since the card stands in the name of a non-employee spouse, the card holder shall surrender the card <b>directly</b> to the issuing authority in terms of the Order, and the Annexure-A declaration of the employee with proof of surrender will be furnished to your office thereafter. The matter may kindly be treated as regularised / the objection, if any, disposed of accordingly.</p>' +
    ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
    '<div class="ofc-enc">Enclosures: (1) Copy of Swasthya Sathi card and family-member list. (2) Self-declaration of the card holder regarding non-employment. (3) Salary requisition / pay slips showing M.A. position. (4) Annexure-A declaration of the employee (after surrender).</div>');
+}
+
+
+// ======= SIMPLE SET: M.A. WAIVED / NOT DRAWN  =>  NO OVER-DRAWAL, NO REFUND, NO T.R.-7 =======
+function ofcWvCardLine(){
+  return 'Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + (val('ofcCardIssue') ? ' (issued on ' + fmtDMY(val('ofcCardIssue')) + ')' : '') + ' standing in the name of ' + ofcEsc(ofcHolderName());
+}
+function ofcDocWvEmp(){
+  const emp = ofcPerson();
+  return ofcPage(
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:6px 0 12px;">DECLARATION OF THE EMPLOYEE</div>' +
+   '<p>I, <b>' + ofcEsc(emp) + '</b>, ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', enrolled under the West Bengal Health Scheme (WBHS)' + (val('ofcWbhsNo') ? ' (Enrolment Certificate No. ' + ofcEsc(val('ofcWbhsNo')) + ')' : '') + ', do hereby declare that:</p>' +
+   '<ol class="ofc-ol">' +
+   '<li>' + (ofcSelfCard() ? 'I hold' : 'My ' + ofcEsc(val('ofcCardRel') || 'family member') + ', ' + ofcEsc(ofcHolderName()) + ', holds') + ' ' + ofcWvCardLine().replace(' standing in the name of ' + ofcEsc(ofcHolderName()), '') + ', in which ' + (ofcSelfCard() ? 'my name' : 'my name / the name of my family member(s)') + ' is included.</li>' +
+   '<li>I ' + ofcWaivedTxt() + ' and no Medical Allowance has been drawn by me for any month in which the said card was in force, as is evident from my pay bills / salary requisitions.</li>' +
+   '<li>Accordingly, <b>no Medical Allowance over-drawal arises</b> in my case, no amount is refundable, and no T.R. Form No. 7 challan / refund is involved.</li>' +
+   '<li>I have not claimed and shall not claim any reimbursement of medical expenses for the beneficiaries of the said card for the period of its coverage.</li>' +
+   '<li>' + (ofcRoute() === 'HOLDER' ? 'The card holder is not an employee and is surrendering the card directly to the issuing authority; I shall submit the Annexure-A declaration with proof of surrender to the Head of Office within the stipulated date (31.10.2026).' : 'I am surrendering the card to the issuing authority and shall submit the Annexure-A declaration with proof of surrender to the Head of Office within the stipulated date (31.10.2026).') + '</li>' +
+   '<li>The above statements are true to the best of my knowledge and belief and I shall be personally responsible for any wrong statement.</li></ol>' +
+   '<div style="margin-top:14px;display:flex;justify-content:space-between;"><div>Place: ' + ofcEsc(val('odPoName') || '') + '<br>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div style="text-align:center;">Signature: ______________________<br><b>' + ofcEsc(emp).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '</div></div>');
+}
+function ofcDocWvHoi(){
+  const emp = ofcPerson();
+  return ofcPage(ofcHead() + ofcMemo() +
+   '<div>To<br><b>' + ofcEsc(ofcDiName()) + '</b> (D.D.O.)</div>' +
+   '<p><b>Subject: Certificate that no Medical Allowance over-drawal arises in respect of ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ' &mdash; Swasthya Sathi card surrender (Order No. 92-F(MED)WB dt. 09.10.2026).</b></p>' +
+   '<p>Sir,</p>' +
+   '<p>With reference to the above, it is certified from the pay bills / salary requisitions of this school that ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcWaivedTxt() + '. The ' + ofcWvCardLine() + ' includes the employee as beneficiary' + (ofcSelfCard() ? '' : ' (card holder is a non-employee)') + '.</p>' +
+   '<p>As no Medical Allowance has been drawn during the period of the card, <b>no over-drawal arises, no recovery / refund is called for, and no T.R. Form No. 7 challan is involved.</b> The employee’s declaration is enclosed.</p>' +
+   '<p>' + (ofcRoute() === 'HOLDER' ? 'The card holder shall surrender the card directly to the issuing authority, and the Annexure-A declaration with proof of surrender will be furnished to this office / your office thereafter.' : 'The employee is surrendering the card to the issuing authority and the Annexure-A declaration will be furnished thereafter.') + ' The matter may kindly be treated as regularised.</p>' +
+   ofcSigBlock('<b>' + ofcEsc(ofcFwdSig()) + '</b><br>' + ofcEsc(ofcSchool()).toUpperCase()) +
+   '<div class="ofc-enc">Enclosures: (1) Declaration of the employee. (2) Copy of card / family-member list. (3) Pay-bill extract showing no M.A. drawn.</div>');
+}
+function ofcDocWvHolder(){
+  const rel = ofcEmpRel(), emp = ofcPerson(), hol = ofcHolderName();
+  return ofcPage(
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b></div>' +
+   '<p><b>Subject: Surrender of Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + ' &mdash; Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</b></p>' +
+   '<p>Sir / Madam,</p>' +
+   '<p>I, <b>' + ofcEsc(hol) + '</b>, ' + ofcEsc(ofcHolderOccText()) + ' (Aadhaar No. ' + ofcB(val('ofcHolderAadhaar'), 14) + '; Mobile ' + ofcB(val('ofcHolderMobile'), 12) + '), of ' + ofcEsc(val('ofcCardAddr') || val('schoolAddress')) + ', am the holder of the above card. My ' + ofcEsc(rel) + ', ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', is a WBHS enrolled employee and is included in the card.</p>' +
+   '<p>As per the above Order, I hereby surrender the card voluntarily. Since the card is in my name and I am a non-employee, I am applying directly to your office. My ' + ofcEsc(rel) + ' ' + ofcWaivedTxt() + ', hence no Medical Allowance over-drawal arises and no refund is involved.</p>' +
+   '<p>I request you to kindly accept the surrender, deactivate the card, delete the names in Form D, and issue an acknowledgement / proof of surrender for submission to the Head of Office.</p>' +
+   '<div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________<br><b>' + ofcEsc(hol).toUpperCase() + '</b> (Card Holder)</div>' +
+   '<div class="ofc-enc">Enclosures: (1) Card copy &amp; family list. (2) Aadhaar copies. (3) Form D. (4) Self-declaration of card holder. (5) Declaration of employee. (6) Certificate of H.O.I.<br>Copy (for information) to: ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + '; ' + ofcEsc(ofcDiName()) + '.</div>');
+}
+function ofcDocWvSurr(){
+  const emp = ofcPerson();
+  return ofcPage(
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b><br><b>Through:</b> The ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + '</div>' +
+   '<p><b>Subject: Surrender of Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + ' &mdash; Order No. 92-F(MED)WB dated 09.10.2026.</b></p>' +
+   '<p>Sir,</p>' +
+   '<p>I, ' + ofcEsc(emp) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', a WBHS enrolled employee, hold the above card in my own name and, in terms of the above Order, surrender it herewith. I ' + ofcWaivedTxt() + '; hence no Medical Allowance over-drawal and no refund is involved.</p>' +
+   '<p>Kindly accept the surrender and issue an acknowledgement / proof of surrender for submission to the Head of Office.</p>' +
+   '<div>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________<br><b>' + ofcEsc(emp).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '</div>' +
+   '<div class="ofc-enc">Enclosures: (1) Card copy. (2) Form D. (3) Declaration of employee.</div>');
 }
 
 // ------------------------------- print --------------------------------------------------
