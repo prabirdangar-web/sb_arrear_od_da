@@ -107,6 +107,18 @@
         color: #fff;
     }
 
+    .tab-btn.ss-tab {
+        background: #a5f3fc;
+        color: #0e7490;
+        display: inline-flex; align-items: center; gap: 5px;
+    }
+
+    .tab-btn.ss-tab.active {
+        background: #0891b2;
+        color: #fff;
+    }
+    .tab-btn.ss-tab svg { width: 14px; height: 14px; flex: none; }
+
     .tab-content {
         display: none;
     }
@@ -712,6 +724,7 @@
       <button class="tab-btn active" onclick="switchTab('tabPayable')" data-tab="tabPayable" title="Payable Pay &amp; Fixation Arrear System">1. Pay Fixation &amp; Arrear</button>
       <button class="tab-btn ref-tab" onclick="switchTab('tabOverdrawn')" data-tab="tabOverdrawn" title="Over Drawn Salary &amp; T.R. Form No.7 Refund">2. Over Drawn, T.R. 7 &amp; Application Set</button>
       <button class="tab-btn ref-tab" onclick="switchTab('tabDaCase')" data-tab="tabDaCase" style="background:#7c3aed; color:#fff;" title="DA Case (Auto Arrear Calculation)">3. DA Case</button>
+      <button class="tab-btn ss-tab" onclick="switchTab('tabSwasthya')" data-tab="tabSwasthya" title="Swasthya Sathi / WBHS &mdash; M.A. over-drawal, T.R. Form 7, card surrender &amp; application set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v6M9 11h6"/></svg><span>4. Swasthya Sathi (WBHS)</span></button>
     </div>
   </div>
   <!-- TOP ACTION / SAVED STAFF TOOLBAR (compact icons; hover for full description) -->
@@ -1354,7 +1367,15 @@
 <!-- ==================== TAB 2: OVER DRAWN SALARY & T.R. FORM NO. 7 REFUND (REF ADDED) ==================== -->
 <div id="tabOverdrawn" class="tab-content">
 
-    <div class="output-box" style="background:#fef3c7; border-left-color:#d97706; color:#92400e;">
+    <div id="owSsBanner" class="output-box" style="display:none; background:#ecfeff; border-left-color:#0891b2; color:#164e63; font-size:0.84rem;">
+        <strong>Swasthya Sathi / WBHS case (separate workspace).</strong> M.A. drawn while the employee is a beneficiary / card holder under a Swasthya Sathi card &mdash; month-wise M.A. over-drawal, T.R. Form No. 7 challan, card-surrender documents and Annexure-A / Form D.
+        Its month-wise table and reason are kept apart from the other over-drawal cases (wrong fixation, LWP not considered earlier, H.R.A., D.A. etc.), which stay in tab <b>2</b>.
+    </div>
+    <div id="owGenBanner" style="display:none; font-size:0.78rem; color:#0e7490; margin:0 0 6px;">
+        Swasthya Sathi / WBHS (M.A. card) cases now have their own tab &mdash; <b>4. Swasthya Sathi (WBHS)</b>. This tab covers wrong fixation, LWP not considered earlier, H.R.A., D.A. and other over-drawals.
+    </div>
+
+    <div id="owAutoSyncBox" class="output-box" style="background:#fef3c7; border-left-color:#d97706; color:#92400e;">
         <strong>AUTO-REF LINK ACTIVE (REF ADDED):</strong> Click below to scan generated Pay Tables across all ROPA eras (ROPA-98 up to 31.03.2009, ROPA-09 from 01.04.2009 to 31.12.2019, ROPA-19 from 01.01.2020) and auto-populate any overdrawn months!
         <div style="margin-top:8px;">
             <button type="button" class="btn-sync" onclick="autoSyncOverdrawnFromTab1()">⚡ Auto-Fetch / Sync Overdrawn Months from Generated Pay Tables</button>
@@ -1362,7 +1383,7 @@
     </div>
 
     <!-- LONG-PERIOD HRA / M.A. OVERDRAWN GENERATOR -->
-    <h3>Long-Period Over-Drawal &mdash; H.R.A. or M.A. (Auto from Pay Table)</h3>
+    <h3 id="owLaHeading">Long-Period Over-Drawal &mdash; H.R.A. or M.A. (Auto from Pay Table)</h3>
     <div class="panel" style="border-left:4px solid #0d9488;">
         <div style="font-size:0.82rem; color:#475569; margin-bottom:8px;">
             Pick H.R.A. or M.A., the period, and what was drawn vs. what is admissible. Pay Band / Grade Pay / Basic / D.A. / I.R. are pulled month-by-month from the generated Pay Tables (ROPA-98 / 09 / 19) and kept equal on both sides, so only the chosen allowance creates the over-drawal. H.R.A. &ldquo;Auto&rdquo; uses the HRA Mode / Rate set in Tab 1 Section 7; M.A. &ldquo;Auto&rdquo; uses the era default (Rs.100 / 300 / 500).
@@ -2083,7 +2104,7 @@ async function ckHandleDeepLink() {
     const q = new URLSearchParams(location.search);
     const tab = q.get('tab'), load = q.get('load'), doc = q.get('doc');
     try {
-        if (tab && document.getElementById(tab)) switchTab(tab);
+        if (tab && (document.getElementById(tab) || tab === 'tabSwasthya')) switchTab(tab);
         if (load) await loadFullArrearDataFromDB(load);
         if (doc) setTimeout(function () { try { showDoc(doc); } catch (e) { console.warn('Deep-link document failed:', e); } }, 400);
     } catch (e) { console.warn('Deep link failed:', e); }
@@ -2148,6 +2169,7 @@ function buildFullRecord() {
         lwpRows: lwpRows,
         arrearRows: arrearRows,
         odRows: odRows,
+        ow: (function () { try { return owExport(); } catch (e) { return null; } })(),
         daBasicRows: daBasicRows,
         daCaseRowData: daCaseRowData,
         daSchedule: daSchedule,
@@ -2382,10 +2404,15 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
+    // 'tabSwasthya' is a second entry point (own button) into the Over Drawn content, in Swasthya Sathi mode
+    const contentId = (tabId === 'tabSwasthya') ? 'tabOverdrawn' : tabId;
     const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
     if (btn) btn.classList.add('active');
-    const content = document.getElementById(tabId);
+    const content = document.getElementById(contentId);
     if (content) content.classList.add('active');
+
+    if (tabId === 'tabOverdrawn') { try { owSetMode('GEN'); } catch (e) { console.warn(e); } }
+    else if (tabId === 'tabSwasthya') { try { owSetMode('SS'); } catch (e) { console.warn(e); } }
 
     if (tabId === 'tabDaCase') { autoDeriveDaBasicSegments(); }
 }
@@ -6963,6 +6990,7 @@ function applyLoadedRecord(docId, record) {
 
     odRows = record.odRows || [];
     odSeq = odRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 0);
+    try { owImport(record); } catch (e) { console.warn('Swasthya Sathi workspace restore failed:', e); }
 
     daBasicRows = record.daBasicRows || [];
     daBasicSeq = daBasicRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
@@ -6982,6 +7010,7 @@ function applyLoadedRecord(docId, record) {
     renderDashboardTable();
     renderOdTable();
     renderDaBasicTable();
+    try { owApplyView(); owSyncTabForMode(); } catch (e) {}
     calculateDOR();
     togglePromotionSection();
     toggleRopa98Section();
@@ -7723,8 +7752,7 @@ function ofcCauseInline(mode){
 function ofcInitPresetSelect(){
   const sel = document.getElementById('reasonPreset');
   if (!sel || sel.options.length) return;
-  Object.keys(OFC_PRESETS).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = OFC_PRESETS[k].label; sel.appendChild(o); });
-  sel.value = 'CUSTOM';
+  owRebuildPreset('CUSTOM');
 }
 function ofcPresetActive(){ const k = val('reasonPreset'); return !!(k && k !== 'CUSTOM' && OFC_PRESETS[k]); }
 function ofcApplyReasonPreset(silent){
@@ -7757,7 +7785,7 @@ function ofcOnCaseChange(){
     if (c === 'MA_SS') na.style.display = 'none';
     else {
       na.style.display = '';
-      na.innerHTML = '<b>Swasthya Sathi card surrender &mdash; not applicable for this case.</b> ' + (c === 'HRA'
+      na.innerHTML = '<b>Swasthya Sathi card surrender &mdash; not applicable for this case</b> (Swasthya Sathi / WBHS M.A. cases are handled in tab <b>4. Swasthya Sathi (WBHS)</b>). ' + (c === 'HRA'
         ? 'It is replaced by the <b>Employee\u2019s H.R.A. Declaration</b> and the <b>H.O.I. Certificate</b> (both generated below).'
         : 'It is replaced by the <b>Salary Over-Drawal Issue Note</b> (editable, generated below).');
     }
@@ -8317,7 +8345,7 @@ function ofcPrintSelected(){
 
 // keep things in step after a saved record is loaded
 (function(){
-  ofcInitPresetSelect(); ofcBuildDocList(); ofcOnCaseChange();
+  ofcInitPresetSelect(); ofcBuildDocList(); ofcOnCaseChange(); try { owApplyView(); } catch(e) {}
   if (typeof applyFormFields === 'function') {
     const _orig = applyFormFields;
     applyFormFields = function(d){ _orig(d); try { ofcOnCaseChange(); } catch(e) {} };
@@ -8331,5 +8359,98 @@ window.addEventListener("load", function(){ try{ ckSyncAddressee(); }catch(e){} 
 </script>
 
 <script>if('serviceWorker' in navigator&&location.protocol.startsWith('http')){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
+
+<script>
+// =====================================================================================
+// SWASTHYA SATHI (WBHS) WORKSPACE  --  tab "4. Swasthya Sathi (WBHS)"
+// The Over Drawn / T.R.-7 / Application-Set machinery is shared, but the two tabs work as two
+// separate cases: tab 2 = every other over-drawal (wrong fixation, LWP not considered, H.R.A.,
+// D.A., ...), tab 4 = M.A. drawn under a Swasthya Sathi card.  Each keeps its OWN month-wise
+// table, reason text, cause text and case type; they are swapped when you change tab.
+// =====================================================================================
+let owMode = 'GEN';
+const OW_SNAP = { GEN: null, SS: null };
+let owDefCause = null;
+function owEl(id){ return document.getElementById(id); }
+function owSetVal(id, v){ const e = owEl(id); if (e && v !== undefined && v !== null) e.value = v; }
+function owCapture(){
+  return { odRows: odRows, odSeq: odSeq, reasonPreset: val('reasonPreset'), reasonText: val('reasonText'),
+           caseType: val('ofcCaseType'), cause: val('ofcCause'), laType: val('laType') };
+}
+function owExport(){
+  const other = owMode === 'SS' ? 'GEN' : 'SS';
+  return { mode: owMode, snaps: { [other]: OW_SNAP[other] } };
+}
+function owImport(record){
+  OW_SNAP.GEN = null; OW_SNAP.SS = null;
+  const f = record.fields || {};
+  const ow = record.ow || null;
+  owMode = (ow && ow.mode) ? ow.mode : (f.ofcCaseType === 'MA_SS' ? 'SS' : 'GEN');
+  if (ow && ow.snaps) { const o = owMode === 'SS' ? 'GEN' : 'SS'; OW_SNAP[o] = ow.snaps[o] || null; }
+  owRebuildPreset(f.reasonPreset);
+}
+function owRebuildPreset(desired){
+  const sel = owEl('reasonPreset'); if (!sel) return;
+  const cur = desired || sel.value;
+  const ss = owMode === 'SS';
+  const keys = Object.keys(OFC_PRESETS).filter(k => k === 'CUSTOM' || (ss ? (k === 'MA_SS' || k === 'MA_SS_SELF') : (k !== 'MA_SS' && k !== 'MA_SS_SELF')));
+  sel.innerHTML = '';
+  keys.forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = OFC_PRESETS[k].label; sel.appendChild(o); });
+  sel.value = keys.indexOf(cur) >= 0 ? cur : (ss ? 'MA_SS' : 'CUSTOM');
+}
+function owApplyView(){
+  const ss = owMode === 'SS';
+  if (owDefCause === null) owDefCause = val('ofcCause');
+  owRebuildPreset();
+  // case type: SS tab is locked to the Swasthya Sathi case; tab 2 never offers it
+  const ct = owEl('ofcCaseType');
+  if (ct) {
+    Array.prototype.forEach.call(ct.options, o => { const show = ss ? o.value === 'MA_SS' : o.value !== 'MA_SS'; o.hidden = !show; o.disabled = !show; });
+    if (ss) ct.value = 'MA_SS'; else if (ct.value === 'MA_SS') ct.value = 'SAL';
+    const fg = ct.closest('.fg'); if (fg) fg.style.display = ss ? 'none' : '';
+  }
+  // long-period generator: M.A. only in SS tab
+  const la = owEl('laType');
+  if (la) {
+    Array.prototype.forEach.call(la.options, o => { const show = ss ? o.value === 'MA' : true; o.hidden = !show; o.disabled = !show; });
+    if (ss) la.value = 'MA';
+    if (typeof laToggleGroups === 'function') laToggleGroups();
+  }
+  const hd = owEl('owLaHeading');
+  if (hd) hd.innerHTML = ss ? 'Long-Period M.A. Over-Drawal &mdash; Swasthya Sathi (Auto from Pay Table)' : 'Long-Period Over-Drawal &mdash; H.R.A. or M.A. (Auto from Pay Table)';
+  const as = owEl('owAutoSyncBox'); if (as) as.style.display = ss ? 'none' : '';
+  const b1 = owEl('owSsBanner'); if (b1) b1.style.display = ss ? '' : 'none';
+  const b2 = owEl('owGenBanner'); if (b2) b2.style.display = ss ? 'none' : '';
+  try { ofcOnCaseChange(); } catch (e) {}
+  try { refreshAllOverdrawn(); } catch (e) {}
+}
+function owSetMode(m){
+  if (m === owMode) { owApplyView(); return; }
+  OW_SNAP[owMode] = owCapture();
+  owMode = m;
+  const s = OW_SNAP[m];
+  owRebuildPreset(s ? s.reasonPreset : null);
+  if (s) {
+    odRows = s.odRows || []; odSeq = s.odSeq || odRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 0);
+    owSetVal('reasonPreset', s.reasonPreset); owSetVal('reasonText', s.reasonText);
+    owSetVal('ofcCaseType', s.caseType); owSetVal('ofcCause', s.cause); owSetVal('laType', s.laType);
+    owApplyView();
+  } else {
+    odRows = []; odSeq = 0;
+    if (m === 'SS') {
+      owSetVal('reasonPreset', 'MA_SS');
+      owApplyView();
+      try { ofcApplyReasonPreset(); } catch (e) { console.warn(e); }
+    } else {
+      owSetVal('reasonPreset', 'CUSTOM'); owSetVal('reasonText', ''); owSetVal('ofcCaseType', 'SAL'); owSetVal('ofcCause', owDefCause || '');
+      owApplyView();
+    }
+  }
+}
+function owSyncTabForMode(){
+  const c = owEl('tabOverdrawn');
+  if (c && c.classList.contains('active')) switchTab(owMode === 'SS' ? 'tabSwasthya' : 'tabOverdrawn');
+}
+</script>
 </body>
 </html>
