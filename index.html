@@ -690,6 +690,7 @@
 
 <!-- SIGNED-IN STATUS BAR (shown once authenticated) -->
 <div id="signedInBar" style="display:none; align-items:center; justify-content:flex-end; gap:10px; padding:6px 16px; background:#0f172a; color:#fff; font-size:0.8rem;">
+    <a href="dashboard.html" style="color:#fff;text-decoration:none;font-weight:600;margin-right:auto;border:1px solid rgba(255,255,255,.5);border-radius:5px;padding:3px 10px;">&larr; Dashboard</a>
     <span>Signed in as <strong id="signedInEmail"></strong></span>
     <button type="button" onclick="signOutOfDashboard()" style="background:#dc2626; color:#fff; border:none; border-radius:5px; padding:4px 10px; cursor:pointer; font-size:0.78rem;">Sign Out</button>
 </div>
@@ -1999,6 +2000,7 @@ auth.onAuthStateChanged(user => {
         if (signedInBar) signedInBar.style.display = 'flex';
         if (signedInEmail) signedInEmail.textContent = user.email || user.uid;
         refreshSavedRecordsList().catch(err => console.error('Initial staff-list load failed:', err));
+        ckHandleDeepLink();
     } else {
         if (signedInBar) signedInBar.style.display = 'none';
         showAuthGate();
@@ -2009,6 +2011,18 @@ auth.onAuthStateChanged(user => {
 // Throws a clear "please sign in" error rather than silently proceeding
 // unauthenticated, so callers' existing try/catch + alert() already surface
 // this correctly without any changes at their end.
+let __deepLinkDone = false;
+async function ckHandleDeepLink() {
+    if (__deepLinkDone) return;
+    __deepLinkDone = true;
+    const q = new URLSearchParams(location.search);
+    const tab = q.get('tab'), load = q.get('load'), doc = q.get('doc');
+    try {
+        if (tab && document.getElementById(tab)) switchTab(tab);
+        if (load) await loadFullArrearDataFromDB(load);
+        if (doc) setTimeout(function () { try { showDoc(doc); } catch (e) { console.warn('Deep-link document failed:', e); } }, 400);
+    } catch (e) { console.warn('Deep link failed:', e); }
+}
 async function ensureFirebaseAuth() {
     if (auth.currentUser) return auth.currentUser;
     const e = new Error('Please sign in with your staff/admin email first (see the sign-in box).');
@@ -2072,6 +2086,11 @@ function buildFullRecord() {
         daBasicRows: daBasicRows,
         daCaseRowData: daCaseRowData,
         daSchedule: daSchedule,
+        summary: (function () {
+            let g = null, n = null, h = null;
+            try { g = ckGross(); n = Math.round(calcResult.net || 0); h = Math.round(calcResult.hra || 0); } catch (e) {}
+            return { grossClaim: g, netClaim: n, hraClaim: h, savedBy: (typeof auth !== 'undefined' && auth.currentUser) ? (auth.currentUser.email || auth.currentUser.uid) : '' };
+        })(),
         savedAt: new Date().toISOString()
     };
 }

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arrear &amp; Pay Fixation Portal &mdash; Dashboard | Taldangra Fulmati High School</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --navy:#0b3a6f; --navy-d:#082a52; --navy-l:#e8eff8; --saffron:#e8730c; --green:#12773a;
+  --ink:#1b2430; --mute:#5b6676; --line:#d5dce6; --bg:#f3f6fa; --card:#fff; --danger:#b42318; --ok:#12773a;
+}
+body.hc{ --navy:#000; --navy-d:#000; --navy-l:#fff; --saffron:#ffd200; --ink:#000; --mute:#000; --line:#000; --bg:#fff; --card:#fff; }
+*{box-sizing:border-box}
+html{font-size:16px;scroll-behavior:smooth;scroll-padding-top:70px}
+body{margin:0;font-family:"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45}
+a{color:var(--navy)} :focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
+.skip{position:absolute;left:-999px;top:0;background:#fff;padding:8px 12px;z-index:100}.skip:focus{left:8px;top:8px}
+.tricolor{height:5px;background:linear-gradient(90deg,var(--saffron) 0 33.3%,#fff 33.3% 66.6%,var(--green) 66.6%)}
+body.hc .tricolor{background:#000}
+.util{background:var(--navy-d);color:#fff;font-size:.78rem}
+.util .in{max-width:1280px;margin:0 auto;padding:5px 16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.util button{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:3px;padding:1px 8px;cursor:pointer;font-size:.78rem}
+.util button:hover{background:rgba(255,255,255,.15)}
+.util .grp{display:flex;gap:6px;align-items:center}
+header.top{background:#fff;border-bottom:1px solid var(--line)}
+header.top .in{max-width:1280px;margin:0 auto;padding:14px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.seal{width:64px;height:64px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font:700 1.5rem Georgia,serif;border:4px double #fff;box-shadow:0 0 0 2px var(--navy);flex:none}
+.ttl h1{margin:0;font-size:1.45rem;color:var(--navy);letter-spacing:.3px}
+.ttl .s1{font-size:.95rem;font-weight:600;color:var(--ink)}
+.ttl .s2{font-size:.8rem;color:var(--mute)}
+.hr{margin-left:auto;text-align:right;font-size:.8rem;color:var(--mute)}
+nav.main{background:var(--navy);position:sticky;top:0;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+nav.main .in{max-width:1280px;margin:0 auto;padding:0 10px;display:flex;flex-wrap:wrap}
+nav.main a{color:#fff;text-decoration:none;padding:12px 16px;font-weight:600;font-size:.92rem;border-bottom:3px solid transparent}
+nav.main a:hover,nav.main a.on{background:var(--navy-d);border-bottom-color:var(--saffron)}
+.notice{background:#fff8e6;border-bottom:1px solid #f0d9a0;font-size:.85rem}
+.notice .in{max-width:1280px;margin:0 auto;padding:6px 16px;display:flex;gap:10px;align-items:center}
+.notice b{background:var(--saffron);color:#fff;padding:1px 8px;border-radius:3px;font-size:.72rem;letter-spacing:.5px}
+main{max-width:1280px;margin:0 auto;padding:18px 16px 40px}
+.crumb{font-size:.82rem;color:var(--mute);margin-bottom:10px}
+h2.sec{font-size:1.15rem;color:var(--navy);margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--navy);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+h2.sec small{font-weight:400;color:var(--mute);font-size:.8rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px}
+.signin{max-width:460px;margin:10px auto 0;padding:18px 20px;border-top:4px solid var(--navy)}
+.signin h3{margin:0 0 4px;color:var(--navy)} .signin p{margin:0 0 12px;color:var(--mute);font-size:.88rem}
+label{display:block;font-size:.8rem;font-weight:600;margin:8px 0 3px}
+input[type=text],input[type=email],input[type=password],select{width:100%;padding:8px 10px;border:1px solid #9aa7b8;border-radius:4px;font-size:.92rem;background:#fff;color:var(--ink)}
+.btn{display:inline-block;border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:4px;padding:8px 14px;font-weight:600;font-size:.86rem;cursor:pointer;text-decoration:none;text-align:center}
+.btn:hover{background:var(--navy-d)} .btn.alt{background:#fff;color:var(--navy)} .btn.alt:hover{background:var(--navy-l)}
+.btn.sm{padding:4px 9px;font-size:.76rem} .btn[disabled],.btn.off{opacity:.45;pointer-events:none}
+.err{color:var(--danger);font-size:.84rem;margin-top:8px;min-height:1em}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi{padding:14px 16px;border-left:5px solid var(--navy)} .kpi:nth-child(2){border-left-color:var(--saffron)} .kpi:nth-child(3){border-left-color:var(--green)} .kpi:nth-child(4){border-left-color:#6b4fbb}
+.kpi .n{font-size:1.65rem;font-weight:700;color:var(--navy)} .kpi .l{font-size:.78rem;color:var(--mute);text-transform:uppercase;letter-spacing:.5px}
+.mods{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.mod{padding:16px;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;gap:6px;transition:.15s;border-top:4px solid var(--navy)}
+.mod:hover{box-shadow:0 4px 14px rgba(11,58,111,.18);transform:translateY(-2px)}
+.mod .ic{width:42px;height:42px;border-radius:8px;background:var(--navy-l);display:flex;align-items:center;justify-content:center;color:var(--navy)}
+.mod b{color:var(--navy);font-size:1rem} .mod span{font-size:.82rem;color:var(--mute)} .mod em{margin-top:auto;font-style:normal;font-weight:600;font-size:.8rem;color:var(--saffron)}
+.split{display:grid;grid-template-columns:1fr 360px;gap:14px;align-items:start}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:end}
+.tools>div{flex:1 1 180px}
+.tbl-wrap{overflow:auto;max-height:520px}
+table.reg{width:100%;border-collapse:collapse;font-size:.84rem}
+table.reg th{position:sticky;top:0;background:var(--navy);color:#fff;text-align:left;padding:8px 9px;cursor:pointer;white-space:nowrap;font-size:.78rem}
+table.reg td{padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+table.reg tr.row{cursor:pointer} table.reg tr.row:hover{background:var(--navy-l)} table.reg tr.sel{background:#fff3df !important;outline:2px solid var(--saffron);outline-offset:-2px}
+.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;background:var(--navy-l);color:var(--navy);border-radius:10px;padding:1px 8px;font-size:.72rem;font-weight:600}
+.empty{padding:26px;text-align:center;color:var(--mute)}
+.detail{padding:14px 16px;position:sticky;top:60px}
+.detail h3{margin:0 0 2px;color:var(--navy);font-size:1.05rem} .detail .sub{color:var(--mute);font-size:.82rem;margin-bottom:8px}
+dl.kv{display:grid;grid-template-columns:128px 1fr;gap:4px 10px;margin:8px 0;font-size:.83rem}
+dl.kv dt{color:var(--mute)} dl.kv dd{margin:0;font-weight:600;word-break:break-word}
+.amt{background:var(--navy-l);border-radius:5px;padding:8px 12px;margin:8px 0;display:flex;justify-content:space-between;align-items:center}
+.amt b{font-size:1.25rem;color:var(--navy)}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.bars .b{display:grid;grid-template-columns:230px 1fr 40px;gap:8px;align-items:center;font-size:.83rem;margin:6px 0}
+.bars .t{height:14px;background:#e7edf5;border-radius:7px;overflow:hidden} .bars .t i{display:block;height:100%;background:var(--navy)}
+.docs{padding:14px 16px}
+.docs .row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
+footer{background:var(--navy-d);color:#cfd9e6;font-size:.78rem;margin-top:30px}
+footer .in{max-width:1280px;margin:0 auto;padding:14px 16px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.status{font-size:.78rem;color:var(--mute)}
+@media (max-width:1000px){.kpis,.mods{grid-template-columns:repeat(2,1fr)}.split{grid-template-columns:1fr}.detail{position:static}.docs .row{grid-template-columns:repeat(2,1fr)}.bars .b{grid-template-columns:120px 1fr 30px}.hr{display:none}}
+@media (max-width:560px){.kpis,.mods{grid-template-columns:1fr}}
+@media print{
+  .util,nav.main,.notice,.signin,.mods-sec,.docs-sec,.detail,.tools,footer,.noprint,.kpis,.bars-sec{display:none !important}
+  body{background:#fff} main{padding:0} .card{border:0}
+  .tbl-wrap{max-height:none;overflow:visible} table.reg th{background:#fff !important;color:#000;border-bottom:2px solid #000}
+  .printhead{display:block !important}
+  @page{size:A4 landscape;margin:10mm}
+}
+.printhead{display:none;text-align:center;margin-bottom:8px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<div class="tricolor"></div>
+<div class="util"><div class="in">
+  <div id="todayLbl"></div>
+  <div class="grp">
+    <span>Text size:</span>
+    <button type="button" onclick="fontSize(-1)" aria-label="Decrease text size">A&minus;</button>
+    <button type="button" onclick="fontSize(0)" aria-label="Normal text size">A</button>
+    <button type="button" onclick="fontSize(1)" aria-label="Increase text size">A+</button>
+    <button type="button" onclick="toggleHC()">High contrast</button>
+    <span id="userBox" style="display:none;margin-left:10px">Signed in: <b id="userEmail"></b> <button type="button" onclick="doSignOut()">Sign out</button></span>
+  </div>
+</div></div>
+
+<header class="top"><div class="in">
+  <div class="seal" aria-hidden="true">T</div>
+  <div class="ttl">
+    <h1>TALDANGRA FULMATI HIGH SCHOOL [H.S.]</h1>
+    <div class="s1">Arrear, Pay Fixation &amp; Over-Drawn Refund Management Portal</div>
+    <div class="s2">P.O. Taldangra &bull; Block Taldangra &bull; Sub-Division Khatra &bull; District Bankura, West Bengal &mdash; 722152</div>
+  </div>
+  <div class="hr">Office Dashboard<br>Records &bull; Documents &bull; Synopsis</div>
+</div></header>
+
+<nav class="main" aria-label="Main navigation"><div class="in">
+  <a href="#home" class="on">Home</a>
+  <a href="#synopsis">Records Synopsis</a>
+  <a href="#modules">Workspaces</a>
+  <a href="#documents">Documents</a>
+  <a href="#summary">Reason-wise Summary</a>
+</div></nav>
+<div class="notice"><div class="in"><b>NOTICE</b><span>Checklist cum Topsheet (D.I. Office, Bankura format), reason-wise Applicant&#8217;s Prayer, HRA certificate and file Cover Page are available under <i>Documents</i>.</span></div></div>
+
+<main id="main">
+  <div class="crumb" id="home">Home &rsaquo; Dashboard</div>
+
+  <!-- SIGN IN -->
+  <section id="signinBox" class="card signin" style="display:none" aria-labelledby="siH">
+    <h3 id="siH">Staff / Admin Sign-in</h3>
+    <p>Sign in with your authorised e-mail to view saved arrear records. The same sign-in is used by the workspaces.</p>
+    <form onsubmit="return doSignIn(event)">
+      <label for="em">E-mail</label><input id="em" type="email" autocomplete="username" required>
+      <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
+      <div class="err" id="siErr" role="alert"></div>
+      <button class="btn" id="siBtn" type="submit" style="width:100%;margin-top:8px">Sign In</button>
+    </form>
+  </section>
+
+  <div id="app">
+    <!-- KPIs -->
+    <div class="kpis" aria-label="Key figures">
+      <div class="card kpi"><div class="n" id="kTotal">&ndash;</div><div class="l">Saved arrear records</div></div>
+      <div class="card kpi"><div class="n" id="kGross">&ndash;</div><div class="l">Total gross claim (&#8377;)</div></div>
+      <div class="card kpi"><div class="n" id="kOd">&ndash;</div><div class="l">Records with Over-Drawn data</div></div>
+      <div class="card kpi"><div class="n" id="kLast">&ndash;</div><div class="l">Last saved</div></div>
+    </div>
+
+    <!-- WORKSPACES -->
+    <h2 class="sec mods-sec" id="modules">Workspaces <small>Open the working page you need</small></h2>
+    <div class="mods mods-sec">
+      <a class="card mod" href="#" data-go="tabPayable"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div><b>Pay Fixation &amp; Arrear</b><span>ROPA fixation, month-wise arrear calculation, Annexure-1 and the full document set.</span><em>Open workspace &rarr;</em></a>
+      <a class="card mod" href="#" data-go="tabOverdrawn"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><b>Over Drawn, T.R. 7 &amp; Application Set</b><span>Over-drawn salary statement, refund challan and application set.</span><em>Open workspace &rarr;</em></a>
+      <a class="card mod" href="#" data-go="tabDaCase"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></div><b>DA Case</b><span>Auto arrear calculation for Dearness Allowance with annexure and calculation sheet.</span><em>Open workspace &rarr;</em></a>
+      <a class="card mod" href="#" data-go="new"><div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg></div><b>New arrear record</b><span>Start a fresh staff entry. Save it from the workspace and it will appear here.</span><em>Start new &rarr;</em></a>
+    </div>
+
+    <!-- SYNOPSIS -->
+    <h2 class="sec" id="synopsis">Records Synopsis <small id="loadStat"></small></h2>
+    <div class="split">
+      <div class="card" style="padding:12px">
+        <div class="tools noprint">
+          <div><label for="q">Search</label><input id="q" type="text" placeholder="Name, school, memo no..." oninput="render()"></div>
+          <div><label for="fReason">Reason of arrear</label><select id="fReason" onchange="render()"><option value="">All reasons</option></select></div>
+          <div style="flex:0 0 auto;display:flex;gap:6px">
+            <button class="btn alt sm" type="button" onclick="loadData()">&#8635; Refresh</button>
+            <button class="btn alt sm" type="button" onclick="exportCsv()">Export CSV</button>
+            <button class="btn alt sm" type="button" onclick="window.print()">Print register</button>
+          </div>
+        </div>
+        <div class="printhead"><b>TALDANGRA FULMATI HIGH SCHOOL [H.S.]</b><br>Register of Arrear Salary Claims &mdash; <span id="phDate"></span></div>
+        <div class="tbl-wrap"><table class="reg" id="reg" aria-label="Saved arrear records">
+          <thead><tr>
+            <th data-k="name">Staff &amp; Designation</th><th data-k="reasonLbl">Reason</th><th data-k="from">Claim period</th>
+            <th data-k="gross" class="num">Gross (&#8377;)</th><th data-k="savedAt">Saved on</th>
+          </tr></thead>
+          <tbody id="regBody"><tr><td colspan="5" class="empty">Sign in to load saved records.</td></tr></tbody>
+        </table></div>
+      </div>
+      <aside class="card detail" id="detail" aria-live="polite"><div class="empty">Select a record from the register to see its synopsis.</div></aside>
+    </div>
+
+    <!-- DOCUMENTS -->
+    <h2 class="sec docs-sec" id="documents">Documents <small>Open any document of the selected record</small></h2>
+    <div class="card docs docs-sec">
+      <label for="docRec">Record</label>
+      <select id="docRec" onchange="pick(this.value)"><option value="">&mdash; select saved record &mdash;</option></select>
+      <div class="row" id="docBtns">
+        <a class="btn alt off" data-doc="cover">Cover Page</a>
+        <a class="btn alt off" data-doc="checklist">Checklist cum Topsheet</a>
+        <a class="btn alt off" data-doc="fl">Forwarding Letter (HOI)</a>
+        <a class="btn alt off" data-doc="app">Applicant&#8217;s Prayer</a>
+        <a class="btn alt off" data-doc="admn">HOI Report &amp; Order</a>
+        <a class="btn alt off" data-doc="annex1">Annexure&ndash;1</a>
+        <a class="btn alt off" data-doc="annex">Calculation Sheet</a>
+        <a class="btn alt off" data-doc="nondrawl">Non-Drawal Certificate</a>
+        <a class="btn alt off" data-doc="spouse">HRA / Spouse Certificate</a>
+        <a class="btn alt off" data-doc="decl">HRA &amp; Spouse Declaration</a>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <h2 class="sec bars-sec" id="summary">Reason-wise Summary</h2>
+    <div class="card bars-sec" style="padding:12px 16px"><div class="bars" id="bars"><div class="empty">No data loaded.</div></div></div>
+  </div>
+</main>
+
+<footer><div class="in">
+  <div>&copy; <span id="yr"></span> Taldangra Fulmati High School [H.S.] &mdash; Internal office portal. Contents are for official use only.</div>
+  <div class="status" style="color:#cfd9e6">Data source: tfhs/arrearOdDaSystem &bull; <span id="refAt">not loaded</span></div>
+</div></footer>
+
+<script>
+/* ===== CONFIG ===== */
+const TOOL_URL = 'index.html';   // the working page (change if you rename / move it)
+const firebaseConfig = {
+  apiKey: "AIzaSyCiqQFsnbSi6eCgUI_W3NTybzIkRmCI_54", authDomain: "tfhs-portal.firebaseapp.com",
+  projectId: "tfhs-portal", storageBucket: "tfhs-portal.firebasestorage.app",
+  messagingSenderId: "316041012204", appId: "1:316041012204:web:04ee8b19374c60f63716c9"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore(), auth = firebase.auth();
+const REF = db.collection('tfhs').doc('arrearOdDaSystem');
+
+const REASONS = { cas:'Continuous Service Benefit (ROPA-2019)', promotion:'Promotion', payfix:'Pay Fixation / Revision', macp:'MACP / Time Scale', other:'Other' };
+let rows = [], sel = '', sortK = 'savedAt', sortDir = -1;
+
+/* ===== HELPERS ===== */
+const $ = id => document.getElementById(id);
+const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const inr = n => (n == null || isNaN(n)) ? '\u2014' : Number(n).toLocaleString('en-IN');
+function dmy(s){ if(!s) return '\u2014'; const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]}` : s; }
+function dtm(s){ if(!s) return '\u2014'; const d=new Date(s); return isNaN(d)?'\u2014':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
+function normalize(id, r){
+  const f = r.fields || {}, sm = r.summary || {};
+  const type = f.arrearReasonType || 'cas';
+  return {
+    id, name: f.staffName || '(unnamed)', desig: f.designation || '', school: f.schoolName || '', sub: f.subDivision || '',
+    type, reasonLbl: type === 'other' ? (f.arrearOtherReason || 'Other') : (REASONS[type] || type),
+    years: f.yearsCompleted || '', from: f.arrearFrom || '', to: f.arrearTo || '', benefit: f.benefitDate || '',
+    memo: f.approvalMemo || '', doj: f.dojSchool || f.doj || '', dob: f.dob || '',
+    gross: (sm.grossClaim != null) ? Number(sm.grossClaim) : null, net: (sm.netClaim != null) ? Number(sm.netClaim) : null,
+    odCount: Array.isArray(r.odRows) ? r.odRows.length : 0, lwp: Array.isArray(r.lwpRows) ? r.lwpRows.length : 0,
+    months: Array.isArray(r.arrearRows) ? r.arrearRows.length : 0, savedAt: r.savedAt || ''
+  };
+}
+
+/* ===== ACCESSIBILITY ===== */
+let fs = 16;
+function fontSize(d){ fs = d === 0 ? 16 : Math.max(13, Math.min(21, fs + d * 1.5)); document.documentElement.style.fontSize = fs + 'px'; }
+function toggleHC(){ document.body.classList.toggle('hc'); try{ localStorage.setItem('dashHC', document.body.classList.contains('hc') ? '1' : ''); }catch(e){} }
+try{ if (localStorage.getItem('dashHC')) document.body.classList.add('hc'); }catch(e){}
+
+/* ===== AUTH ===== */
+function doSignIn(e){
+  e.preventDefault(); $('siErr').textContent = ''; $('siBtn').disabled = true; $('siBtn').textContent = 'Signing in...';
+  auth.signInWithEmailAndPassword($('em').value.trim(), $('pw').value)
+    .catch(err => { $('siErr').textContent = (err.code||'').includes('credential')||(err.code||'').includes('password')||(err.code||'').includes('user-not-found') ? 'Incorrect e-mail or password.' : (err.message || 'Sign-in failed.'); })
+    .finally(() => { $('siBtn').disabled = false; $('siBtn').textContent = 'Sign In'; });
+  return false;
+}
+function doSignOut(){ auth.signOut(); }
+auth.onAuthStateChanged(u => {
+  $('signinBox').style.display = u ? 'none' : 'block';
+  $('userBox').style.display = u ? 'inline' : 'none';
+  if (u) { $('userEmail').textContent = u.email || u.uid; loadData(); }
+  else { rows = []; render(); }
+});
+
+/* ===== DATA ===== */
+async function loadData(){
+  $('loadStat').textContent = 'Loading...';
+  try{
+    const snap = await REF.get({ source: 'server' });
+    const recs = (snap.exists && snap.data().records) ? snap.data().records : {};
+    rows = Object.keys(recs).map(id => normalize(id, recs[id]));
+    $('refAt').textContent = 'refreshed ' + new Date().toLocaleTimeString('en-GB');
+    $('loadStat').textContent = rows.length + ' record(s) loaded from database';
+  }catch(err){
+    rows = [];
+    $('loadStat').textContent = '';
+    $('regBody').innerHTML = `<tr><td colspan="5" class="empty" style="color:var(--danger)">Could not load records: ${esc(err.code || err.message)}. ${err.code === 'permission-denied' ? 'This account is not authorised for the arrear database.' : ''}</td></tr>`;
+    return;
+  }
+  const fr = $('fReason'), cur = fr.value;
+  const types = [...new Set(rows.map(r => r.reasonLbl))].sort();
+  fr.innerHTML = '<option value="">All reasons</option>' + types.map(t => `<option>${esc(t)}</option>`).join('');
+  fr.value = types.includes(cur) ? cur : '';
+  $('docRec').innerHTML = '<option value="">\u2014 select saved record \u2014</option>' + rows.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(r => `<option value="${esc(r.id)}">${esc(r.name)} \u2014 ${esc(dmy(r.from))} to ${esc(dmy(r.to))}</option>`).join('');
+  if (sel && !rows.some(r => r.id === sel)) sel = '';
+  render(); renderDetail(); kpis(); bars();
+}
+function filtered(){
+  const q = $('q').value.trim().toLowerCase(), fr = $('fReason').value;
+  return rows.filter(r => (!fr || r.reasonLbl === fr) && (!q || [r.name, r.desig, r.school, r.memo, r.reasonLbl].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => {
+      const x = a[sortK], y = b[sortK];
+      const c = (typeof x === 'number' || typeof y === 'number') ? ((x ?? -1) - (y ?? -1)) : String(x || '').localeCompare(String(y || ''));
+      return c * sortDir;
+    });
+}
+function render(){
+  const list = filtered(), tb = $('regBody');
+  if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">' + (auth.currentUser ? 'No saved records found. Create one in a workspace and press Save.' : 'Sign in to load saved records.') + '</td></tr>'; return; }
+  if (!list.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">No record matches the search.</td></tr>'; return; }
+  tb.innerHTML = list.map(r => `<tr class="row ${r.id === sel ? 'sel' : ''}" data-id="${esc(r.id)}" tabindex="0">
+    <td><b>${esc(r.name)}</b><br><span style="color:var(--mute)">${esc(r.desig)}</span></td>
+    <td><span class="tag">${esc(r.reasonLbl)}</span></td>
+    <td style="white-space:nowrap">${esc(dmy(r.from))} &ndash; ${esc(dmy(r.to))}</td>
+    <td class="num">${r.gross == null ? '<span title="Open this record in the workspace and press Save once to record the amount" style="color:var(--mute)">\u2014</span>' : inr(r.gross)}</td>
+    <td style="white-space:nowrap">${esc(dtm(r.savedAt))}</td></tr>`).join('');
+}
+function kpis(){
+  $('kTotal').textContent = rows.length;
+  const g = rows.reduce((s, r) => s + (r.gross || 0), 0), withG = rows.filter(r => r.gross != null).length;
+  $('kGross').textContent = withG ? inr(g) : '\u2014';
+  $('kGross').title = withG < rows.length ? `Total of ${withG} record(s) that have an amount saved` : '';
+  $('kOd').textContent = rows.filter(r => r.odCount > 0).length;
+  const last = rows.map(r => r.savedAt).filter(Boolean).sort().pop();
+  $('kLast').textContent = last ? dmy(last) : '\u2014'; $('kLast').style.fontSize = '1.2rem';
+}
+function bars(){
+  const m = {}; rows.forEach(r => { m[r.reasonLbl] = m[r.reasonLbl] || { n: 0, g: 0 }; m[r.reasonLbl].n++; m[r.reasonLbl].g += r.gross || 0; });
+  const ks = Object.keys(m).sort((a, b) => m[b].n - m[a].n), mx = Math.max(1, ...ks.map(k => m[k].n));
+  $('bars').innerHTML = ks.length ? ks.map(k => `<div class="b"><div>${esc(k)}<br><span style="color:var(--mute);font-size:.75rem">Gross: \u20B9 ${inr(m[k].g)}</span></div><div class="t"><i style="width:${m[k].n / mx * 100}%"></i></div><b>${m[k].n}</b></div>`).join('') : '<div class="empty">No data loaded.</div>';
+}
+
+/* ===== SELECTION + DETAIL ===== */
+function toolLink(params){ return TOOL_URL + '?' + new URLSearchParams(params).toString(); }
+function pick(id){ sel = id || ''; $('docRec').value = sel; render(); renderDetail(); docButtons(); }
+function docButtons(){
+  document.querySelectorAll('#docBtns a').forEach(a => {
+    if (sel) { a.href = toolLink({ load: sel, doc: a.dataset.doc }); a.classList.remove('off'); }
+    else { a.removeAttribute('href'); a.classList.add('off'); }
+  });
+}
+function renderDetail(){
+  const d = $('detail'), r = rows.find(x => x.id === sel);
+  if (!r) { d.innerHTML = '<div class="empty">Select a record from the register to see its synopsis.</div>'; return; }
+  const kv = (k, v) => `<dt>${k}</dt><dd>${v || '\u2014'}</dd>`;
+  d.innerHTML = `<h3>${esc(r.name)}</h3><div class="sub">${esc(r.desig)}${r.school ? ' &bull; ' + esc(r.school) : ''}</div>
+    <div class="amt"><span>Gross claim</span><b>${r.gross == null ? '\u2014' : '\u20B9 ' + inr(r.gross)}</b></div>
+    <dl class="kv">
+      ${kv('Reason', esc(r.reasonLbl))}
+      ${kv('Claim period', esc(dmy(r.from)) + ' to ' + esc(dmy(r.to)))}
+      ${kv('Months in claim', r.months || '')}
+      ${kv('Benefit w.e.f.', esc(dmy(r.benefit)))}
+      ${kv('Approval memo', esc(r.memo))}
+      ${kv('Years of service', esc(r.years))}
+      ${kv('Joined school', esc(dmy(r.doj)))}
+      ${kv('Sub-division', esc(r.sub))}
+      ${kv('LWP entries', r.lwp)}
+      ${kv('Over-drawn rows', r.odCount)}
+      ${kv('Last saved', esc(dtm(r.savedAt)))}
+    </dl>
+    ${r.gross == null ? '<div class="status">Amount not stored in this older record &mdash; open it in the workspace and press Save once.</div>' : ''}
+    <div class="dgrid">
+      <a class="btn" href="${esc(toolLink({ load: r.id }))}">Open in workspace</a>
+      <a class="btn alt" href="${esc(toolLink({ load: r.id, doc: 'checklist' }))}">Topsheet</a>
+      <a class="btn alt" href="${esc(toolLink({ load: r.id, doc: 'cover' }))}">Cover Page</a>
+      <a class="btn alt" href="#documents">All documents</a>
+    </div>`;
+}
+document.addEventListener('click', e => {
+  const tr = e.target.closest('tr.row'); if (tr) { pick(tr.dataset.id); return; }
+  const go = e.target.closest('[data-go]');
+  if (go) { e.preventDefault(); const t = go.dataset.go; location.href = t === 'new' ? toolLink({ tab: 'tabPayable', new: 1 }) : toolLink(Object.assign({ tab: t }, sel ? { load: sel } : {})); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Enter') { const tr = e.target.closest && e.target.closest('tr.row'); if (tr) pick(tr.dataset.id); } });
+document.querySelectorAll('#reg th').forEach(th => th.addEventListener('click', () => { const k = th.dataset.k; if (sortK === k) sortDir *= -1; else { sortK = k; sortDir = 1; } render(); }));
+
+/* ===== EXPORT ===== */
+function exportCsv(){
+  const list = filtered(); if (!list.length) { alert('Nothing to export.'); return; }
+  const head = ['Staff','Designation','School','Reason','From','To','Gross','Approval memo','Benefit w.e.f.','Saved on'];
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const csv = [head.map(q).join(',')].concat(list.map(r => [r.name, r.desig, r.school, r.reasonLbl, dmy(r.from), dmy(r.to), r.gross == null ? '' : r.gross, r.memo, dmy(r.benefit), dtm(r.savedAt)].map(q).join(','))).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+  a.download = 'arrear-register-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
+}
+
+/* ===== MISC ===== */
+$('todayLbl').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+$('phDate').textContent = new Date().toLocaleDateString('en-GB'); $('yr').textContent = new Date().getFullYear();
+const navLinks = [...document.querySelectorAll('nav.main a')];
+window.addEventListener('scroll', () => {
+  let cur = navLinks[0];
+  navLinks.forEach(a => { const t = document.querySelector(a.getAttribute('href')); if (t && t.getBoundingClientRect().top < 120) cur = a; });
+  navLinks.forEach(a => a.classList.toggle('on', a === cur));
+}, { passive: true });
+docButtons();
+</script>
+</body>
+</html>
