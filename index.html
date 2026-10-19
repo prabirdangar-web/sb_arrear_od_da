@@ -822,29 +822,49 @@
     </div>
 
     <div class="side-section">
-        <div class="side-section-title">C. Document Checklist — Excel Source (Section 9)</div>
+        <div class="side-section-title">C. Checklist cum Topsheet &mdash; Bankura DI</div>
+        <div class="side-field"><label>School Administration</label>
+            <select id="ckCommittee"><option value="Administrator" selected>Administrator</option><option value="SMC">School Managing Committee (President)</option><option value="AdHoc">Ad-hoc Committee (Member Secretary)</option></select></div>
+        <div class="side-field"><label>Claimant is the Head of Institution?</label>
+            <select id="ckClaimantHoi"><option value="No" selected>No</option><option value="Yes">Yes</option></select></div>
+        <div class="side-field"><label>Transferred-in employee?</label>
+            <select id="ckTransferIn" onchange="ckApplyTransfer()"><option value="No" selected>No</option><option value="Yes">Yes</option></select></div>
+        <div class="side-field"><label>Salary record attached (items 9 &amp; 10)</label>
+            <select id="ckReqType"><option value="req" selected>Salary Requisition (iOSMS)</option><option value="acq">Acquittance Roll</option></select></div>
+        <div class="side-field"><label>Spouse / HRA certificate (item 8)</label>
+            <select id="ckSpouseVariant"><option value="auto" selected>Auto (from Marital / Spouse status)</option><option value="hra">Joint spouse HRA statement + payslip</option><option value="unemployed">Spouse not employed</option><option value="private">Spouse in private / unorganised sector (no HRA)</option><option value="marital">Marital status (unmarried / married during claim)</option><option value="separated">Legally separated (decree attached)</option></select></div>
+        <div class="side-field"><label>Village / Ward &amp; Municipality</label><input id="ckVillage" type="text" value="TALDANGRA"></div>
+        <div class="side-field"><label>Post Office</label><input id="ckPO" type="text" value="TALDANGRA"></div>
+        <div class="side-field"><label>Police Station</label><input id="ckPS" type="text" value="TALDANGRA"></div>
+        <div class="side-field"><label>PIN Code</label><input id="ckPin" type="text" value="722152"></div>
+        <div class="side-field"><label>Name of Head of Institution</label><input id="ckHoiName" type="text" placeholder="Name of HOI"></div>
+        <div class="side-field"><label>Designation of HOI</label><input id="ckHoiDesig" type="text" value="HEADMASTER"></div>
+        <div class="side-field"><label>iOSMS Employee Code of Claimant</label><input id="ckIosms" type="text" placeholder="iOSMS code"></div>
+        <div class="side-note">Spouse certificate, forwarding authority and validity certificate switch automatically. Items 11 &amp; 12 apply only to transferred-in employees.</div>
         <div class="side-checklist">
-            <div class="side-check-row"><span>1. Detail Forwarding Letter of HOI</span><select id="check1"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>2. Application of Applicant</span><select id="check2"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>3. Attested photocopy of all approvals</span><select id="check3"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>4. Comparative Pay Structure</span><select id="check4"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>5. Attested photocopy of updated Service Book with updated Leave Account and B.Ed. details, if applicable</span><select id="check5"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>6. Attested photocopy of all IPF (ROPA-98, 09 &amp; 19)</span><select id="check6"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>7. Photocopy of B.Ed. exam schedule, certificate and marksheet</span><select id="check7"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>8. Salary requisition for starting month, previous month, last month and following month of arrear claim</span><select id="check8"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>9. Copy of M.C. Resolution / Administrator's Order</span><select id="check9"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>10. Three copies of Annexure-1 duly filled in</span><select id="check10"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>11. Acquittance Roll for the arrear period</span><select id="check11"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>12. Non-Drawal Certificate</span><select id="check12"><option>Y</option><option>N</option></select></div>
-            <div class="side-check-row"><span>13. Certificate of reason for delay (if applicable)</span><select id="check13"><option>Y</option><option>N</option></select></div>
+            <div class="side-check-row"><span>1. Forwarding letter of HOI to DI / AI</span><select id="ck_1"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>2. Applicant's prayer (original, forwarded by HOI)</span><select id="ck_2"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>3. Calculation Sheet ×3 &amp; Annexure I ×3</span><select id="ck_3"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>4. Service Book (updated, with leave account)</span><select id="ck_4"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>5. Resolution of SMC / Ad-hoc, or Administrator's proposal &amp; order sheet</span><select id="ck_5"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>6. SMC / Ad-hoc / Administrator validity certificate</span><select id="ck_6"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>7. Non-Drawal Certificate</span><select id="ck_7"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>8. Spouse / HRA / Marital-status certificate</span><select id="ck_8"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>9. Salary requisition / Acquittance roll &mdash; entire claim period</span><select id="ck_9"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>10. Salary requisition / Acquittance roll &mdash; regularisation month</span><select id="ck_10"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>11. Options &amp; fixations of ROPAs (transferred-in only)</span><select id="ck_11"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>12. Other pay fixations (transferred-in only)</span><select id="ck_12"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>13. Attested photocopies of all approvals</span><select id="ck_13"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
+            <div class="side-check-row"><span>14. System generated pay slip of last month</span><select id="ck_14"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
         </div>
+        <div class="side-actions" style="margin-top:6px;"><button type="button" class="btn-main" onclick="ckAutoSet()">Auto-set Yes / N.A.</button></div>
     </div>
 
     <div class="side-section">
         <div class="side-section-title">D. Quick Actions</div>
         <div class="side-actions">
             <button type="button" class="btn-main" onclick="syncSidebarFields()">Sync to Main Form</button>
-            <button type="button" class="btn-doc" onclick="showDoc('checklist')">Preview Checklist</button>
+            <button type="button" class="btn-doc" onclick="showDoc('checklist')">Preview Topsheet</button>
         </div>
     </div>
 </aside>
@@ -1196,7 +1216,7 @@
     <div class="panel">
         <div class="doc-grid">
             <div class="doc-card"><b>Cover Page</b><button class="btn-doc" onclick="showDoc('cover')">Preview / Print</button></div>
-            <div class="doc-card"><b>Check List</b><button class="btn-doc" onclick="showDoc('checklist')">Preview / Print</button></div>
+            <div class="doc-card"><b>Checklist cum Topsheet</b><button class="btn-doc" onclick="showDoc('checklist')">Preview / Print</button></div>
             <div class="doc-card"><b>Forwarding Letter (FL)</b><button class="btn-doc" onclick="showDoc('fl')">Preview / Print</button></div>
             <div class="doc-card"><b>Applicant Prayer (APP)</b><button class="btn-doc" onclick="showDoc('app')">Preview / Print</button></div>
             <div class="doc-card"><b>HOI Report &amp; Admin Order</b><button class="btn-doc" onclick="showDoc('admn')">Preview / Print</button></div>
@@ -6355,6 +6375,158 @@ function docCorrection() {
     </div>`;
 }
 
+
+// ===== CHECKLIST CUM TOPSHEET (Bankura DI - arrear salary vetting) =====
+function ckEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function ckApplyTransfer() {
+    const t = val('ckTransferIn') === 'Yes' ? 'Yes' : 'Not Applicable';
+    ['ck_11','ck_12'].forEach(id => { const e = document.getElementById(id); if (e) e.value = t; });
+}
+function ckAutoSet() {
+    for (let i = 1; i <= 14; i++) { const e = document.getElementById('ck_' + i); if (e) e.value = 'Yes'; }
+    ckApplyTransfer();
+}
+function ckSpouseVariantResolved() {
+    const o = val('ckSpouseVariant');
+    if (o && o !== 'auto') return o;
+    const m = val('maritalStatus'), st = val('spouseStatus');
+    if (m === 'Unmarried' || m === 'Widowed') return 'marital';
+    if (m === 'Divorced' || m === 'Separated') return 'separated';
+    if (['Housewife / Homemaker','Not Employed','Retired','Deceased'].includes(st)) return 'unemployed';
+    if (['Private Service','Self-Employed'].includes(st)) return 'private';
+    return 'hra';
+}
+
+function docChecklistTopsheet() {
+    const committee = val('ckCommittee') || 'Administrator';
+    const claimantHoi = val('ckClaimantHoi') === 'Yes';
+    const reqIsReq = (val('ckReqType') || 'req') === 'req';
+    const sv = ckSpouseVariantResolved();
+    const authority = committee === 'SMC' ? 'THE PRESIDENT, SCHOOL MANAGING COMMITTEE'
+                    : committee === 'AdHoc' ? 'THE MEMBER SECRETARY, AD-HOC COMMITTEE' : 'THE ADMINISTRATOR';
+    const yn = i => (val('ck_' + i) || 'Yes') === 'Yes';
+    const M = ok => ok ? '&#9745;' : '&#9744;';          // ☑ / ☐
+    const cell = 'border:1px solid #000;padding:3px 5px;vertical-align:top;';
+    const chk = i => `<td style="${cell}text-align:center;font-weight:bold;width:46px;">${yn(i) ? '&#10003;' : ''}</td><td style="${cell}text-align:center;font-weight:bold;width:62px;">${yn(i) ? '' : '&#10003;'}</td>`;
+    const alt = (ok, txt) => `<div style="margin:2px 0 2px 10px;${ok ? 'font-weight:bold;' : 'color:#555;'}">${M(ok)} ${txt}</div>`;
+    const note = txt => `<div style="margin:2px 0 2px 10px;font-size:7.6pt;">&#9658; ${txt}</div>`;
+    const flag = txt => `<div style="margin:3px 0 1px 10px;font-weight:bold;font-size:7.8pt;border:1px solid #000;padding:1px 4px;display:inline-block;">APPLICABLE HERE: ${txt}</div>`;
+
+    // service < 1 year => service book without leave account
+    let under1 = false;
+    const dojv = val('doj');
+    if (dojv) { const d = new Date(dojv + 'T00:00:00'); if (!isNaN(d)) { const y1 = new Date(d); y1.setFullYear(y1.getFullYear() + 1); under1 = new Date() < y1; } }
+
+    const rows = [];
+    const R = (i, body) => rows.push(`<tr style="page-break-inside:avoid;"><td style="${cell}width:22px;text-align:center;">${i}.</td><td style="${cell}">${body}</td>${chk(i)}</tr>`);
+
+    R(1, `A FORWARDING LETTER OF THE HEAD OF THE INSTITUTION TO THE DISTRICT INSPECTOR OF SCHOOLS (SECONDARY EDUCATION), BANKURA [IN CASE OF BANKURA SADAR SUB-DIVISION] / TO THE ASSISTANT INSPECTOR OF SCHOOLS (SECONDARY EDUCATION), BISHNUPUR / KHATRA, BANKURA [IN CASE OF BISHNUPUR AND KHATRA SUB-DIVISION] CLEARLY MENTIONING THE GROSS CLAIM AMOUNT AND THE PERIOD AND THE REASON OF THE CLAIM`
+        + note('THE ABOVEMENTIONED FORWARDING LETTER MUST BE WRITTEN BY THE PRESIDENT IN CASE OF SCHOOL MANAGING COMMITTEE; THE MEMBER SECRETARY IN CASE OF AD-HOC COMMITTEE OR THE ADMINISTRATOR, IF THE CLAIMANT HAPPENS TO BE THE HEAD OF THE INSTITUTION')
+        + flag(claimantHoi ? 'Forwarding letter by ' + authority : 'Forwarding letter by the Head of the Institution'));
+
+    R(2, `APPLICANT&#8217;S / INCUMBENT&#8217;S PRAYER TO THE PRESIDENT, SCHOOL MANAGING COMMITTEE OR THE MEMBER SECRETARY, AD-HOC COMMITTEE OR THE ADMINISTRATOR [WHEREVER APPLICABLE] THROUGH THE HEAD OF THE INSTITUTE SPECIFICALLY MENTIONING THE REASON, PERIOD AND THE AMOUNT OF GROSS CLAIM IN ORIGINAL AND IT SHOULD BE DULY FORWARDED BY THE HEAD OF THE INSTITUTION TO THE CONCERNED AUTHORITY`
+        + note('IF THE CLAIMANT HAPPENS TO BE THE HEAD OF THE INSTITUTION, THEN HIS/HER PRAYER SHOULD BE FORWARDED BY THE PRESIDENT, SCHOOL MANAGING COMMITTEE OR THE MEMBER SECRETARY, AD-HOC COMMITTEE OR THE ADMINISTRATOR')
+        + (committee !== 'Administrator' ? note('IN CASE OF SCHOOL MANAGING COMMITTEE AND AD-HOC COMMITTEE THERE MUST BE A GAP OF MINIMUM 7 DAYS BETWEEN THE DATE OF FORMAL PRAYER OF THE CLAIMANT AND THE DATE OF RESOLUTION') : '')
+        + flag('Prayer addressed to ' + authority + ' through the Head of the Institution'));
+
+    R(3, `CALCULATION SHEET [THREE COPIES] AND ANNEXURE I [THREE COPIES]`
+        + `<div style="margin:3px 0 1px 0;font-weight:bold;">SOME IMPORTANT POINTS MUST BE FOLLOWED OR TAKEN INTO CONSIDERATION WHILE FILLING UP THE ANNEXURE I</div>`
+        + ['DATE OF RECEIPT OF FIRST GRANT-IN-AID OF THE SCHOOL MUST BE MENTIONED IN ANNEXURE I',
+           'REASON OF ARREAR MUST BE MENTIONED IN ANNEXURE I',
+           'IN THE &#8216;PASSED FOR PAYMENT&#8217; SECTION OF ANNEXURE I ALWAYS MENTION THE GROSS CLAIM AMOUNT [NOT THE NET CLAIM AMOUNT]',
+           'DO NOT PRINT THE ANNEXURE I ON THE BACK SIDE OF THE CALCULATION SHEET. ALWAYS PROVIDE SEPARATE PAGES FOR CALCULATION SHEET AND ANNEXURE I.',
+           'ANNEXURE I MUST BE SIGNED BY BOTH THE HEAD OF THE INSTITUTION AND THE PRESIDENT [IN CASE OF SCHOOL MANAGING COMMITTEE] OR THE MEMBER SECRETARY [IN CASE OF AD-HOC COMMITTEE] OR THE ADMINISTRATOR',
+           'IF THE CLAIMANT HAPPENS TO BE THE HEAD OF THE INSTITUTION, THEN ONLY SIGNATURE OF THE PRESIDENT [IN CASE OF SCHOOL MANAGING COMMITTEE] OR THE MEMBER SECRETARY [IN CASE OF AD-HOC COMMITTEE] OR THE ADMINISTRATOR IS NEEDED',
+           'PLEASE PROVIDE A FRESH ANNEXURE I IF THERE IS ANY CROSS OUT OR OVERWRITING THERE'
+          ].map((t, k) => `<div style="margin:1px 0 1px 10px;font-size:7.8pt;">${'ABCDEFG'[k]}. ${t}</div>`).join('')
+        + flag(claimantHoi ? 'Annexure I signed only by ' + authority : 'Annexure I signed by the Head of the Institution and ' + authority));
+
+    R(4, `ATTESTED PHOTOCOPY OF UPDATED SERVICE BOOK WITH UPDATED LEAVE ACCOUNT`
+        + note('FOR THOSE INCUMBENTS OR CLAIMANTS WHO HAVE NOT ATTAINED OR COMPLETED ONE YEAR OF SERVICE, THEY MUST FURNISH SERVICE BOOK WITHOUT LEAVE ACCOUNT')
+        + (under1 ? flag('Claimant has not completed one year of service &mdash; Service Book WITHOUT leave account') : ''));
+
+    R(5, alt(committee !== 'Administrator', `ATTESTED PHOTOCOPY OF THE RESOLUTION OF THE SCHOOL MANAGING COMMITTEE OR THE AD-HOC COMMITTEE [IN CASE OF SCHOOL MANAGING COMMITTEE OR AD-HOC COMMITTEE] DULY SIGNED BY THE PRESIDENT OF THE SCHOOL MANAGING COMMITTEE OR THE MEMBER-SECRETARY OF THE AD-HOC COMMITTEE, CLEARLY MENTIONING THE REASON, PERIOD AND GROSS AMOUNT OF THE SALARY ARREAR CLAIM`)
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(committee === 'Administrator', `ATTESTED PHOTOCOPY OF PROPOSAL SHEET AND DULY SIGNED ORDER SHEET OF THE ADMINSITRATOR CLEARLY MENTIONING THE REASON, PERIOD AND GROSS AMOUNT OF THE SALARY ARREAR CLAIM`));
+
+    R(6, alt(committee === 'SMC', 'SMC VALIDITY CERTIFICATE IN SCHOOL LETTERHEAD')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(committee === 'AdHoc', 'AD-HOC COMMITTEE VALIDITY CERTIFICATE IN SCHOOL LETTERHEAD')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(committee === 'Administrator', 'ADMINISTRATOR VALIDITY CERTIFICATE IN SCHOOL LETTERHEAD')
+        + `<div style="margin-left:10px;">MENTIONING THE ORDER NO. &amp; DATE OR NOTIFICATION NO. &amp; DATE OF SUCH VALIDATION OR BY ATTACHING THE PHOTOCOPY OF CONCERNED ORDER OR NOTIFICATION</div>`);
+
+    R(7, `NON-DRAWAL CERTIFICATE IN SCHOOL LETTERHEAD IN THE MANNER OF CERTIFICATION` + note('DO NOT ATTACH ANY DECLARATION OF THE CLAIMANT'));
+
+    R(8, alt(sv === 'hra', 'JOINT SPOUSE HRA STATEMENT IN SCHOOL LETTERHEAD IN THE MANNER OF CERTIFICATION WITH PAYSLIP OR PAY CERTIFICATE OR ANY KIND OF SALARY STTEMENT OF THE SPOUSE OF THE ENTIRE CLAIM PERIOD [IF THE SPOUSE OF THE CLAIMANT IS ENGAGED IN ANY KIND OF GOVT., SEMI GOVT., QUASSI GOVT. OR GOVT. UNDERTAKING OR GOVT. AIDED ORGANIZATION OR INSTITUTION OR ANY KIND OF PRIVATE ORGANIZATION OR ENTITY WHERE HRA IS AN INTEGRAL COMPONENT OF SALARY]')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(sv === 'unemployed', 'CERTIFICATE REGARDING NON-EMPLOYMENT OF SPOUSE IN ANY KIND OF GOVT. OR PRIVATE ORGANIZATION IN SCHOOL LETTERHEAD [IF THE SPOUSE OF THE CLAIMANT IS UNEMPLOYED]')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(sv === 'private', 'CERTIFICATE REGARDING EMPLOYMENT OF SPOUSE IN ANY KIND OF PRIVATE ORGANIZATION OR UNORGANISED SECTOR WITHOUT DRAWING HRA AS A COMPONENT OF SALARY IN SCHOOL LETTER HEAD')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(sv === 'marital', 'CERTIFICATE REGARDING MARITAL STATUS IN SCHOOL LETTERHEAD [IF THE CLAIMANT WAS UNMARRIED DURING THE ENTIRE CLAIM PERIOD OR GOT MARRIED SOMEWHERE BETWEEN THE INITIATION AND CLOSURE OF THE CLAIM PERIOD]')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(sv === 'separated', 'CERTIFICATE REGARDING MARITAL STATUS IN SCHOOL LETTERHEAD [IF THE CLAIMANT IS LEGALLY SEPARATED FROM HIS SPOUSE DURING THE CLAIM PERIOD AND THE DECREE OF DIVORCE OR THE ORDER OF THE FAMILY COURT SHOULD BE FURNISHED ALONG WITH THE CERTIFICATION]')
+        + note('DO NOT ATTACH ANY DECLARATION OF THE CLAIMANT'));
+
+    R(9, alt(reqIsReq, 'ATTESTED PHOTOCOPY OF THE SALARY REQUISITION OF ENTIRE STAFF OF THE SCHOOL OF THE ENTIRE CLAIM PERIOD DOWNLOADED FROM THE IOSMS PORTAL')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(!reqIsReq, 'ATTESTED PHOTOCOPY OF DULY SIGNED ACQUITTANCE ROLL OF THE ENTIRE STAFF OF THE SCHOOL OF THE ENTIRE CLAIM PERIOD')
+        + note('PLEASE DO NOT PROVIDE BOTH THE SALARY REQUISITION AND THE ACQUITTANCE ROLL. ATTACH ONLY EITHER ONE OF THEM'));
+
+    R(10, alt(reqIsReq, 'ATTESTED PHOTOCOPY OF THE SALARY REQUISITION OF ENTIRE STAFF OF THE SCHOOL [DOWNLOADED FROM THE IOSMS PORTAL] OF THAT MONTH WHEN THE SALARY OF THE CLAIMANT IS REGULARIZED')
+        + `<div style="text-align:center;font-weight:bold;">OR</div>`
+        + alt(!reqIsReq, 'ATTESTED PHOTOCOPY OF DULY SIGNED ACQUITTANCE ROLL OF THE ENTIRE STAFF OF THE SCHOOL OF THAT MONTH WHEN THE SALARY OF THE CLAIMANT IS REGULARIZED')
+        + note('PLEASE DO NOT ANNEX BOTH THE SALARY REQUISITION AND THE ACQUITTANCE ROLL. ATTACH ONLY EITHER ONE OF THEM.'));
+
+    R(11, 'ATTESTED PHOTOCOPIES OF ALL OPTIONS AND FIXATIONS OF PAY OF DIFFERENT ROPAS [APPLICABLE ONLY FOR THE TRANSFERRED IN EMPLOYEES]');
+    R(12, 'ATTESTED PHOTOCOPIES OF ANY OTHER FIXATIONS OF PAY [E.G. FIXATIONS OF PAY DUE TO GRANT OF POST GRADUATE SCALE OF PAY, DUE TO SUCCESSFUL AND SATISFACTORY COMPLETION OF 18 YEARS SERVICE BENEFIT, DUE TO COMPLETION OF B.ED., FIXATIONS OF PAY AS H.M. OR A.H.M. ETC.] [APPLICABLE ONLY FOR THE TRANSFERRED IN EMPLOYEES]');
+    R(13, 'ATTESTED PHOTOCOPIES OF ALL APPROVALS');
+    R(14, 'SYSTEM GENERATED PAY SLIP OF THE LAST MONTH');
+
+    const hb = 'border:1px solid #000;padding:3px 5px;vertical-align:top;font-size:8pt;';
+    const lab = t => `<td style="${hb}font-weight:bold;width:23%;">${t}</td>`;
+    const dat = (v, cs) => `<td style="${hb}"${cs ? ' colspan="' + cs + '"' : ''}>${ckEsc(v)}</td>`;
+    const header = `
+    <table style="width:100%;border-collapse:collapse;margin-bottom:6px;">
+        <tr>${lab('NAME OF THE SCHOOL:')}${dat((val('schoolName') || '').toUpperCase(), 3)}</tr>
+        <tr>${lab('VILLAGE/WARD NO. &amp; NAME OF MUNICIPALITY')}${dat(val('ckVillage'))}${lab('POST OFFICE')}${dat(val('ckPO'))}</tr>
+        <tr>${lab('POLICE STATION')}${dat(val('ckPS'))}${lab('NAME OF DEVELOPMENT BLOCK')}${dat(val('block'))}</tr>
+        <tr>${lab('SUB-DIVISION')}${dat(val('subDivision'))}${lab('PIN CODE')}${dat(val('ckPin'))}</tr>
+        <tr>${lab('NAME AND DESIGNATION OF THE HEAD OF THE INSTITUTION')}${dat([val('ckHoiName'), val('ckHoiDesig')].filter(Boolean).join(', '))}${lab('CONTACT NO. OF THE HEAD OF THE INSTITUTION')}${dat(val('hoiContact'))}</tr>
+        <tr>${lab('NAME AND DESIGNATION OF THE CLAIMANT')}${dat([val('staffName'), val('designation')].filter(Boolean).join(', '))}${lab('IOSMS EMPLOYEE CODE OF THE CLAIMANT')}${dat(val('ckIosms'))}</tr>
+    </table>`;
+
+    return `
+    <div style="font-family:'Times New Roman',Times,serif;color:#000;padding:6px;font-size:8.4pt;line-height:1.25;">
+        <div style="text-align:center;font-weight:bold;font-size:12pt;text-decoration:underline;">CHECKLIST CUM TOPSHEET</div>
+        <div style="text-align:center;font-weight:bold;font-size:8.6pt;margin:4px 0 8px 0;">LIST OF DOCUMENTS REQUIRED FOR THE PURPOSE OF VETTING OF ARREAR SALARY CLAIM ARISES DUE TO LATE APPROVAL OF APPOINTMENT EITHER BY WAY OF FRESH RECRUITMENT OR BY TRANSFER IN FAVOUR OF VARIOUS TEACHING OR NON-TEACHING STAFF OF ALL JR. HIGH/HIGH/HIGHER SECONDARY SCHOOLS IN THE DISTRICT OF BANKURA</div>
+        ${header}
+        <table style="width:100%;border-collapse:collapse;">
+            <thead><tr>
+                <th style="${cell}" colspan="2">LIST OF REQUISITE DOCUMENTS</th>
+                <th style="${cell}width:46px;">WHETHER ATTACHED<br>(YES)</th>
+                <th style="${cell}width:62px;">NOT APPLICABLE</th>
+            </tr></thead>
+            <tbody>${rows.join('')}</tbody>
+        </table>
+        <div style="margin-top:8px;page-break-inside:avoid;border:1px solid #000;padding:4px 6px;">
+            <div style="font-weight:bold;">SOME IMPORTANT POINTS TO BE REMEMBERED</div>
+            <div>1. PLEASE DO NOT ATTACH ANY KIND OF REGISTRATION CERTIFICATES, ADMITS, MARKSHEETS, CERTIFICATES OF ANY EDUCATIONAL OR PROFESSIONAL QUALIFICATION UNLESS IT IS ASKED FOR</div>
+            <div>2. PLEASE DO NOT ATTACH ANY KIND OF EPIC, PAN OR AADHAAR</div>
+            <div>3. PLEASE DO NOT ATTACH ANY KIND OF BANK ACCOUNT DETAILS, ANY KIND OF BANK MANDATE OR NACH MANDATE FORMS OR CANCELLED CHEQUES</div>
+            <div>4. PLEASE DO NOT ATTACH ANY RECOMMENDATION LETTER ISSUED BY THE WEST BENGAL CENTRAL OR REGIONAL SCHOOL SERVICE COMMISSION, ANY APPOINTMENT LETTER ISSUED EITHER BY THE WEST BENGAL BOARD OF SECONDARY EDUCATION OR BY THE SCHOOL AUTHORITY, ANY JOINING LETTER</div>
+        </div>
+        <div style="margin-top:34px;text-align:right;page-break-inside:avoid;">
+            <div style="display:inline-block;text-align:center;">
+                <div class="stamp-box" style="width:55mm;margin:0 0 1mm auto;">Seal</div>
+                ______________________________________________<br>(Signature of the Head of the Institution with Seal)
+            </div>
+        </div>
+    </div>`;
+}
+
 function showDoc(type) {
     let content = "";
     if (type === 'annex1' || type === 'annex' || type === 'dacalc' || type === 'daannex1') {
@@ -6376,38 +6548,7 @@ function showDoc(type) {
     else if (type === 'correction') content = docCorrection();
     else if (type === 'daannex') { ensureDaCaseReady(); generateDaCaseTable(); content = docDaAnnexure(); }
     else if (type === 'dacalc') content = docDaCalcSheet();
-    else if (type === 'checklist') content = `
-    <div style="font-family:'Times New Roman',Times,serif;color:#000;padding:12px;">
-        <div style="text-align:center;font-weight:bold;font-size:1.15rem;margin:10px 0;text-decoration:underline;">CHECK LIST FOR ARREAR BILL</div>
-        <div style="text-align:center;margin-bottom:12px;">
-            <b>${excelProperCase(val('schoolName'))}</b><br>
-            Sub-Division: ${val('subDivision')} &nbsp; | &nbsp; Block: ${val('block')} &nbsp; | &nbsp; HOI Contact: ${val('hoiContact')}
-        </div>
-        <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
-            <thead><tr><th style="border:1px solid #000;padding:6px;">Papers / Documents submitted</th><th style="border:1px solid #000;padding:6px;width:90px;">Y / N</th></tr></thead>
-            <tbody>
-                ${[
-                    'DETAIL FORWARDING LETTER OF HOI',
-                    'APPLICATION OF APPLICANT',
-                    'ATTESTED PHOTOCOPY OF ALL APPROVALS',
-                    'COMPARATIVE PAY STRUCTURE',
-                    'ATTESTED PHOTOCOPY OF UPDATED SERVICE BOOK WITH UPDATED LEAVE ACCOUNT AND B.ED DETAILS MUST BE MENTIONED IF APPLICABLE.',
-                    'ATTESTED PHOTOCOPY OF ALL IPF (ROPA,98,09 & 19).',
-                    'PHOTOCOPY OF B.ED EXAM SCHEDULE, CERTIFICATE, MARKSHEET',
-                    'PHOTOCOPY OF SALARY REQUISITION FOR THE STARTING MONTH OF ARREAR AND PREVIOUS MONTH, LAST MONTH AND FOLLOWING MONTH UPTO WHICH ARREAR IS CLAIMED.',
-                    "COPY OF M.C RESOLUTION/ ADMINISTRATOR'S ORDER.",
-                    'THREE COPIES OF ANNEXURE-1 DULY FILLED IN.',
-                    'ACQUITTANCE ROLL FOR THE ARREAR PERIOD.',
-                    'NON DRAWAL CERTIFICATE.',
-                    'CERTIFICATE OF REASON FOR DELAY (IF APPLICABLE)'
-                ].map((txt,i)=>`<tr><td style="border:1px solid #000;padding:6px;text-align:left;">${i+1}. ${txt}</td><td style="border:1px solid #000;padding:6px;text-align:center;font-weight:bold;">${val('check'+(i+1)) || 'Y'}</td></tr>`).join('')}
-            </tbody>
-        </table>
-        <div style="margin-top:25px;display:flex;justify-content:space-between;text-align:center;">
-            <div><div class="stamp-box" style="width:55mm;margin-bottom:1mm;">Stamp / Seal of HOI</div>____________________________<br>Signature of HOI with date and seal</div>
-            <div>____________________________<br>Signature of DA</div>
-        </div>
-    </div>`;
+    else if (type === 'checklist') content = docChecklistTopsheet();
 
     document.getElementById('printArea').innerHTML = content;
     document.getElementById('modalOverlay').classList.add('active');
