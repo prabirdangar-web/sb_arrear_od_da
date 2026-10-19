@@ -325,6 +325,8 @@
     .modal-overlay.active { display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 30px 10px; }
     .modal-box { background: #fff; max-width: 1150px; width: 100%; border-radius: 8px; padding: 0; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
     .modal-toolbar { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; background: #f1f5f9; border-bottom: 1px solid var(--border-color); border-radius: 8px 8px 0 0; }
+    #printArea[contenteditable="true"]:hover { outline: 1px dashed #94a3b8; }
+    #printArea[contenteditable="true"]:focus { outline: 1px solid #0284c7; }
     #printArea { padding: 25px 30px; font-family: 'Times New Roman', Times, serif; color: #000; }
     #sbPrintArea { display: none; }
 
@@ -841,6 +843,9 @@
         <div class="side-field"><label>Name of Head of Institution</label><input id="ckHoiName" type="text" placeholder="Name of HOI"></div>
         <div class="side-field"><label>Designation of HOI</label><input id="ckHoiDesig" type="text" value="HEADMASTER"></div>
         <div class="side-field"><label>iOSMS Employee Code of Claimant</label><input id="ckIosms" type="text" placeholder="iOSMS code"></div>
+        <div class="side-field"><label>Date of Applicant's Prayer</label><input id="ckPrayerDate" type="date"></div>
+        <div class="side-field"><label>Letterhead blank space &mdash; HOI letter (cm)</label><input id="ckLhFL" type="number" step="0.1" min="0" value="7.2"></div>
+        <div class="side-field"><label>Letterhead blank space &mdash; certificates (cm)</label><input id="ckLhCert" type="number" step="0.1" min="0" value="0"></div>
         <div class="side-note">Spouse certificate, forwarding authority and validity certificate switch automatically. Items 11 &amp; 12 apply only to transferred-in employees.</div>
         <div class="side-checklist">
             <div class="side-check-row"><span>1. Forwarding letter of HOI to DI / AI</span><select id="ck_1"><option value="Yes">Yes</option><option value="Not Applicable">N.A.</option></select></div>
@@ -1820,6 +1825,8 @@
     <div class="modal-box">
         <div class="modal-toolbar">
             <button class="btn-print" onclick="window.print()">Print / Save as PDF</button>
+            <button class="btn-doc" style="background:#0284c7;" onclick="if(window.__lastDocType){showDoc(window.__lastDocType);}" title="Discard manual edits and regenerate from the form">&#8635; Regenerate</button>
+            <span class="ofc-noprint" style="font-size:.78rem;color:#475569;align-self:center;">&#9998; Click on any text to edit before printing</span>
             <button class="btn-doc" onclick="closeModal()">Close</button>
         </div>
         <div id="printArea"></div>
@@ -5748,7 +5755,9 @@ function printStatement() {
     </div>`;
     });
 
+    window.__lastDocType = type;
     document.getElementById('printArea').innerHTML = content;
+    ckMakeEditable();
     document.getElementById('modalOverlay').classList.add('active');
 }
 
@@ -5853,26 +5862,116 @@ function printChallan() {
     const copyTypes = ['ORIGINAL', 'DUPLICATE', 'TRIPLICATE', 'QUADRUPLICATE'];
     const content = copyTypes.map(ct => buildChallanPage(ct)).join('');
 
+    window.__lastDocType = type;
     document.getElementById('printArea').innerHTML = content;
+    ckMakeEditable();
     document.getElementById('modalOverlay').classList.add('active');
 }
 
+
+// ===== SHARED HELPERS: reason-aware wording, gross claim, authority =====
+function ckInr(n){ return Number(n||0).toLocaleString('en-IN'); }
+function ckGross() {
+    try { if (typeof arrearRows !== 'undefined' && arrearRows.length === 0) generateArrearTable(); } catch(e) {}
+    return Math.round((typeof calcResult !== 'undefined' && calcResult && calcResult.gross) || 0);
+}
+function ckGrossText() { const g = ckGross(); return `Rs. ${ckInr(g)}/- (Rupees ${numberToWords(g)} Only)`; }
+function ckAuthority() {
+    const c = val('ckCommittee') || 'Administrator';
+    if (c === 'SMC')   return { key:c, to:'The President', body:'School Managing Committee', full:'The President, School Managing Committee', sign:'President, School Managing Committee', ordWord:'Resolution', orgWord:'School Managing Committee' };
+    if (c === 'AdHoc') return { key:c, to:'The Member Secretary', body:'Ad-hoc Committee', full:'The Member Secretary, Ad-hoc Committee', sign:'Member Secretary, Ad-hoc Committee', ordWord:'Resolution', orgWord:'Ad-hoc Committee' };
+    return { key:c, to:'The Administrator', body:'', full:'The Administrator', sign:'Administrator', ordWord:'Order', orgWord:'Administrator' };
+}
+function ckHoiTitle() { return val('ckHoiDesig') || val('hoiStatus') || 'Headmaster'; }
+function getArrearTitle() {
+    const type = val('arrearReasonType') || 'cas';
+    const years = val('yearsCompleted') || '18';
+    switch (type) {
+        case 'promotion': return `promotion to the post of ${val('designation')}`;
+        case 'payfix':    return 'revision / correction of pay fixation';
+        case 'macp':      return 'MACP / Time Scale benefit';
+        case 'other':     return (val('arrearOtherReason') || 'the reason stated in the application').trim();
+        default:          return `${years} years&#8217; continuous service (Career Advancement) benefit under ROPA-2019`;
+    }
+}
+function ckClaimPeriod() { return `${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}`; }
+function ckSalaryMonth() {
+    const v = val('salaryUpdatedFrom'); if (!v) return '';
+    const d = new Date(v + 'T00:00:00'); return isNaN(d) ? '' : MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
+}
+function ckApprovalText(p) {
+    const type = val('arrearReasonType') || 'cas';
+    const years = val('yearsCompleted') || '18';
+    const memo = val('approvalMemo'), wef = fmtDMY(val('benefitDate')), sm = ckSalaryMonth();
+    let base;
+    if (type === 'cas') base = `The Career Advancement benefit under ROPA-2019 for completion of ${years} years of continuous service has been duly approved by the D.I./S(S.E.), Bankura vide Memo No. ${memo}, with fixation allowed w.e.f. ${wef} as per ${p.hisHer} option`;
+    else if (type === 'other') base = `The claim arising out of ${getArrearTitle()} has been duly examined and approved vide Memo No. ${memo}, w.e.f. ${wef}`;
+    else base = `The ${getArrearTitle()} has been duly approved vide Memo No. ${memo}, w.e.f. ${wef}`;
+    return `${base}. Admissible salary as per the revised pay has been drawn ${sm ? 'from the month of ' + sm : 'subsequently'}, but payment for the period ${ckClaimPeriod()} remains due, as salary up to that period was drawn in the pre-revised pay.`;
+}
+function ckLetterheadSpace(cm, label) {
+    const h = (cm === '' || isNaN(parseFloat(cm))) ? 0 : parseFloat(cm);
+    if (h <= 0) return '';
+    return `<div style="height:${h}cm;position:relative;"><div class="ofc-noprint" style="position:absolute;inset:0;border:1px dashed #94a3b8;color:#94a3b8;font:12px sans-serif;display:flex;align-items:center;justify-content:center;">${label} &mdash; blank space ${h} cm (not printed)</div></div>`;
+}
+
 function docCover() {
+    const p = excelSexWords();
+    const a = ckAddressee();
+    const gross = ckGross();
+    const hoi = [val('ckHoiName'), ckHoiTitle()].filter(Boolean).join(', ');
+    const pc = 'print-color-adjust:exact;-webkit-print-color-adjust:exact;';
     return `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; padding:20px;">
-        <div style="text-align:right; font-size:0.9rem; font-weight:bold; text-decoration:underline;">E-mail: ${val('schoolEmail')}</div>
-        <div style="text-align:center; font-size:0.9rem; font-weight:bold; margin-top:5px;">Mob No of the ${val('hoiStatus') || 'Headmaster'} : ${val('hoiContact')}</div>
-        <div style="text-align:center; font-size:1.4rem; font-weight:bold; margin-top:15px;">${val('schoolName').toUpperCase()}</div>
-        <div style="text-align:center; font-size:1rem; font-weight:bold; margin-top:5px;">${val('schoolAddress').toUpperCase()}</div>
-        <div style="text-align:center; font-size:1.05rem; font-weight:bold; margin-top:10px;">SUB DIVISION : ${val('subDivision').toUpperCase()}</div>
-        <div style="border:2px solid #000; margin:40px auto 10px; padding:25px; max-width:800px; text-align:center; line-height:1.8;">
-            <div style="font-size:1.25rem; font-weight:bold; text-decoration:underline;">Subject: ARREAR BILL</div>
-            <div style="font-size:1.15rem; font-weight:bold; text-decoration:underline; margin-top:5px;">[PERIOD_${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))} ]</div>
-            <div style="font-size:1rem; font-weight:bold; margin-top:15px; text-transform:uppercase;">DUE TO THE DELAYED APPROVAL OF THE ${val('yearsCompleted')}-YEARS BENEFIT FIXATION IN FAVOUR OF</div>
-            <div style="font-size:1.2rem; font-weight:bold; margin-top:15px;">${val('staffName').toUpperCase()} ; ${val('designation').toUpperCase()}</div>
+    <div style="font-family:'Times New Roman',Times,serif;color:#000;height:272mm;box-sizing:border-box;border:4px double #0f172a;padding:10mm 11mm;display:flex;flex-direction:column;${pc}">
+        <div style="display:flex;justify-content:space-between;font-size:10pt;font-weight:bold;">
+            <div>${ckEsc(val('departmentName'))}</div>
+            <div style="text-align:right;">E-mail: ${ckEsc(val('schoolEmail'))}<br>Mob: ${ckEsc(val('hoiContact'))}</div>
+        </div>
+        <div style="text-align:center;margin-top:8mm;">
+            <div style="font-size:25pt;font-weight:bold;letter-spacing:.5px;line-height:1.15;">${ckEsc(val('schoolName')).toUpperCase()}</div>
+            <div style="font-size:11.5pt;font-weight:bold;margin-top:3mm;">${ckEsc(val('schoolAddress')).toUpperCase()}</div>
+        </div>
+        <div style="margin:7mm auto 0;display:flex;gap:6mm;font-weight:bold;font-size:13pt;">
+            <div style="border:2px solid #0f172a;padding:2mm 6mm;">SUB-DIVISION : ${ckEsc(val('subDivision')).toUpperCase()}</div>
+            <div style="border:2px solid #0f172a;padding:2mm 6mm;">BLOCK : ${ckEsc(val('block')).toUpperCase()}</div>
+        </div>
+        <div style="background:#0f172a;color:#fff;text-align:center;margin-top:11mm;padding:5mm 4mm;${pc}">
+            <div style="font-size:26pt;font-weight:bold;letter-spacing:3px;">ARREAR SALARY CLAIM</div>
+            <div style="font-size:12pt;margin-top:2mm;letter-spacing:1px;">FILE FOR VETTING &mdash; CHECKLIST CUM TOPSHEET ENCLOSED</div>
+        </div>
+        <div style="text-align:center;margin-top:8mm;font-size:13pt;font-weight:bold;line-height:1.5;text-transform:uppercase;">
+            ON ACCOUNT OF ${getArrearTitle()}
+        </div>
+        <div style="margin-top:7mm;border:3px solid #0f172a;text-align:center;padding:5mm;">
+            <div style="font-size:10.5pt;font-weight:bold;letter-spacing:2px;">NAME OF THE CLAIMANT</div>
+            <div style="font-size:24pt;font-weight:bold;margin-top:2mm;">${ckEsc(val('staffName')).toUpperCase()}</div>
+            <div style="font-size:14pt;font-weight:bold;margin-top:1mm;">${ckEsc(val('designation')).toUpperCase()}</div>
+            ${val('ckIosms') ? `<div style="font-size:11pt;margin-top:2mm;">iOSMS Employee Code : <b>${ckEsc(val('ckIosms'))}</b></div>` : ''}
+        </div>
+        <div style="display:flex;gap:6mm;margin-top:7mm;">
+            <div style="flex:1.25;border:2px solid #0f172a;text-align:center;padding:4mm;">
+                <div style="font-size:10pt;font-weight:bold;letter-spacing:2px;">CLAIM PERIOD</div>
+                <div style="font-size:15pt;font-weight:bold;margin-top:2mm;">${fmtDMY(val('arrearFrom'))} &nbsp;TO&nbsp; ${fmtDMY(val('arrearTo'))}</div>
+            </div>
+            <div style="flex:1;border:2px solid #0f172a;background:#e2e8f0;text-align:center;padding:4mm;${pc}">
+                <div style="font-size:10pt;font-weight:bold;letter-spacing:2px;">GROSS CLAIM AMOUNT</div>
+                <div style="font-size:20pt;font-weight:bold;margin-top:1mm;">Rs. ${ckInr(gross)}/-</div>
+            </div>
+        </div>
+        <div style="margin-top:7mm;font-size:12pt;line-height:1.6;">
+            <div><b>SUBMITTED TO :</b> ${ckEsc(a.office).toUpperCase()}</div>
+            <div style="margin-left:34mm;">${ckEsc(a.addr.replace(/&amp;/g,'&'))}</div>
+        </div>
+        <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-size:11pt;">
+            <div style="line-height:1.8;">File No. : ______________________<br>Date of Submission : ______________</div>
+            <div style="text-align:center;">
+                <div class="stamp-box" style="width:50mm;margin:0 auto 1mm;">Seal</div>
+                ______________________________<br><b>${ckEsc(hoi) || 'Head of the Institution'}</b><br>${ckEsc(val('schoolName'))}
+            </div>
         </div>
     </div>`;
 }
+
 
 
 function excelProperCase(value) {
@@ -5894,76 +5993,107 @@ function excelSexWords() {
 
 function docFL() {
     const p = excelSexWords();
-    const name = val('staffName');
-    const designation = val('designation');
-    const school = val('schoolName');
-    const period = `${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}`;
-    const completionDate = val('serviceCompletionDate') ? fmtDMY(val('serviceCompletionDate')) : '';
-    const benefitDate = val('benefitDate') ? fmtDMY(val('benefitDate')) : '';
-    const salaryFrom = val('salaryUpdatedFrom') ? new Date(val('salaryUpdatedFrom') + 'T00:00:00') : null;
-    const salaryMonth = salaryFrom && !isNaN(salaryFrom) ? MONTH_NAMES[salaryFrom.getMonth()] + ' ' + salaryFrom.getFullYear() : '';
+    const name = excelProperCase(val('staffName')), designation = val('designation');
+    const auth = ckAuthority();
+    const claimantHoi = val('ckClaimantHoi') === 'Yes';
+    const type = val('arrearReasonType') || 'cas';
+    const completion = val('serviceCompletionDate') ? fmtDMY(val('serviceCompletionDate')) : '';
+    const lhRaw = document.getElementById('ckLhFL') ? val('ckLhFL') : '7.2';
+    const lh = (lhRaw === '' ? '7.2' : lhRaw);
+    const signer = claimantHoi
+        ? `<b>${auth.sign}</b><br>${excelProperCase(val('schoolName'))}`
+        : `<b>${ckEsc(val('ckHoiName')) || '&nbsp;'}</b><br>${ckHoiTitle()}<br>${excelProperCase(val('schoolName'))}`;
+    const serviceLine = type === 'cas'
+        ? ` who has completed ${val('yearsCompleted')} years of continuous service in this school on ${completion}`
+        : '';
     return `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.5; padding:10px;">
-        <div>To</div>
+    <div style="font-family:'Times New Roman',Times,serif;color:#000;font-size:0.97rem;line-height:1.5;padding:10px;">
+        ${ckLetterheadSpace(lh, 'School letterhead')}
+        <div style="display:flex;justify-content:space-between;"><div>Memo No. _______________</div><div>Date : _______________</div></div>
+        <div style="margin-top:10px;">To</div>
         <div style="font-weight:bold;">${val('diOffice')}</div>
         <div>${val('diAddress')}</div>
-        <div style="margin-top:15px; font-weight:bold;">
-            <u>Sub: Submission of arrear salary bill in respect of ${excelProperCase(name)} ; ${excelProperCase(designation)} for payment of arrear salary on account of grant of ${val('yearsCompleted')} years’ continuous service benefit under ROPA-2019.</u>
-        </div>
-        <div style="margin-top:12px;">Sir,</div>
-        <p style="text-align:justify; text-indent:30px; margin:8px 0;">
-            I do hereby submit the necessary supporting documents along with the arrear bill in the specific format for the period ${period} for payment of the same in favour of ${excelProperCase(name)}, ${designation}, who has completed ${val('yearsCompleted')} years of continuous service in this school on ${completionDate}.
-        </p>
-        <p style="text-align:justify; text-indent:30px; margin:8px 0;">
-            The Career Advancement benefit under ROPA-2019 has been duly approved by your office vide Memo No. ${val('approvalMemo')}, with fixation allowed w.e.f. ${benefitDate} as per ${p.hisHer} option. Admissible salary as per the revised fixation has been paid from the month of ${salaryMonth}, but payment for the period ${period} remains due, as salary up to that period was drawn in pre-revised pay.
-        </p>
-        <p style="text-align:justify; text-indent:30px; margin:8px 0;">
-            Please arrange and do the needful at your earliest by which the said arrear salary may be paid in favour of the concerned incumbent.
-        </p>
-        <div style="display:flex; justify-content:space-between; margin-top:20px; font-weight:bold;">
-            <div>With thanks</div><div>Yours faithfully.</div>
+        <div style="margin-top:12px;font-weight:bold;"><u>Sub: Submission of arrear salary bill of ${ckGrossText()} in respect of ${name} ; ${excelProperCase(designation)} for the period ${ckClaimPeriod()} on account of ${getArrearTitle()}.</u></div>
+        <div style="margin-top:10px;">Sir,</div>
+        <p style="text-align:justify;text-indent:30px;margin:8px 0;">I do hereby submit the arrear salary bill along with the necessary supporting documents in the prescribed format, as per the enclosed Checklist cum Topsheet, for the period ${ckClaimPeriod()} for payment of the same in favour of ${name}, ${designation} of this school${serviceLine}. The gross claim amount is <b>${ckGrossText()}</b>.</p>
+        <p style="text-align:justify;text-indent:30px;margin:8px 0;">${ckApprovalText(p)}</p>
+        <p style="text-align:justify;text-indent:30px;margin:8px 0;">The claim has been duly considered and ${auth.key === 'Administrator' ? 'approved by the Administrator vide Order' : 'resolved by the ' + auth.body + ' vide Resolution'} dated _______________ , a certified copy of which is enclosed. It is certified that the said amount has not been claimed or drawn earlier.</p>
+        <p style="text-align:justify;text-indent:30px;margin:8px 0;">Please arrange and do the needful at your earliest so that the said arrear salary may be paid in favour of the concerned incumbent.</p>
+        <div style="display:flex;justify-content:space-between;margin-top:18px;align-items:flex-end;">
+            <div style="font-weight:bold;">With thanks<br><span style="font-weight:normal;">Enclo: Checklist cum Topsheet &amp; documents as per list.</span></div>
+            <div style="text-align:center;"><div style="margin-bottom:14mm;">Yours faithfully,</div>${signer}</div>
         </div>
     </div>`;
 }
 
+
 function docApp() {
     const p = excelSexWords();
-    const name = val('staffName'), designation = val('designation'), school = val('schoolName');
-    const period = `${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}`;
+    const name = excelProperCase(val('staffName')), designation = val('designation'), school = val('schoolName');
+    const auth = ckAuthority();
+    const claimantHoi = val('ckClaimantHoi') === 'Yes';
+    const type = val('arrearReasonType') || 'cas';
+    const prayer = val('ckPrayerDate') ? fmtDMY(val('ckPrayerDate')) : '_______________';
+    const gap = (auth.key !== 'Administrator' && val('ckPrayerDate'))
+        ? (() => { const d = new Date(val('ckPrayerDate') + 'T00:00:00'); d.setDate(d.getDate() + 7); return fmtDMY(d.toISOString().slice(0, 10)); })() : '';
+    const through = claimantHoi ? '' : `Through<br><strong>The ${ckHoiTitle()}</strong><br>`;
+    const serviceLine = type === 'cas'
+        ? ` I have completed ${val('yearsCompleted')} years of continuous and satisfactory service in this school as on ${val('serviceCompletionDate') ? fmtDMY(val('serviceCompletionDate')) : fmtDMY(val('benefitDate'))}.` : '';
+    const fwdTo = claimantHoi ? `${auth.full}` : `${auth.full}`;
+    const endorse = claimantHoi
+        ? `<div style="font-weight:bold;text-decoration:underline;">Forwarding Note of ${auth.sign}</div>
+           <p style="text-align:justify;margin:4px 0;">Forwarded to ${val('diOffice')} for kind consideration. The prayer of the Head of the Institution, which specifically mentions the reason, period and gross amount of the claim, is submitted in original and is duly forwarded for necessary action.</p>
+           <div style="text-align:right;margin-top:14mm;">__________________________<br><b>${auth.sign}</b><br>${excelProperCase(school)}</div>`
+        : `<div style="font-weight:bold;text-decoration:underline;">Forwarding Note of the ${ckHoiTitle()}</div>
+           <p style="text-align:justify;margin:4px 0;">Forwarded to ${fwdTo} for kind consideration and necessary action. The above prayer, specifically mentioning the reason, period and gross amount of the claim, is submitted in original, and the particulars stated therein have been verified from the records of the school.</p>
+           <div style="text-align:right;margin-top:14mm;">__________________________<br><b>${ckEsc(val('ckHoiName')) || ''}</b><br>${ckHoiTitle()}<br>${excelProperCase(school)}</div>`;
     return `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.95rem; line-height:1.5; padding:10px;">
-        <div>To<br><strong>The Administrator</strong><br>Through<br><strong>The Headmaster</strong><br><strong>${excelProperCase(school)}</strong><br><strong>${val('schoolAddress')}</strong></div>
-        <div style="margin-top:15px; font-weight:bold;"><u>Subject: Request for payment of Arrear Salary on account of ${val('yearsCompleted')} Years Continuous Service</u></div>
-        <div style="margin-top:12px;">Respected Sir,</div>
-        <p style="text-align:justify; text-indent:30px; margin:10px 0;">
-            I, ${excelProperCase(name)}, ${designation} of this school, do hereby submit this application for payment of my arrear salary for the period from ${period}. The Career Advancement benefit for completion of ${val('yearsCompleted')} Yrs continuous and satisfactory service under ROPA-2019 has been duly approved with effect from ${fmtDMY(val('benefitDate'))}, from the end of the DI/S(SE), Bankura and the admissible salary as per revised fixation is yet to be paid for the above-mentioned period due to Late approval of fixation for the said benefit.
-        </p>
-        <p style="text-align:justify; text-indent:30px; margin:10px 0;">
-            In view of the above, I request you to kindly arrange for taking necessary steps for sanction and payment of the said arrear salary.
-        </p>
-        <div style="display:flex; justify-content:space-between; margin-top:25px; font-weight:bold;">
-            <div>Thanking you,</div><div>Yours faithfully,<br><br><strong>${name.toUpperCase()} ; ${designation.toUpperCase()}</strong></div>
+    <div style="font-family:'Times New Roman',Times,serif;color:#000;font-size:0.97rem;line-height:1.5;padding:10px;">
+        <div style="text-align:right;">Date : ${prayer}</div>
+        <div>To<br><strong>${auth.full}</strong><br>${through}<strong>${excelProperCase(school)}</strong><br>${val('schoolAddress')}</div>
+        <div style="margin-top:12px;font-weight:bold;"><u>Subject: Prayer for sanction and payment of arrear salary of ${ckGrossText()} for the period ${ckClaimPeriod()} on account of ${getArrearTitle()}.</u></div>
+        <div style="margin-top:10px;">Respected Sir,</div>
+        <p style="text-align:justify;text-indent:30px;margin:8px 0;">I, ${name}, ${designation} of this school, do hereby submit this prayer for sanction and payment of my arrear salary for the period ${ckClaimPeriod()}.${serviceLine}</p>
+        <p style="text-align:justify;text-indent:30px;margin:8px 0;">${ckApprovalText(p)} The <b>reason</b> of the claim is ${getArrearTitle()}, the <b>period</b> of the claim is ${ckClaimPeriod()} and the <b>gross claim amount</b> is <b>${ckGrossText()}</b>. I declare that the said amount has not been claimed or drawn by me earlier.</p>
+        <p style="text-align:justify;text-indent:30px;margin:8px 0;">In view of the above, I humbly request you to kindly place my prayer ${auth.key === 'Administrator' ? 'before the Administrator for order' : 'before the ' + auth.body + ' for resolution'} and to take the necessary steps for forwarding the arrear salary bill to the ${val('diOffice').replace(/^The /, '')} for vetting and payment.</p>
+        <div style="display:flex;justify-content:space-between;margin-top:18px;font-weight:bold;">
+            <div>Thanking you,</div><div style="text-align:center;">Yours faithfully,<br><br><br><strong>${name.toUpperCase()} ; ${designation.toUpperCase()}</strong></div>
+        </div>
+        <div style="margin-top:14px;border:1px solid #000;padding:7px 10px;font-size:0.93rem;page-break-inside:avoid;">${endorse}</div>
+        <div class="ofc-noprint" style="margin-top:10px;border:1px dashed #b45309;background:#fffbeb;padding:6px 10px;font:12px sans-serif;color:#92400e;">
+            Note (screen only): This prayer must be submitted in original${claimantHoi ? ' and forwarded by ' + auth.sign : ' through the Head of the Institution'}.${auth.key !== 'Administrator' ? ' There must be a gap of minimum 7 days between this prayer and the date of ' + auth.ordWord.toLowerCase() + (gap ? ' &mdash; earliest date of ' + auth.ordWord.toLowerCase() + ': <b>' + gap + '</b>.' : ' &mdash; set the Date of Prayer in the sidebar to see the earliest date.') : ''}
         </div>
     </div>`;
 }
+
 
 function docAdmn() {
     const p = excelSexWords();
     const name = excelProperCase(val('staffName')), designation = val('designation');
-    const period = `${fmtDMY(val('arrearFrom'))} TO ${fmtDMY(val('arrearTo'))}`;
+    const auth = ckAuthority();
+    const type = val('arrearReasonType') || 'cas';
     const completion = val('serviceCompletionDate') ? fmtDMY(val('serviceCompletionDate')) : fmtDMY(val('benefitDate'));
-    const benefit = fmtDMY(val('benefitDate'));
-    const salaryFrom = val('salaryUpdatedFrom') ? fmtDMY(val('salaryUpdatedFrom')) : '';
+    const serviceLine = type === 'cas' ? ` ${p.HeShe} has completed ${val('yearsCompleted')} years of continuous service in this school on ${completion}.` : '';
+    const orderTitle = auth.key === 'Administrator' ? 'Administrator Order' : 'Resolution of the ' + auth.body;
+    const orderLead = auth.key === 'Administrator'
+        ? 'On the basis of the report submitted by the Head of the Institution'
+        : 'The Committee, on the basis of the report submitted by the Head of the Institution';
+    const orderEnd = auth.key === 'Administrator'
+        ? 'is hereby approved and passed for submission of the relevant papers to the office of the D.I./S(S.E.), Bankura for necessary action.'
+        : 'is hereby resolved to be approved and forwarded to the office of the D.I./S(S.E.), Bankura for necessary action.';
     return `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.92rem; line-height:1.5; padding:10px;">
-        <div style="text-align:center; font-weight:bold; font-size:1.15rem; text-decoration:underline;">HOI Report</div>
+    <div style="font-family:'Times New Roman',Times,serif;color:#000;font-size:0.94rem;line-height:1.5;padding:10px;">
+        <div style="text-align:center;font-weight:bold;font-size:1.15rem;text-decoration:underline;">HOI Report</div>
         <div style="margin-top:10px;">Report No._ _ _ _ _ _ _ _ _ _ _ _ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:_ _ _ _ _ _ _ _ _ _ _ _</div>
-        <p style="text-align:justify; margin-top:15px;">${name}; ${designation} of this school has submitted an application for payment of ${p.hisHer} Arrear Salary for the period from ${period}. ${p.HeShe} has completed ${val('yearsCompleted')} years of continuous service in this school on ${completion}, and the benefit of Career Advancement for completion of ${val('yearsCompleted')} years of continuous service under ROPA-2019 has been duly approved by the D.I./S(S.E.), Bankura vide Memo No. ${val('approvalMemo')}. As per ${p.hisHer} option, the fixation benefit has been approved with effect from ${benefit} by the D.I./S(S.E.), Bankura, and admissible salary as per the revised fixation has been drawn from the month of ${salaryFrom}. However, payment of ${p.hisHer} salary as per revised pay for the period from ${period} falls due, as salary up to the preceding month had been drawn in the pre-revised pay. ${p.HeShe} approval of ${val('yearsCompleted')} years’ benefit, fixation papers, and other related documents are being placed for taking necessary arrangements so that the said arrear salary may be paid in ${p.hisHer} favour.</p>
-        <div style="text-align:center; font-weight:bold; font-size:1.15rem; text-decoration:underline; margin:25px 0 10px;">Administrator Order</div>
-        <div>Order No._ _ _ _ _ _ _ _ _ _ _ _ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:_ _ _ _ _ _ _ _ _ _ _ _</div>
-        <p style="text-align:justify; margin-top:15px;">On the basis of the report submitted by the Head of the Institution and the application of ${name} ; ${designation} of this school regarding payment of arrear salary for the period from ${period}, it is hereby stated that ${name} has completed ${val('yearsCompleted')} years of continuous service in this school as on ${completion}. The benefit of Career Advancement for completion of ${val('yearsCompleted')} years of continuous service has been duly approved by the D.I./S(S.E.), Bankura vide Memo No. ${val('approvalMemo')}. As per ${p.hisHer} option, the fixation benefit under ROPA-2019 has been allowed with effect from ${benefit} by the D.I./S(S.E.), Bankura. However, due to late approval for availing the benefit of ${val('yearsCompleted')} years fixation from the end of D.I./S(S.E.), Bankura, ${p.hisHer} admissible salary as per the revised pay has been drawn from ${salaryFrom} and the arrear salary for the period from ${period} remains unpaid. Now, the arrear bill for the said period is hereby approved and passed for submission of the relevant papers to the office of the D.I./S(S.E.), Bankura for necessary action.</p>
+        <p style="text-align:justify;margin-top:15px;">${name}; ${designation} of this school has submitted a prayer for payment of ${p.hisHer} arrear salary for the period ${ckClaimPeriod()} on account of ${getArrearTitle()}.${serviceLine} ${ckApprovalText(p)} The gross claim amount works out to <b>${ckGrossText()}</b>. The approval, fixation papers and other related documents are placed for necessary arrangements so that the said arrear salary may be paid in ${p.hisHer} favour.</p>
+        <div style="text-align:right;margin-top:18mm;">__________________________<br><b>${ckEsc(val('ckHoiName'))}</b><br>${ckHoiTitle()}</div>
+        <div style="text-align:center;font-weight:bold;font-size:1.15rem;text-decoration:underline;margin:22px 0 10px;">${orderTitle}</div>
+        <div>${auth.ordWord} No._ _ _ _ _ _ _ _ _ _ _ _ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Date:_ _ _ _ _ _ _ _ _ _ _ _</div>
+        <p style="text-align:justify;margin-top:15px;">${orderLead} and the prayer of ${name} ; ${designation} of this school regarding payment of arrear salary for the period ${ckClaimPeriod()}, finds that the claim is on account of ${getArrearTitle()}. ${ckApprovalText(p)} The arrear bill for the said period, with gross claim amount of <b>${ckGrossText()}</b>, ${orderEnd}</p>
+        <div style="text-align:right;margin-top:18mm;">__________________________<br><b>${auth.sign}</b><br>${excelProperCase(val('schoolName'))}</div>
     </div>`;
 }
+
 
 // ---- GENERAL ARREAR-REASON HELPER ----
 // The "Years of Continuous Service Completed" fact (10/18/20 Yrs, ROPA-2019) is a
@@ -6013,51 +6143,73 @@ function docNonDrawal() {
 function docSpouseCert() {
     const p = excelSexWords();
     const s = getSpouseWords();
+    const sv = ckSpouseVariantResolved();
     const name = excelProperCase(val('staffName'));
+    const title = p.female ? 'Smt.' : 'Sri';
     const desig = excelProperCase(val('designation'));
     const school = excelProperCase(val('schoolName'));
     const address = val('schoolAddress') || '';
     const department = val('departmentName') || 'Secondary School Education, Govt. of West Bengal';
-    const doj = fmtDMY(val('dojSchool'));
+    const dojS = fmtDMY(val('dojSchool'));
+    const dobS = val('dob') ? fmtDMY(val('dob')) : '';
     const dorObj = getDOR();
     const dor = dorObj ? formatDate(dorObj) : '';
-    const relation = s.spouseName ? `<strong>${p.female ? 'Smt.' : 'Sri'} ${name} ${p.female ? 'w/o' : 'w/o'} ${excelProperCase(s.spouseName)}</strong>` : `<strong>${p.female ? 'Smt.' : 'Sri'} ${name}</strong>`;
-    let spouseLine = '';
-    const spouseNotApplicable = ['Unmarried','Divorced','Separated'].includes(s.marital) || ['N.A.','Not Applicable'].includes(s.spouseStatus);
-    if (spouseNotApplicable) {
-        spouseLine = 'Joint HRA drawn: N.A.';
-    } else if (['Housewife / Homemaker','Not Employed',''].includes(s.spouseStatus)) {
-        spouseLine = `${p.female ? 'Her husband' : 'His wife'} is/was not engaged in any service under the Government of India or any State Government, Undertaking, Statutory or Local Body, or any Educational Institution, at any place or at any time.`;
-    } else if (s.spouseStatus === 'Deceased') {
-        spouseLine = `${p.female ? 'Her husband' : 'His wife'}${s.spouseName ? `, <strong>${excelProperCase(s.spouseName)}</strong>,` : ''} is deceased. Joint HRA drawn: N.A.`;
-    } else if (s.spouseStatus === 'Retired') {
-        spouseLine = `${p.female ? 'Her husband' : 'His wife'} ${s.spouseName ? `<strong>${excelProperCase(s.spouseName)}</strong> ` : ''}is/was retired from service.`;
+    const rel = p.female ? 'husband' : 'wife';
+    const Rel = p.female ? 'Her husband' : 'His wife';
+    const sname = s.spouseName && !['N.A.','NA'].includes(s.spouseName) ? `<b>${excelProperCase(s.spouseName)}</b>` : `the spouse of the claimant`;
+    const period = ckClaimPeriod();
+    const lhRaw = document.getElementById('ckLhCert') ? val('ckLhCert') : '0';
+    const bits = [];
+    if (s.spouseDesignation && s.spouseDesignation !== 'N.A.') bits.push(`serving as ${excelProperCase(s.spouseDesignation)}`);
+    if (s.spouseOffice && s.spouseOffice !== 'N.A.') bits.push(`in ${excelProperCase(s.spouseOffice)}`);
+    if (s.spouseDepartment && s.spouseDepartment !== 'N.A.') bits.push(`under ${excelProperCase(s.spouseDepartment)}`);
+    if (s.spouseServiceSince && s.spouseServiceSince !== 'N.A.') bits.push(`since ${fmtDMY(s.spouseServiceSince)}`);
+    const heading = { hra:'JOINT SPOUSE HRA STATEMENT', unemployed:'CERTIFICATE REGARDING NON-EMPLOYMENT OF SPOUSE', private:'CERTIFICATE REGARDING EMPLOYMENT OF SPOUSE WITHOUT HRA', marital:'CERTIFICATE REGARDING MARITAL STATUS', separated:'CERTIFICATE REGARDING MARITAL STATUS (LEGAL SEPARATION)' }[sv];
+    let status, enclosure;
+    if (sv === 'hra') {
+        status = `${Rel} ${sname} is in service ${bits.length ? bits.join(' ') : '(' + (s.spouseStatus || 'service') + ')'}. As per the G.A. Department rules, House Rent Allowance is admissible to only one of the spouses residing together at the same station. The pay slip / pay certificate / salary statement of ${sname} for the entire claim period ${period} has been examined, and it is certified that HRA has not been drawn by both of them concurrently for the same residence at any time during the said period.`;
+        enclosure = `Pay slip / pay certificate of the spouse for the entire claim period ${period}.`;
+    } else if (sv === 'unemployed') {
+        status = `${Rel} ${sname} is/was not engaged in any kind of service or employment, whether under the Government of India, any State Government, Government Undertaking, Statutory or Local Body, Government-aided organisation or institution, or any private organisation, at any place or at any time during the claim period ${period}. Accordingly, no HRA has been drawn by the spouse during the said period.`;
+        enclosure = '';
+    } else if (sv === 'private') {
+        status = `${Rel} ${sname} is engaged in a private organisation / the unorganised sector${bits.length ? ' (' + bits.join(' ') + ')' : ''}, where House Rent Allowance is not drawn as a component of salary during the claim period ${period}.`;
+        enclosure = '';
+    } else if (sv === 'separated') {
+        status = `The claimant is legally separated from ${p.hisHer} spouse during the claim period ${period}, vide the decree of divorce / order of the Family Court dated _______________ , a copy of which is enclosed. Accordingly, no joint HRA question arises.`;
+        enclosure = 'Copy of the decree of divorce / order of the Family Court.';
     } else {
-        const rel = p.female ? 'Her husband' : 'His wife';
-        const bits=[];
-        if(s.spouseDesignation) bits.push(`serving as ${excelProperCase(s.spouseDesignation)}`);
-        if(s.spouseOffice) bits.push(`in ${excelProperCase(s.spouseOffice)}`);
-        if(s.spouseDepartment) bits.push(`under ${excelProperCase(s.spouseDepartment)}`);
-        if(s.spouseServiceSince) bits.push(`since ${fmtDMY(s.spouseServiceSince)}`);
-        spouseLine = `${rel}${s.spouseName ? ` <strong>${excelProperCase(s.spouseName)}</strong>` : ''} ${bits.join(' ')}${bits.length ? '.' : `is/was in ${s.spouseStatus}.`}`;
+        const m = s.marital || '';
+        status = m === 'Widowed'
+            ? `The marital status of the claimant is <b>Widowed</b> during the claim period ${period}. Accordingly, no joint HRA question arises.`
+            : `The claimant was <b>${m === 'Unmarried' ? 'unmarried during the entire claim period' : 'unmarried at the start of the claim period and got married on _______________ , i.e. within the claim period'}</b> ${period}. Accordingly, no joint HRA question arises.`;
+        enclosure = '';
     }
-    // Joint-HRA wording must appear only when the spouse is actually in service.
-    // For unmarried/divorced/separated/deceased cases, use the single compact N.A. wording.
-    // For a spouse who is housewife/not employed/retired, do not say 'drawn by both of them'.
-    const spouseInService = !spouseNotApplicable && !['Housewife / Homemaker','Not Employed','Retired','Deceased',''].includes(s.spouseStatus);
-    const bothHra = spouseNotApplicable || s.spouseStatus === 'Deceased'
-        ? 'Joint HRA drawn: N.A.'
-        : spouseInService
-            ? 'House Rent drawn by both of them is as per GA rules and within the prescribed limit throughout their service.'
-            : `House Rent drawn by ${p.female ? 'her' : 'him'} is as per GA rules and within the prescribed limit throughout ${p.female ? 'her' : 'his'} service.`;
+    const t = val('arrearReasonType') || 'cas';
+    const hraSum = (typeof calcResult !== 'undefined' && calcResult) ? Math.round(calcResult.hra || 0) : 0;
+    const hraLine = (t === 'other') ? '' : `The arrear claimed includes the House Rent Allowance component of Rs. ${ckInr(hraSum)}/- computed on the revised basic pay at the rate admissible during the claim period, in accordance with the rules.`;
     return `
-    <div style="font-family:'Times New Roman', Times, serif; color:#000; font-size:0.98rem; line-height:1.65; padding:18px 24px;">
-        <div style="font-weight:bold; margin-bottom:18px;">Certified that</div>
-        <p style="text-align:justify; margin:0 0 18px;">${relation} is serving as an approved ${desig} in ${school}; ${address} under the department of ${department} since ${doj} ${dor ? `and to be retired on ${dor}` : ''}.</p>
-        ${spouseLine ? `<p style="text-align:justify; margin:0 0 18px;">${spouseLine}</p>` : ''}
-        <p style="text-align:justify; margin:0; font-weight:bold;">${bothHra}</p>
+    <div style="font-family:'Times New Roman',Times,serif;color:#000;font-size:0.97rem;line-height:1.55;padding:14px 22px;">
+        ${ckLetterheadSpace(lhRaw === '' ? '0' : lhRaw, 'School letterhead')}
+        <div style="display:flex;justify-content:space-between;"><div>Memo No. _______________</div><div>Date : _______________</div></div>
+        <div style="text-align:center;font-weight:bold;font-size:1.1rem;text-decoration:underline;margin:12px 0 10px;">${heading}</div>
+        <div style="font-weight:bold;"><u>Sub: ${heading.charAt(0) + heading.slice(1).toLowerCase()} in respect of ${name} ; ${desig} for the arrear salary claim of the period ${period} on account of ${getArrearTitle()}.</u></div>
+        <div style="margin-top:12px;font-weight:bold;">Certified that</div>
+        <p style="text-align:justify;margin:8px 0;"><b>1.</b> <b>${title} ${name}</b>${s.spouseName && sv === 'hra' ? ` ${p.female ? 'w/o' : 'h/o'} ${excelProperCase(s.spouseName)}` : ''} is serving as an approved ${desig} in ${school}; ${address}, under the department of ${department}, since ${dojS}${dobS ? ` (Date of Birth: ${dobS})` : ''}${dor ? ` and is due to retire on ${dor}` : ''}.</p>
+        <p style="text-align:justify;margin:8px 0;"><b>2.</b> The said ${p.female ? 'teacher' : 'incumbent'} has submitted a claim of arrear salary for the period <b>${period}</b> amounting to <b>${ckGrossText()}</b> (gross) on account of ${getArrearTitle()}.</p>
+        <p style="text-align:justify;margin:8px 0;"><b>3.</b> ${status}</p>
+        <p style="text-align:justify;margin:8px 0;"><b>4.</b> House Rent Allowance drawn by ${p.hisHer === 'her' ? 'her' : 'him'} throughout ${p.hisHer} service in this school has been as per G.A. rules and within the prescribed limit.${hraLine ? ' ' + hraLine : ''}</p>
+        <p style="text-align:justify;margin:8px 0;"><b>5.</b> This certificate is issued on the basis of the records of the school (Service Book, salary requisitions and related papers) and not on the basis of any declaration of the claimant. Any irregularity detected hereafter shall be recoverable from the arrear / future salary of the claimant.</p>
+        ${enclosure ? `<p style="margin:8px 0;"><b>Enclo:</b> ${enclosure}</p>` : ''}
+        <div style="margin-top:20px;display:flex;justify-content:flex-end;">
+            <div style="text-align:center;">
+                <div class="stamp-box" style="width:50mm;margin:0 auto 1mm;">Seal</div>
+                __________________________<br><b>${ckEsc(val('ckHoiName'))}</b><br>${ckHoiTitle()}<br>${school}
+            </div>
+        </div>
     </div>`;
 }
+
 
 function docDecl() {
     const p = excelSexWords();
@@ -6545,6 +6697,12 @@ function docChecklistTopsheet() {
     </div>`;
 }
 
+function ckMakeEditable() {
+    const pa = document.getElementById('printArea');
+    if (!pa) return;
+    pa.setAttribute('contenteditable', 'true');
+    pa.setAttribute('spellcheck', 'false');
+}
 function showDoc(type) {
     ckSyncAddressee();
     let content = "";
@@ -6569,7 +6727,9 @@ function showDoc(type) {
     else if (type === 'dacalc') content = docDaCalcSheet();
     else if (type === 'checklist') content = docChecklistTopsheet();
 
+    window.__lastDocType = type;
     document.getElementById('printArea').innerHTML = content;
+    ckMakeEditable();
     document.getElementById('modalOverlay').classList.add('active');
 }
 
