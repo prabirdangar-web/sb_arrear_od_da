@@ -9725,7 +9725,12 @@ function ofcCauseInline(mode){
 function ofcInitPresetSelect(){
   const sel = document.getElementById('reasonPreset');
   if (!sel || sel.options.length) return;
-  owRebuildPreset('CUSTOM');
+  if (typeof owRebuildPreset === 'function') { owRebuildPreset('CUSTOM'); return; }
+  // owRebuildPreset lives in a later <script> block, so build the default (non-Swasthya-Sathi) list here
+  Object.keys(OFC_PRESETS).filter(k => k !== 'MA_SS' && k !== 'MA_SS_SELF').forEach(k => {
+    const o = document.createElement('option'); o.value = k; o.textContent = OFC_PRESETS[k].label; sel.appendChild(o);
+  });
+  sel.value = 'CUSTOM';
 }
 function ofcPresetActive(){ const k = val('reasonPreset'); return !!(k && k !== 'CUSTOM' && OFC_PRESETS[k]); }
 function ofcApplyReasonPreset(silent){
@@ -10424,6 +10429,7 @@ function owSyncTabForMode(){
   const c = owEl('tabOverdrawn');
   if (c && c.classList.contains('active')) switchTab(owMode === 'SS' ? 'tabSwasthya' : 'tabOverdrawn');
 }
+window.addEventListener('load', function(){ try { owApplyView(); } catch (e) { console.warn(e); } });
 </script>
 
 <script>
