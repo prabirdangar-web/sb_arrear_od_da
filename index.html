@@ -10960,5 +10960,48 @@ window.printAnnex98 = function () {
     w.document.close();
 };
 </script>
+
+<script>
+// =====================================================================================
+// DEFAULT CASE  --  SUBHENDU KARMAKAR (Swasthya Sathi / WBHS, Order 92-F(MED)WB dt. 09.10.2026)
+// Opens ready-made: employee is a BENEFICIARY in his wife's card (wife = non-employee card holder),
+// card since Sep-2023 (never used), M.A. drawn continuously up to Oct-2026, retires 31.10.2026.
+// Every document in tab 4 follows this case.  Edit any field to change the case; fields marked
+// "fill" below are left blank on purpose (not known) and print as blank lines.
+// =====================================================================================
+(function(){
+  function put(id, v){ var e = document.getElementById(id); if (e) e.value = v; }
+  function seedSubhenduCase(){
+    var realAlert = window.alert; window.alert = function(){};
+    try {
+      // staff identity (shared fields)
+      put('staffName', 'SUBHENDU KARMAKAR'); put('odEmpName', 'SUBHENDU KARMAKAR'); put('staffSex', 'Male');
+      put('dob', '1966-11-01');                      // placeholder DOB -> D.O.R. = 31-10-2026 (replace with actual DOB)
+      try { syncSharedFields(); } catch(e) {}
+      try { calculateDOR(); } catch(e) {}
+      // card / beneficiary facts
+      put('ofcHolderType', 'BEN'); put('ofcCardHolder', ''); put('ofcCardRel', 'wife'); put('ofcCardNo', '');
+      put('ofcHolderOcc', 'a housewife / homemaker'); put('ofcSsRoute', 'HOLDER'); put('ofcSurrExt', 'FULL');
+      put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'N');
+      put('ofcCardIssue', '2023-09-01'); put('ofcStoppedFrom', '2026-11'); put('ofcMaTo', '2026-10');
+      put('ofcPenDate', '2026-10-31');
+      try { ofcOnHolderChange(); } catch(e) {}
+      // build the Swasthya Sathi case (tab 4) in its own snapshot, then return to tab-2 state
+      owSetMode('SS');
+      put('ofcCardIssue', '2023-09-01'); put('ofcMaTo', '2026-10');
+      ofcGenMaFromCard();                            // M.A. over-drawal Sep-2023 .. Oct-2026
+      try { ofcApplyRecommended(); } catch(e) {}     // how it came to notice (Treasury pension clearance - retiring)
+      try { ofcOrderAdvice(); } catch(e) {}
+      owSetMode('GEN');
+      // if tab 4 is the one on screen, show it
+      var b = document.querySelector('.tab-btn.ss-tab.active'); if (b) { owSetMode('SS'); }
+      try { ofcRefreshDocList(); } catch(e) {}
+    } catch (e) { console.warn('Subhendu default case failed:', e); }
+    window.alert = realAlert;
+  }
+  window.seedSubhenduCase = seedSubhenduCase;
+  window.addEventListener('load', function(){ setTimeout(seedSubhenduCase, 0); });
+})();
+</script>
 </body>
 </html>
