@@ -9537,6 +9537,7 @@ const OFC_DOCS = [
   { id:'wvhold',  maPos:'WAIVED', route:'HOLDER', cases:['MA_SS'], stage:'Simple set \u2014 no over-drawal', label:'Simple surrender letter by the CARD HOLDER (wife) directly to the issuing authority', fn:'ofcDocWvHolder', noAmt:true },
   { id:'wvsurr',  maPos:'WAIVED', route:'EMP', cases:['MA_SS'], stage:'Simple set \u2014 no over-drawal', label:'Simple surrender letter by the EMPLOYEE (own card) through H.O.I.', fn:'ofcDocWvSurr', noAmt:true },
   { id:'nomaissue', noPen:true, cases:['MA_SS'],            stage:'Before deposit', label:'Letter: NO M.A. over-drawal issue / spouse is non-employee card holder (clarification to D.I. / D.D.O.)', fn:'ofcDocNoMa', noAmt:true },
+  { id:'ordhold', noAmt:true, cases:['MA_SS'], stage:'Order compliance only', route:'HOLDER', label:'PLAIN application of the CARD HOLDER (wife) for surrender \u2014 compliance with Order 92-F(MED)WB only (no M.A. / refund matter)', fn:'ofcDocOrdHolder' },
   { id:'sshold', noAmt:true,  cases:['MA_SS'],             stage:'After deposit',  route:'HOLDER', label:'Application of the CARD HOLDER (wife) directly to the higher authority for surrender, with justification &amp; attachments', fn:'ofcDocSsHolder' },
   { id:'ssholddecl', noAmt:true, cases:['MA_SS'],          stage:'After deposit',  route:'HOLDER', label:'Self-declaration &amp; consent of the card holder (non-employment, voluntary surrender)', fn:'ofcDocSsHolderDecl' },
   { id:'ssapp', maPos:'DRAWN',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'Employee\u2019s application for surrender of Swasthya Sathi card (employee\u2019s own card)', fn:'ofcDocSsApp' },
@@ -10305,6 +10306,24 @@ function ofcDocWvHolder(){
    '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________<br><b>' + ofcEsc(hol).toUpperCase() + '</b> (Card Holder)</div>' +
    '<div class="ofc-enc">Enclosures: (1) Card copy &amp; family list. (2) Aadhaar copies. (3) Form D. (4) Self-declaration of card holder. (5) Declaration of employee. (6) Certificate of H.O.I.<br>Copy (for information) to: ' + ofcEsc(ofcFwdTitle()) + ', ' + ofcEsc(ofcSchool()) + '; ' + ofcEsc(ofcDiName()) + '.</div>');
 }
+function ofcDocOrdHolder(){
+  const holRel = (val('ofcCardRel') || 'wife'), empRel = ofcEmpRel(), emp = ofcPerson();
+  const nm = ofcSelfCard() ? ofcPerson() : (val('ofcCardHolder') || '').trim();
+  const iss = val('ofcCardIssue'), his = ofcFemale() ? 'her' : 'his';
+  const since = iss ? ' since <b>' + ofcEsc(ofcD(iss)) + '</b>' : '';
+  const sigName = nm ? ofcEsc(nm).toUpperCase() : '______________________';
+  return ofcPage(
+   '<div style="margin-bottom:10px;">To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b></div>' +
+   '<div style="margin-bottom:8px;">Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<p><b>Subject: Surrender of Swasthya Sathi Card No. ' + ofcB(val('ofcCardNo'), 14) + ' in compliance with Order No. 92-F(MED)WB dated 09.10.2026 of the Finance Department (Medical Cell), Government of West Bengal.</b></p>' +
+   '<p>Sir / Madam,</p>' +
+   '<p>With due respect, I, <b>' + (nm ? ofcEsc(nm) : ofcB('', 22)) + '</b>, ' + ofcEsc(holRel) + ' of <b>' + ofcEsc(emp) + '</b>, ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ' (Aadhaar No. ' + ofcB(val('ofcHolderAadhaar'), 14) + '; Mobile ' + ofcB(val('ofcHolderMobile'), 12) + '), of ' + ofcEsc(val('ofcCardAddr') || val('schoolAddress')) + ', beg to state that I am the holder of the above Swasthya Sathi card, in which my ' + ofcEsc(empRel) + ' has been included as a beneficiary' + since + '.</p>' +
+   '<p>My ' + ofcEsc(empRel) + ' is enrolled under the West Bengal Health Scheme (WBHS). In terms of the above Order, a card of this kind is required to be surrendered to the issuing authority latest by <b>31.10.2026</b>. I therefore hereby surrender the said ' + (ofcFullCard() ? '<b>entire card (all members)</b>' : 'card') + ' voluntarily, with immediate effect.</p>' +
+   '<p>I request you to kindly accept the surrender, ' + (ofcFullCard() ? 'cancel / deactivate the card' : 'delete the name(s) from the card') + ' and issue an official surrender acknowledgement / receipt, which my ' + ofcEsc(empRel) + ' needs to submit with ' + his + ' declaration in Annexure-A to the Head of Office.</p>' +
+   '<p>Thanking you,</p>' +
+   '<div class="ofc-sig" style="text-align:right;margin-top:14px;">Yours faithfully,<br><br>Signature: ______________________<br><b>' + sigName + '</b><br>(Card Holder)</div>' +
+   '<div class="ofc-enc">Enclosures: (1) Original card / copy of the card. (2) Copy of Aadhaar of the card holder.</div>');
+}
 function ofcDocWvSurr(){
   const emp = ofcPerson();
   return ofcPage(
@@ -10980,7 +10999,7 @@ window.printAnnex98 = function () {
       try { syncSharedFields(); } catch(e) {}
       try { calculateDOR(); } catch(e) {}
       // card / beneficiary facts
-      put('ofcHolderType', 'BEN'); put('ofcCardHolder', ''); put('ofcCardRel', 'wife'); put('ofcCardNo', '');
+      put('ofcHolderType', 'BEN'); put('ofcCardHolder', 'Smt. NILA'); put('ofcCardRel', 'wife'); put('ofcCardNo', '');
       put('ofcHolderOcc', 'a housewife / homemaker'); put('ofcSsRoute', 'HOLDER'); put('ofcSurrExt', 'FULL');
       put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'N');
       put('ofcCardIssue', '2023-09-01'); put('ofcStoppedFrom', '2026-11'); put('ofcMaTo', '2026-10');
