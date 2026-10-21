@@ -1934,6 +1934,12 @@ table.fxf-emol table td{text-align:left;border:none}
                 <div class="fg"><label>Mobile No.</label><input id="ofcMobile"></div>
                 <div class="fg"><label>Ayushman Bharat / ABHA ID <em>(if any)</em></label><input id="ofcAbha"></div>
                 <div class="fg wide"><label>Card Holder / Family Address <em>(for Form D)</em></label><input id="ofcCardAddr"></div>
+                <div class="fg"><label>Form D &mdash; Block / Municipality</label><input id="ofcFdBlock"></div>
+                <div class="fg"><label>Form D &mdash; Panchayat</label><input id="ofcFdGp"></div>
+                <div class="fg"><label>Form D &mdash; Village / Ward</label><input id="ofcFdVillage"></div>
+                <div class="fg"><label>Form D &mdash; Beneficiary&rsquo;s Father&rsquo;s Name</label><input id="ofcFdFather"></div>
+                <div class="fg"><label>Form D &mdash; Family gets Govt. sponsored health insurance?</label><select id="ofcFdGovtIns"><option value="YES">YES</option><option value="NO">NO</option></select></div>
+                <div class="fg"><label>Form D &mdash; Family gets Medical Allowance from Govt.?</label><select id="ofcFdMedAllow"><option value="YES">YES</option><option value="NO">NO</option></select></div>
                 <div class="fg wide"><div style="border:1px solid #64748b;border-radius:6px;padding:8px 10px;font-size:0.82rem;">
                     <b>Reference copy &mdash; Order No. 92-F(MED)WB dt. 09.10.2026 (Finance Dept., Medical Cell):</b>
                     <button type="button" class="btn-print" style="margin-left:8px;" onclick="ofcOpenOrder(false)">View Order PDF</button>
@@ -1989,7 +1995,7 @@ table.fxf-emol table td{text-align:left;border:none}
                 all employees / pensioners and their beneficiaries holding Swasthya Sathi / Ayushman Bharat cards while enrolled under WBHS must surrender them to the <u>respective issuing authority</u>;
                 a declaration in <b>Annexure-A</b> with proof / acknowledgement of surrender goes to the <u>Head of Office</u>; last date <b>31.10.2026</b>.
                 District Swasthya Sathi sections work under the District Magistrate&rsquo;s office; portal <a href="https://swasthyasathi.gov.in" target="_blank" rel="noopener">swasthyasathi.gov.in</a>, helpline 1800-345-5384.
-                Annexure-A is printed exactly as in the Order you uploaded. <b>Form D</b> (surrender / cancellation of the card) is a Swasthya Sathi Cell form; its official layout could not be downloaded, so the page printed here carries the same particulars &mdash; <b>copy onto the official Form D if the D.M. office insists.</b><br>
+                Annexure-A is printed exactly as in the Order you uploaded. <b>Form D</b> (surrender / cancellation of the card) is printed in the <b>official Swasthya Sathi FORM-D layout</b> (Health &amp; F.W. Dept., Govt. of West Bengal): Application No., Date, Sex, Age, Mobile and Khadyasathi ID are left blank for hand-filling; the verifying officer signs at the Swasthya Sathi Cell.<br>
                 <b>Default = FULL CARD surrender:</b> the Order directs surrender of the card itself (no partial name deletion is provided in it), so all letters ask for the entire card with all members to be cancelled; Form D and Annexure-A list every member. Switch &ldquo;Extent of Surrender&rdquo; only if the issuing office permits name deletion alone.<br>
                 <b>Who surrenders:</b> where the card is in the name of a non-employee spouse (wife / housewife), the <u>card holder herself</u> applies directly to the District Swasthya Sathi section / issuing authority, with a self-declaration of non-employment and the employee&rsquo;s Annexure-A. The D.I. (S.E.) is the controlling officer of the employee only and is not the authority for the spouse&rsquo;s card, so the D.I. is merely kept informed by copy. Documents for the D.I. route are shown only when &ldquo;Employee applies through H.O.I. / D.I.&rdquo; is chosen.
             </div>
@@ -9541,7 +9547,7 @@ const OFC_DOCS = [
   { id:'sshold', noAmt:true,  cases:['MA_SS'],             stage:'After deposit',  route:'HOLDER', label:'Application of the CARD HOLDER (wife) directly to the higher authority for surrender, with justification &amp; attachments', fn:'ofcDocSsHolder' },
   { id:'ssholddecl', noAmt:true, cases:['MA_SS'],          stage:'After deposit',  route:'HOLDER', label:'Self-declaration &amp; consent of the card holder (non-employment, voluntary surrender)', fn:'ofcDocSsHolderDecl' },
   { id:'ssapp', maPos:'DRAWN',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'Employee\u2019s application for surrender of Swasthya Sathi card (employee\u2019s own card)', fn:'ofcDocSsApp' },
-  { id:'ssformd', noAmt:true, cases:['MA_SS'],             stage:'After deposit',  label:'Swasthya Sathi Form D \u2014 name deletion / surrender (signed by the card holder in holder route)', fn:'ofcDocSsFormD' },
+  { id:'ssformd', noAmt:true, cases:['MA_SS'],             stage:'After deposit',  label:'Swasthya Sathi FORM-D (official layout) \u2014 name deletion / surrender (signed by the card holder in holder route)', fn:'ofcDocSsFormD' },
   { id:'sshoi', noPen:true, maPos:'DRAWN',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'H.O.I. forwarding to D.I. (S.E.) \u2014 accept / consider surrender', fn:'ofcDocSsHoi' },
   { id:'ssdi', noPen:true, maPos:'DRAWN',    cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'D.I. (S.E.) recommendation to higher authority \u2014 accept card surrender', fn:'ofcDocSsDi' },
   { id:'ssdecl', noAmt:true,  cases:['MA_SS'],             stage:'After surrender', label:'Annexure-A declaration of surrender (exact format of Order 92-F(MED)WB)', fn:'ofcDocSsDecl' },
@@ -10104,33 +10110,63 @@ function ofcDocClrOwn(){
    '<div class="ofc-sig" style="margin-top:10px;">Countersigned by the D.D.O.:<br><br>Signature: ______________________________<br><b>' + ofcEsc(ofcDdo()) + '</b></div>' +
    '<div class="ofc-enc">Enclosure: Copy of receipted T.R. Form No. 7 challan (if any refund). Copy to: ' + ofcEsc(ofcDiName()) + ' (controlling office).</div>');
 }
-// 7b. SWASTHYA SATHI FORM D (name deletion after receiving card)
+// 7b. SWASTHYA SATHI FORM D -- replica of the official FORM-D (Swasthya Sathi, Health & F.W. Dept., Govt. of West Bengal)
 function ofcDocSsFormD(){
-  const rows = ofcBenRows(); let tr = '';
-  for (let i = 0; i < Math.max(3, rows.length); i++) {
+  const rows = ofcBenRows();
+  const bx = function(ch, w, h){ return '<td style="border:1px solid #000;width:' + w + 'px;height:' + h + 'px;text-align:center !important;font-weight:bold;font-size:10.5pt;padding:0 !important;">' + (ch ? ofcEsc(ch) : '&nbsp;') + '</td>'; };
+  const boxRow = function(chars, n, w, h){ let s = '<table style="border-collapse:collapse;display:inline-table;"><tr>'; for (let i = 0; i < n; i++) s += bx(chars[i] || '', w, h); return s + '</tr></table>'; };
+  const urn = String(val('ofcCardNo') || '').replace(/\s+/g, '');
+  const urnN = Math.max(17, urn.length);
+  const yn = function(v){ const y = (v || 'YES') === 'YES'; return '<span style="border:1px solid #000;padding:0 5px;font-size:8.5pt;' + (y ? 'font-weight:bold;background:#e5e7eb;' : '') + '">YES</span> / <span style="border:1px solid #000;padding:0 5px;font-size:8.5pt;' + (!y ? 'font-weight:bold;background:#e5e7eb;' : '') + '">NO</span>'; };
+  const lbl = 'font-weight:bold;font-size:10pt;';
+  const dash = function(l, v){ return '<div style="' + lbl + 'margin:1px 0;">' + l + ' <span style="font-weight:bold;text-decoration:underline;">' + (v ? ofcEsc(v) : '&nbsp;') + '</span></div>'; };
+  const th = 'border:1px solid #000;padding:3px 4px;font-size:10pt;font-weight:bold;text-align:center !important;';
+  const td = 'border:1px solid #000;padding:3px 4px;font-size:10pt;height:30px;text-align:left !important;';
+  let tr = '';
+  for (let i = 0; i < 10; i++) {
     const r = rows[i] || { n:'', r:'', a:'' };
-    tr += '<tr><td style="text-align:center !important;">' + (i + 1) + '</td><td>' + ofcEsc(r.n) + '&nbsp;</td><td>' + ofcEsc(r.r) + '</td><td>' + ofcEsc(r.a) + '</td></tr>';
+    tr += '<tr><td style="' + td + 'text-align:center !important;font-weight:bold;">' + (i + 1) + '</td><td style="' + td + '">' + (r.n ? ofcEsc(r.n) : '&nbsp;') + '</td><td style="' + td + '">&nbsp;</td><td style="' + td + '">&nbsp;</td><td style="' + td + '">' + ofcEsc(r.r || '') + '</td><td style="' + td + '">&nbsp;</td><td style="' + td + '">&nbsp;</td><td style="' + td + '">' + ofcEsc(r.a || '') + '</td></tr>';
   }
+  const appNo = '<span style="' + lbl + 'font-size:12pt;">Application NO :</span> ' + boxRow([], 20, 15, 24) + ' <span style="font-size:20pt;font-weight:bold;vertical-align:middle;">/</span> ' + boxRow([], 1, 62, 24);
+  const district = val('odDistrict') ? ofcDistrict() : (val('ofcFdDistrict') || ofcDistrict());
   return ofcPage(
-   '<div class="ofc-noprint" style="background:#fffbeb;border:1px dashed #d97706;padding:4px 8px;font:12px Arial;margin-bottom:6px;">Note (preview only): official Form D layout could not be downloaded; this page carries the same particulars. Copy onto the official Form D if the D.M. office requires it.</div>' +
-   '<div class="ofc-hd" style="font-size:14pt;text-decoration:underline;">FORM D</div>' +
-   '<div class="ofc-hd" style="font-size:11.5pt;margin-bottom:8px;">' + (ofcFullCard() ? 'APPLICATION FOR SURRENDER OF THE ENTIRE SWASTHYA SATHI CARD (ALL MEMBERS)' : 'APPLICATION FOR NAME DELETION UNDER SWASTHYA SATHI AFTER RECEIVING THE CARD') + '</div>' +
-   '<div>To<br><b>' + ofcEsc(val('ofcSsAuth')) + '</b></div>' +
-   '<p><b>Subject: ' + (ofcFullCard() ? 'Surrender of the entire Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + ' (all members listed below)' : 'Surrender of Swasthya Sathi card / deletion of name(s) of beneficiary(ies)') + ' &mdash; Finance Dept. Order No. 92-F(MED)WB dated 09.10.2026.</b></p>' +
-   '<table class="ofc-tbl">' +
-   '<tr><td style="width:44%;">Swasthya Sathi Card No. / URN</td><td>' + ofcB(val('ofcCardNo'), 22) + '</td></tr>' +
-   '<tr><td>Name of Card Holder / Head of Family</td><td>' + ofcEsc(ofcHolderName()) + '</td></tr>' +
-   '<tr><td>Card issued on</td><td>' + (val('ofcCardIssue') ? fmtDMY(val('ofcCardIssue')) : '________________') + '</td></tr>' +
-   '<tr><td>Address (Vill / P.O. / Block / District)</td><td>' + ofcEsc(val('ofcCardAddr') || (val('schoolAddress'))) + '</td></tr>' +
-   '<tr><td>Mobile No.</td><td>' + ofcB(val('ofcMobile'), 14) + '</td></tr>' +
-   (ofcRoute() === 'HOLDER' ? '<tr><td>Applicant (Card Holder)</td><td>' + ofcEsc(ofcHolderName()) + ', ' + ofcEsc(ofcHolderOccText()) + ' (' + ofcEsc(val('ofcCardRel') || '') + ' of ' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', enrolled under WBHS)</td></tr></table>' : '<tr><td>Applicant (Government employee enrolled under WBHS)</td><td>' + ofcEsc(ofcPerson()) + ', ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '</td></tr></table>') +
-   '<p><b>Particulars of member(s) whose name is to be deleted / card surrendered:</b></p>' +
-   '<table class="ofc-tbl"><tr><th style="width:8%;">Sl. No.</th><th>Name of Member</th><th>Relationship</th><th>Aadhaar No.</th></tr>' + tr + '</table>' +
-   '<p><b>Reason for deletion:</b> Mandatory surrender of Swasthya Sathi card by Government employee and beneficiaries enrolled under the West Bengal Health Scheme (WBHS), as per Finance Department (Medical Cell) Order No. 92-F(MED)WB dated 09.10.2026.</p>' +
-   '<p>I declare that the above particulars are true and correct, and I shall not use the card hereafter. I request that ' + ofcCancelTxt() + ' and an acknowledgement of surrender be issued.</p>' +
-   '<div style="margin-top:12px;display:flex;justify-content:space-between;"><div>Date: ' + ofcD(val('ofcAppDate')) + '<br>Place: ' + ofcEsc(val('odPoName') || '') + '</div>' +
-   '<div style="text-align:center;">Signature of Applicant: ______________________<br><b>' + ofcEsc((ofcRoute() === 'HOLDER' ? ofcHolderName() : ofcPerson())).toUpperCase() + '</b>' + (ofcRoute() === 'HOLDER' ? '<br>(Card Holder)' : '') + '</div></div>' +
-   (ofcRoute() === 'HOLDER' ? '<div class="ofc-sig" style="margin-top:10px;">Copy (for information only) to: <b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b>, ' + ofcEsc(ofcSchool()).toUpperCase() + ' and ' + ofcEsc(ofcDiName()) + '.</div>' : '<div class="ofc-sig" style="margin-top:10px;">Forwarded by: ______________________ <b>' + ofcEsc(ofcFwdTitle()).toUpperCase() + '</b>, ' + ofcEsc(ofcSchool()).toUpperCase() + '</div>'));
+   '<div class="ofc-noprint" style="background:#ecfdf5;border:1px dashed #059669;padding:4px 8px;font:12px Arial;margin-bottom:6px;">Preview: official Swasthya Sathi FORM-D layout. Application No., Date, Sex, Age, Mobile and Khadyasathi ID are left blank for the Swasthya Sathi cell / applicant to fill by hand. Use A4, one page.</div>' +
+   '<table style="width:100%;border-collapse:collapse;margin-bottom:2px;"><tr>' +
+     '<td style="width:34%;border:none;text-align:left !important;vertical-align:middle;padding:0;"><div style="font-size:15pt;font-weight:bold;">স্বাস্থ্য সাথী</div><div style="font-size:9pt;">স্বাস্থ্য ও পরিবার কল্যাণ দপ্তর, পশ্চিমবঙ্গ সরকার</div></td>' +
+     '<td style="width:20%;border:none;text-align:center !important;vertical-align:middle;padding:0;font-size:8pt;">Government of West Bengal</td>' +
+     '<td style="width:46%;border:none;text-align:center !important;vertical-align:middle;padding:0;font-size:9.5pt;"><b>Swasthya Sathi</b><br>Swasthya Bhawan<br>GN-29, Sec-V, Salt Lake, Bidhan Nagar,<br>Kolkata-91, West Bengal</td>' +
+   '</tr></table>' +
+   '<div style="text-align:center;font-size:10.5pt;margin:2px 0 3px;"><b><u>FORM-D</u></b>&nbsp; (Application for name deletion under Swasthya Sathi)</div>' +
+   '<div style="border:1.5px solid #000;padding:4px 6px;">' +
+     '<div style="text-align:center;margin-bottom:3px;">' + appNo + ' <span style="font-weight:bold;font-size:10pt;vertical-align:bottom;">DATE</span></div>' +
+     '<table style="width:100%;border-collapse:collapse;"><tr>' +
+       '<td style="width:58%;border:none;vertical-align:top;padding:0;text-align:left !important;">' +
+         dash('DISTRICT :', district) + dash('BLOCK/MUNICIPALITY :-', val('ofcFdBlock')) + dash('PANCHAYAT :-', val('ofcFdGp')) + dash('VILLAGE/WARD :-', val('ofcFdVillage')) +
+         '<div style="' + lbl + 'margin-top:1px;">RESIDENTIAL ADDRESS :-</div>' +
+         '<div style="border:1.2px solid #000;min-height:62px;padding:3px 5px;font-size:10pt;margin-top:2px;">' + ofcEsc(val('ofcCardAddr') || '') + '</div>' +
+       '</td>' +
+       '<td style="width:42%;border:none;vertical-align:top;padding:0 0 0 12px;text-align:left !important;">' +
+         '<div style="border:1.2px solid #000;padding:4px 6px;font-size:9.5pt;"><div style="margin-bottom:14px;">NAME OF THE BENEFICIARY : <b>' + ofcEsc(ofcHolderName()).toUpperCase() + '</b></div><div>FATHER&rsquo;S NAME : <b>' + ofcEsc((val('ofcFdFather') || '').toUpperCase()) + '</b></div></div>' +
+         '<div style="font-size:8.5pt;margin-top:6px;">DO ANY MEMBER OF THE FAMILY RECEIVE GOVT.<br>SPONSORED HEALTH INSURANCE / ASSURANCE : ' + yn(val('ofcFdGovtIns')) + '</div>' +
+         '<div style="font-size:8.5pt;margin-top:6px;">DO ANY MEMBER OF THE FAMILY RECEIVE MEDICAL<br>ALLOWANCE FROM GOVERNMENT : ' + yn(val('ofcFdMedAllow')) + '</div>' +
+       '</td>' +
+     '</tr></table>' +
+     '<div style="' + lbl + 'font-size:12pt;margin:3px 0 2px;">URN NUMBER :-</div>' +
+     boxRow(urn.split(''), urnN, 26, 34) +
+   '</div>' +
+   '<div style="text-align:center;font-size:11.5pt;margin:4px 0 1px;">NAMES TO BE DELETED</div>' +
+   '<table style="width:100%;border-collapse:collapse;margin:0;"><tr>' +
+     '<th style="' + th + 'width:5%;">SL<br>NO</th><th style="' + th + 'width:24%;">EXISTING NAME</th><th style="' + th + 'width:6%;">SEX</th><th style="' + th + 'width:6%;">AGE</th><th style="' + th + 'width:13%;">RELATION</th><th style="' + th + 'width:13%;">MOBILE NO.</th><th style="' + th + 'width:17%;">KHADYASATHI ID NO.</th><th style="' + th + 'width:16%;">AADHAAR NO.<br><span style="font-weight:normal;font-size:8pt;">(If Any)</span></th></tr>' + tr +
+     '<tr><td colspan="8" style="border:1px solid #000;text-align:center !important;font-size:9pt;padding:2px;">পরিবারের সেই সকল সদস্যের নাম লিখুন যাদের নাম বাদ দিতে হবে</td></tr>' +
+     '<tr><td colspan="8" style="border:1px solid #000;height:62px;padding:0;vertical-align:bottom;"><table style="width:100%;border-collapse:collapse;"><tr><td style="border:none;width:50%;font-size:8pt;font-weight:bold;text-align:left !important;vertical-align:bottom;padding:0 8px 3px;">______________________________________<br>SIGNATURE OF VERIFYING OFFICER<br><br>NAME : ______________________________</td><td style="border:none;width:50%;font-size:8pt;font-weight:bold;text-align:right !important;vertical-align:bottom;padding:0 8px 3px;">______________________________________<br>BENEFICIARY SIGNATURE</td></tr></table></td></tr>' +
+   '</table>' +
+   '<div style="text-align:center;font-size:9.5pt;margin-top:3px;">বিশদে জানতে ১৮০০-৩৪৫-৫৩৮৪ নম্বরে যোগাযোগ করতে পারেন।</div>' +
+   '<div style="text-align:center;font-size:12.5pt;font-weight:bold;margin-bottom:3px;">স্বাস্থ্য ও পরিবার কল্যাণ দপ্তর, পশ্চিমবঙ্গ সরকার সর্বদাই আপনার পাশে আছে ।</div>' +
+   '<div style="border-top:1.5px dotted #000;padding-top:6px;">' +
+     '<div style="font-size:11pt;">Received Swasthya Sathi Application from <span style="display:inline-block;min-width:200px;border-bottom:1px solid #000;font-weight:bold;">' + ofcEsc(ofcHolderName()).toUpperCase() + '</span></div>' +
+     '<table style="width:100%;border-collapse:collapse;margin-top:6px;"><tr><td style="border:none;padding:0;width:75%;text-align:left !important;">' + appNo.replace('font-size:12pt;','font-size:10.5pt;') + '<div style="margin-left:420px;font-weight:bold;font-size:9pt;">DATE</div></td>' +
+     '<td style="border:none;padding:0;text-align:center !important;vertical-align:bottom;font-size:11pt;">________________________<br>Signature</td></tr></table>' +
+   '</div>');
 }
 // 8. ANNEXURE-A (exact format of Order 92-F(MED)WB dated 09.10.2026)
 function ofcDocSsDecl(){
@@ -10474,7 +10510,7 @@ const PROF_GROUPS = [
   { t: 'School / Office', scope: 'school', ids: ['schoolName','schoolAddress','subDivision','block','district','hoiContact','schoolEmail','departmentName','diOffice','diAddress','gia1Date','ofcHoiName','ofcHoiTitle','ofcAdminTitle','ofcDdoOffice'] },
   { t: 'T.R. Form No. 7 / Treasury (fill once)', scope: 'school', ids: ['chlTreasuryPreset','chlBank','chlTreasury','chlTreasuryCode','chlSchoolCode','chlHead','chlAccountCode14','chlTenderedBy','chlDeptOfficer'] },
   { t: 'Staff', scope: 'staff', ids: ['staffName','designation','qualification','staffSex','dob','doj','dojSchool'] },
-  { t: 'Staff IDs & Contact', scope: 'staff', ids: ['ofcAadhaar','ofcHrms','ofcGpf','ofcMobile','ofcAbha','ofcWbhsNo','ofcCardNo','ofcCardHolder','ofcCardRel','ofcCardAddr','ofcHolderAadhaar','ofcHolderMobile'] }
+  { t: 'Staff IDs & Contact', scope: 'staff', ids: ['ofcAadhaar','ofcHrms','ofcGpf','ofcMobile','ofcAbha','ofcWbhsNo','ofcCardNo','ofcCardHolder','ofcCardRel','ofcCardAddr','ofcFdBlock','ofcFdGp','ofcFdVillage','ofcFdFather','ofcFdGovtIns','ofcFdMedAllow','ofcHolderAadhaar','ofcHolderMobile'] }
 ];
 let profReady = false;
 function profEsc(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
