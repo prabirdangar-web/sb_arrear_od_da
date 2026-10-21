@@ -1879,6 +1879,10 @@ table.fxf-emol table td{text-align:left;border:none}
                     <option value="PEN">Treasury Pension Clearance objection</option>
                     <option value="AUD">Audit objection</option>
                     <option value="DI">Pay verification by D.I. of Schools office</option>
+                    <option value="SBK">Checking of service records at school &mdash; matched with Order 92-F(MED)WB (card / M.A.)</option>
+                    <option value="DISR">D.I. / A.I. (S.E.) office &mdash; checking of service records &amp; Order 92-F(MED)WB</option>
+                    <option value="TRS">Treasury objection &mdash; service record / pay bill check (card &amp; M.A.)</option>
+                    <option value="ORD">Compliance with Order 92-F(MED)WB dt. 09.10.2026 (card surrender)</option>
                     <option value="SELF">Detected by employee / DDO on self-check</option>
                     <option value="OTH">Other (type below)</option>
                 </select></div>
@@ -9508,6 +9512,10 @@ const OFC_TRIGGERS = {
   AUD:  { t:'an audit objection has been raised in respect of', p:'audit objection' },
   DI:   { t:'an objection has been raised during pay verification by the office of the District Inspector of Schools in respect of', p:'pay verification objection' },
   SELF: { t:'it has been noticed, on verification of the pay bills, in the case of', p:'pay regularisation requirement' },
+  SBK:  { t:'during checking of the service records of the employees of this school, matched with Order No. 92-F(MED)WB dated 09.10.2026 of the Finance Department (Medical Cell), it has been noticed that a Swasthya Sathi / Ayushman Bharat card was held (as card holder or as beneficiary) and Medical Allowance was also paid / received by mistake in the case of', p:'service-record verification under Order No. 92-F(MED)WB dt. 09.10.2026' },
+  DISR: { t:'during checking of the service records by the office of the District Inspector of Schools (S.E.) / Assistant Inspector of Schools (S.E.), matched with Order No. 92-F(MED)WB dated 09.10.2026, it has been noticed that a Swasthya Sathi / Ayushman Bharat card was held (as card holder or as beneficiary) and Medical Allowance was also paid / received by mistake in the case of', p:'D.I. office service-record verification under Order No. 92-F(MED)WB dt. 09.10.2026' },
+  TRS:  { t:'an objection has been raised by the Treasury during checking of the service record / pay bill, as a Swasthya Sathi / Ayushman Bharat card was held (as card holder or as beneficiary) and Medical Allowance was also paid / received by mistake in the case of', p:'Treasury objection (card holder / beneficiary and M.A.)' },
+  ORD:  { t:'in compliance with Order No. 92-F(MED)WB dated 09.10.2026 of the Finance Department (Medical Cell) regarding mandatory surrender of Swasthya Sathi / Ayushman Bharat cards, it has been noticed that the card was held (as card holder or as beneficiary) and Medical Allowance was also paid / received by mistake in the case of', p:'compliance with Order No. 92-F(MED)WB dt. 09.10.2026' },
   OTH:  { t:'an objection has been raised in respect of', p:'objection' }
 };
 const OFC_SSAUTH = {
@@ -9656,6 +9664,7 @@ function ofcOrderAdvice(){
     h += 'RUNNING SERVICE (DOR ' + dor + (r.months !== null ? ', about ' + r.months + ' months left' : '') + '). The Order applies to him as an <b>employee</b> <u>only if he or any beneficiary holds/held</u> such a card (including being a beneficiary in his wife\u2019s card) \u2014 then Annexure-A + proof of surrender go to the <b>Head of Office</b> by <b>31.10.2026</b>. ' +
       (r.k === 'PEN' ? 'Pension papers are due within about a year, so treat any M.A. over-drawal as a <b>Treasury Pension Clearance objection</b> and regularise now.' : 'No pension objection exists yet; treat the matter as <b>self-observed regularisation</b> (detected on self-check / by the DDO), not as a pension objection.');
   }
+  h += '<br><span style="color:#0f766e;">Service-record check: the same issue (card held as <u>card holder</u> or <u>beneficiary</u> + M.A. paid by mistake) can be raised at the school, the D.I. / A.I. office or the Treasury \u2014 pick the matching option in &ldquo;How the Over-Drawal Came to Notice&rdquo;; the card-surrender set and Annexure-A are the same.</span>';
   h += '<br><span style="color:#92400e;">Not covered by the Order: M.A. refund, T.R.-7, Form D, D.I. route \u2014 these are this office\u2019s own regularisation steps. Non-compliance by 31.10.2026 = WBHS benefits suspended + misconduct proceedings (employee).</span>';
   el.innerHTML = h;
 }
