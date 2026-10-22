@@ -430,6 +430,45 @@
         #sbPrintArea table, #sbPrintArea th, #sbPrintArea td { box-sizing: border-box; word-wrap: break-word; }
         #sbPrintArea tr { page-break-inside: avoid; break-inside: avoid; }
 
+        /* ===== SERVICE BOOK SHEET: A4 LANDSCAPE, COMPACT, FULLY FITTED (nothing clipped) =====
+           Fixed column widths + wrapping, so no figure/word can run past the page edge.
+           The "Mode of Fixation" slip lines in the Remarks column are kept as ruled lines. */
+        #sbPrintArea { font-size: 8pt; line-height: 1.2; overflow: visible !important; }
+        #sbPrintArea h1 { font-size: 13pt; margin: 0 !important; }
+        #sbPrintArea h2, #sbPrintArea h3 { font-size: 9.5pt; margin: 3mm 0 1mm !important; padding-bottom: 1mm !important; }
+        #sbPrintArea > div:first-child { margin-bottom: 2mm !important; padding-bottom: 1mm !important; }
+        #sbPrintArea table { width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; font-size: 7.6pt !important; margin-bottom: 2mm !important; }
+        #sbPrintArea th, #sbPrintArea td { padding: 1mm 1.4mm !important; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; hyphens: auto; }
+        #sbPrintArea thead { display: table-header-group; }
+        #sbPrintArea thead th { font-size: 7.6pt !important; background: #e5e7eb !important; border: 1px solid #000 !important; padding: 1mm !important; }
+        #sbPrintArea tbody td { border: 1px solid #000; font-size: 7.6pt !important; }
+        #sbPrintArea td, #sbPrintArea td * { font-size: inherit; max-width: 100%; }
+        #sbPrintArea td strong { white-space: normal; }
+        #sbPrintArea td div[style*="text-align:justify"] { font-size: 7pt !important; margin-top: 0.8mm !important; text-align: left !important; }
+        /* column widths: 5-column tables (ROPA-1990 / ROPA-1998) */
+        #sbTable98 th:nth-child(1), #sbTable90 th:nth-child(1) { width: 10%; }
+        #sbTable98 th:nth-child(2), #sbTable90 th:nth-child(2) { width: 10%; }
+        #sbTable98 th:nth-child(3), #sbTable90 th:nth-child(3) { width: 16%; }
+        #sbTable98 th:nth-child(4), #sbTable90 th:nth-child(4) { width: 9%; }
+        #sbTable98 th:nth-child(5), #sbTable90 th:nth-child(5) { width: 55%; }
+        /* column widths: 7-column tables (ROPA-2009 / ROPA-2019) */
+        #sbTable09 th:nth-child(1), #sbTable19 th:nth-child(1) { width: 8.5%; }
+        #sbTable09 th:nth-child(2), #sbTable19 th:nth-child(2) { width: 8.5%; }
+        #sbTable09 th:nth-child(3), #sbTable19 th:nth-child(3) { width: 15%; }
+        #sbTable09 th:nth-child(4), #sbTable19 th:nth-child(4) { width: 7%; }
+        #sbTable09 th:nth-child(5), #sbTable19 th:nth-child(5) { width: 7%; }
+        #sbTable09 th:nth-child(6), #sbTable19 th:nth-child(6) { width: 8%; }
+        #sbTable09 th:nth-child(7), #sbTable19 th:nth-child(7) { width: 46%; }
+        /* Remarks column: keep the compact ruled "mode of fixation" lines */
+        #sbPrintArea .slip-box { background: #fff !important; border: 1px solid #555 !important; border-radius: 0 !important; padding: 0.6mm 1.4mm !important; margin-top: 0.8mm !important; font-size: 7pt !important; line-height: 1.2; break-inside: avoid; page-break-inside: avoid; }
+        #sbPrintArea .slip-row { display: flex !important; justify-content: space-between; gap: 3mm; border-bottom: 1px dashed #555 !important; padding: 0.3mm 0 !important; }
+        #sbPrintArea .slip-row:last-child { border-bottom: 0 !important; }
+        #sbPrintArea .slip-row > span { min-width: 0; overflow-wrap: anywhere; }
+        #sbPrintArea .slip-row > span:last-child { text-align: right; white-space: nowrap; flex: 0 0 auto; }
+        #sbPrintArea .slip-box hr { margin: 0.6mm 0 !important; border-top: 1px dashed #555 !important; }
+        #sbPrintArea tr { break-inside: auto; page-break-inside: auto; }
+        #sbTable90 tbody td:first-child, #sbTable98 tbody td:first-child, #sbTable09 tbody td:first-child, #sbTable19 tbody td:first-child { white-space: nowrap; }
+
         /* ===== T.R. FORM NO. 7 (A4 PORTRAIT, @page margin 8mm => 194 x 281 mm) =====
            Exactly one copy per page; page box is slightly shorter than the printable
            area so rounding can never push a 5th page. */
@@ -2595,7 +2634,11 @@ function setPrintOrientation(orientation) {
         style.id = 'printPageStyle';
         document.head.appendChild(style);
     }
-    if (orientation === 'landscape-numbered') {
+    if (orientation === 'landscape-compact') {
+        // SERVICE BOOK SHEET: A4 landscape, tight margins, "Page X of Y" in the bottom margin
+        style.innerHTML = `@media print { @page { size: A4 landscape; margin: 6mm 6mm 9mm 6mm;
+            @bottom-center { content: \"Page \" counter(page) \" of \" counter(pages); font-family: 'Times New Roman', serif; font-size: 8pt; } } }`;
+    } else if (orientation === 'landscape-numbered') {
         // A4 landscape + automatic "Page X of Y" in the bottom margin (multi-page statements)
         style.innerHTML = `@media print { @page { size: A4 landscape; margin: 8mm 8mm 12mm 8mm;
             @bottom-center { content: "Page " counter(page) " of " counter(pages); font-family: 'Times New Roman', serif; font-size: 8pt; } } }`;
@@ -8829,7 +8872,7 @@ function showDoc(type) {
 }
 
 function printServiceBook() {
-    setPrintOrientation('portrait'); // SERVICE BOOK SHEET -> A4 PORTRAIT
+    setPrintOrientation('landscape-compact'); // SERVICE BOOK SHEET -> A4 LANDSCAPE, compact, fitted
     window.print();
 }
 
