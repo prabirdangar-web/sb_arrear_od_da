@@ -1941,7 +1941,7 @@ table.fxf-emol table td{text-align:left;border:none}
 
         <!-- Swasthya Sathi block -->
         <div id="ofcSsBlock" style="display:none; border:1px solid #67e8f9; border-radius:6px; padding:10px; margin-bottom:10px; background:#f0fdfa;">
-            <div style="font-weight:bold; color:#0f766e; margin-bottom:6px;">Swasthya Sathi Card &mdash; Beneficiary &amp; Surrender (after payment of the over-drawn amount) <button type="button" class="btn-print" style="margin-left:10px;" onclick="seedSubhenduCase()">Load Subhendu case (retiring 31.10.2026)</button> <button type="button" class="btn-print" style="margin-left:4px;" onclick="seedPrabirCase()">Load Prabir case (running service, self H.O.I.)</button></div>
+            <div style="font-weight:bold; color:#0f766e; margin-bottom:6px;">Swasthya Sathi Card &mdash; Beneficiary &amp; Surrender (after payment of the over-drawn amount) <button type="button" class="btn-print" style="margin-left:10px;" onclick="seedSubhenduCase()">Load Subhendu case (retiring 31.10.2026)</button> <button type="button" class="btn-print" style="margin-left:4px;" onclick="seedBlankCase()">Load blank case (any staff &mdash; pick category)</button></div>
             <div class="grid">
                 <div class="fg"><label>Employee Is</label>
                     <select id="ofcHolderType" onchange="ofcOnHolderChange()"><option value="BEN">Beneficiary under card of a family member</option><option value="SELF">Card holder himself / herself</option></select></div>
@@ -1987,6 +1987,7 @@ table.fxf-emol table td{text-align:left;border:none}
                     <select id="ofcSurrExt" onchange="ofcRefreshDocList()"><option value="FULL" selected>FULL CARD surrender &mdash; entire card with all members cancelled (default)</option><option value="NAME">Only name(s) deleted from the card (if the issuing office permits)</option></select></div>
                 <div class="fg"><label>Service Status of Employee <em>(Order 92-F(MED)WB: employee &rarr; Head of Office; pensioner &rarr; office where WBHS claim is lodged)</em></label>
                     <select id="ofcSvcStatus" onchange="ofcOrderAdvice(); ofcRefreshDocList();"><option value="RUNNING" selected>Running service (not yet retired)</option><option value="PENSIONER">Retired / Pensioner</option><option value="FAMPEN">Family Pensioner (widow / dependent of deceased employee)</option></select></div>
+                <div class="fg wide"><label>Employee Category <em>(sets designation &amp; routing: H.M. = self H.O.I. via D.I./A.I. &amp; Administrator; all other staff go through the H.M. / H.O.I.)</em></label><select id="ofcEmpCat" onchange="ofcOnCategory()"><option value="">&mdash; keep designation as entered &mdash;</option><option value="AT">Assistant Teacher (A.T.)</option><option value="CLERK">Clerk</option><option value="GRD">Group-D staff</option><option value="HM">Head Master (H.M.)</option></select></div>
                 <div class="fg wide"><label>WBHS Status of Employee <em>(decides wording &amp; whether Annexure-A is needed)</em></label><select id="ofcWbhsStat" onchange="ofcOnWbhsStat()"><option value="ENR" selected>Enrolled under WBHS &mdash; Order 92-F(MED)WB applies (Annexure-A + proof of surrender)</option><option value="NONE">NOT enrolled &mdash; no WBHS scheme availed (card surrendered for regularisation / pension Medical Relief; Annexure-A not required)</option></select></div>
                 <div class="fg"><label>PPO Number <em>(pensioner only)</em></label><input id="ofcPpo" onchange="ofcOrderAdvice()"></div>
                 <div class="fg wide"><label>Pensioner: Office where WBHS claim / pension papers are submitted <em>(receives Annexure-A &amp; surrender proof; default = D.D.O.)</em></label><input id="ofcPenOffice" value="Assistant Inspector of Schools (S.E.), Khatra, Khatra Subdivision, P.O.-Khatra, District-Bankura"></div>
@@ -10431,6 +10432,15 @@ function ofcDocWvSurr(){
 
 // ------------------------------- NO WBHS SCHEME AVAILED ------------------------------------
 function ofcNoWbhs(){ return val('ofcWbhsStat') === 'NONE'; }
+function ofcOnCategory(){
+  const c = val('ofcEmpCat'), m = { AT:'A.T.', CLERK:'Clerk', GRD:'Group-D Staff', HM:'Headmaster' };
+  if (m[c]) {
+    ['odEmpDesig', 'designation'].forEach(id => { const e = document.getElementById(id); if (e) e.value = m[c]; });
+    try { syncSharedFields(); } catch(e) {}
+    const s = document.getElementById('ofcSelfHoi'); if (s) s.value = (c === 'HM') ? 'Y' : 'N';
+  }
+  ofcRefreshDocList();
+}
 function ofcNearRet(){ try { return ofcSvcRec().k === 'PEN'; } catch(e) { return true; } }
 function ofcDorTxt(){ const d = (typeof getDOR === 'function') ? getDOR() : null; return d ? formatDate(d) : '31.10.2026'; }
 function ofcOnWbhsStat(){
@@ -11138,7 +11148,7 @@ window.printAnnex98 = function () {
       // card / beneficiary facts
       put('ofcHolderType', 'BEN'); put('ofcCardHolder', 'Smt. APARNA KARMAKAR'); put('ofcCardRel', 'wife'); put('ofcCardNo', '19071337141106279'); put('ofcWbhsStat', 'NONE');
       put('ofcHolderOcc', 'a housewife / homemaker'); put('ofcSsRoute', 'HOLDER'); put('ofcSurrExt', 'FULL');
-      put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'N');
+      put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'N'); put('ofcEmpCat', 'CLERK'); try { ofcOnCategory(); } catch(e) {}
       put('ofcCardIssue', '2023-11-29'); put('ofcStoppedFrom', '2026-11'); put('ofcMaTo', '2026-10');
       put('ofcPenDate', '2026-10-31');
       try { ofcOnHolderChange(); } catch(e) {}
@@ -11156,28 +11166,28 @@ window.printAnnex98 = function () {
     window.alert = realAlert;
   }
   window.seedSubhenduCase = seedSubhenduCase;
-  // Prabir (Head of Institution) -- running service, far from retirement. Name / DOB / card facts are NOT known:
+  // Blank case for ANY staff (A.T. / Clerk / Group-D / H.M.) -- pick the category; running service. Name / DOB / card facts are NOT known:
   // they are cleared on purpose so nothing of the Subhendu case is printed; fill them in (M.A. months via 'Auto-Generate').
-  function seedPrabirCase(){
+  function seedBlankCase(){
     var realAlert = window.alert; window.alert = function(){};
     try {
       owSetMode('SS');
-      put('staffName', 'PRABIR'); put('odEmpName', 'PRABIR'); put('staffSex', 'Male'); put('dob', '');
+      put('staffName', ''); put('odEmpName', ''); put('staffSex', 'Male'); put('dob', '');
       try { syncSharedFields(); } catch(e) {}
       try { calculateDOR(); } catch(e) {}
       put('ofcHolderType', 'BEN'); put('ofcCardHolder', ''); put('ofcCardRel', 'wife'); put('ofcCardNo', ''); put('ofcCardIssue', '');
       put('ofcHolderOcc', 'a housewife / homemaker'); put('ofcSsRoute', 'HOLDER'); put('ofcSurrExt', 'FULL');
-      put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'Y'); put('ofcWbhsStat', 'NONE');
+      put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'N'); put('ofcWbhsStat', 'NONE'); put('ofcEmpCat', 'AT'); try { ofcOnCategory(); } catch(e) {}
       put('ofcStoppedFrom', ''); put('ofcMaTo', ''); put('ofcPenDate', ''); put('ofcChallanNo', ''); put('ofcPayDate', '');
       try { odRows.length = 0; renderOdTable(); } catch(e) {}
       try { ofcOnHolderChange(); } catch(e) {}
       try { ofcApplyRecommended(); } catch(e) {}
       try { ofcOnWbhsStat(); } catch(e) {}
-    } catch (e) { console.warn('Prabir case failed:', e); }
+    } catch (e) { console.warn('Blank case failed:', e); }
     window.alert = realAlert;
-    try { realAlert('Prabir case loaded. Now fill: full name, date of birth, wife\'s name, card no., card issue date, "Allowance Stopped From", then press "Auto-Generate M.A. Over-Drawal from Card Issue Date".'); } catch(e) {}
+    try { realAlert('Blank case loaded. Pick Employee Category, then fill: full name, date of birth, wife\'s name, card no., card issue date, "Allowance Stopped From", then press "Auto-Generate M.A. Over-Drawal from Card Issue Date".'); } catch(e) {}
   }
-  window.seedPrabirCase = seedPrabirCase;
+  window.seedBlankCase = seedBlankCase;
   window.addEventListener('load', function(){ setTimeout(seedSubhenduCase, 0); });
 })();
 </script>
