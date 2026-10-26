@@ -1945,10 +1945,10 @@ table.fxf-emol table td{text-align:left;border:none}
             <div class="grid">
                 <div class="fg"><label>Employee Is</label>
                     <select id="ofcHolderType" onchange="ofcOnHolderChange()"><option value="BEN">Beneficiary under card of a family member</option><option value="SELF">Card holder himself / herself</option></select></div>
-                <div class="fg"><label>Card Holder&rsquo;s Name <em>(ignored if self)</em></label><input id="ofcCardHolder" value="Smt. NILA" placeholder="e.g. Smt. Nila Dangar"></div>
+                <div class="fg"><label>Card Holder&rsquo;s Name <em>(ignored if self)</em></label><input id="ofcCardHolder" value="Smt. APARNA KARMAKAR" placeholder="e.g. Smt. Aparna Karmakar"></div>
                 <div class="fg"><label>Relation of Card Holder to Employee</label>
                     <select id="ofcCardRel"><option>wife</option><option>husband</option><option>father</option><option>mother</option><option>son</option><option>daughter</option><option>himself / herself (self card)</option></select></div>
-                <div class="fg"><label>Swasthya Sathi Card No. / URN</label><input id="ofcCardNo" value="19071337138684728"></div>
+                <div class="fg"><label>Swasthya Sathi Card No. / URN</label><input id="ofcCardNo" value="19071337141106279"></div>
                 <div class="fg"><label>Employee WBHS / Enrolment Cert. No.</label><input id="ofcWbhsNo"></div>
                 <div class="fg"><label>Beneficiary Name(s) Whose Card Is Surrendered</label><input id="ofcBenName" placeholder="blank = applicant (employee)"></div>
                 <div class="fg"><label>Surrender Authority <em>(pick or type)</em></label>
@@ -1987,6 +1987,7 @@ table.fxf-emol table td{text-align:left;border:none}
                     <select id="ofcSurrExt" onchange="ofcRefreshDocList()"><option value="FULL" selected>FULL CARD surrender &mdash; entire card with all members cancelled (default)</option><option value="NAME">Only name(s) deleted from the card (if the issuing office permits)</option></select></div>
                 <div class="fg"><label>Service Status of Employee <em>(Order 92-F(MED)WB: employee &rarr; Head of Office; pensioner &rarr; office where WBHS claim is lodged)</em></label>
                     <select id="ofcSvcStatus" onchange="ofcOrderAdvice(); ofcRefreshDocList();"><option value="RUNNING" selected>Running service (not yet retired)</option><option value="PENSIONER">Retired / Pensioner</option><option value="FAMPEN">Family Pensioner (widow / dependent of deceased employee)</option></select></div>
+                <div class="fg wide"><label>WBHS Status of Employee <em>(decides wording &amp; whether Annexure-A is needed)</em></label><select id="ofcWbhsStat" onchange="ofcOnWbhsStat()"><option value="ENR" selected>Enrolled under WBHS &mdash; Order 92-F(MED)WB applies (Annexure-A + proof of surrender)</option><option value="NONE">NOT enrolled &mdash; no WBHS scheme availed (card surrendered for regularisation / pension Medical Relief; Annexure-A not required)</option></select></div>
                 <div class="fg"><label>PPO Number <em>(pensioner only)</em></label><input id="ofcPpo" onchange="ofcOrderAdvice()"></div>
                 <div class="fg wide"><label>Pensioner: Office where WBHS claim / pension papers are submitted <em>(receives Annexure-A &amp; surrender proof; default = D.D.O.)</em></label><input id="ofcPenOffice" value="Assistant Inspector of Schools (S.E.), Khatra, Khatra Subdivision, P.O.-Khatra, District-Bankura"></div>
                 <div class="fg"><label>Family pensioner: Name of deceased employee <em>(late)</em></label><input id="ofcDeceased" placeholder="e.g. Late ..."></div>
@@ -9599,6 +9600,7 @@ const OFC_DOCS = [
   { id:'sshoi', noPen:true, maPos:'DRAWN',   cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'H.O.I. forwarding to D.I. (S.E.) \u2014 accept / consider surrender', fn:'ofcDocSsHoi' },
   { id:'ssdi', noPen:true, maPos:'DRAWN',    cases:['MA_SS'],             stage:'After deposit',  route:'EMP', label:'D.I. (S.E.) recommendation to higher authority \u2014 accept card surrender', fn:'ofcDocSsDi' },
   { id:'ssdecl', noAmt:true,  cases:['MA_SS'],             stage:'After surrender', label:'Annexure-A declaration of surrender (exact format of Order 92-F(MED)WB)', fn:'ofcDocSsDecl' },
+  { id:'nowbhs', nw:true, noAmt:true, cases:['MA_SS'], stage:'No WBHS availed', label:'Declaration: NOT enrolled under WBHS &mdash; no WBHS scheme availed; card surrendered, M.A. refunded (for D.D.O. / Treasury / pension papers)', fn:'ofcDocNoWbhs' },
   { id:'penma', penOnly:true, maPos:'', cases:['MA_SS'], stage:'Pensioner / Family pensioner', label:'Pensioner / Family pensioner: declaration &amp; application regarding Medical Allowance (F.M.A.) and card surrender \u2014 for both M.A. taken / not taken', fn:'ofcDocPenMa', noAmt:true },
   { id:'clrreq',  cases:['MA_SS','HRA','SAL'], noAmt:true, stage:'Treasury clearance', label:'Clearance: request to the EARLIER EMPLOYER for Over-Drawal / No-Demand Clearance Certificate (Treasury demand)', fn:'ofcDocClrReq' },
   { id:'clrcert', cases:['MA_SS','HRA','SAL'], noAmt:true, stage:'Treasury clearance', label:'Clearance: Over-Drawal / No-Demand Clearance Certificate \u2014 format for the EARLIER EMPLOYER to sign', fn:'ofcDocClrCert' },
@@ -9709,6 +9711,11 @@ function ofcSvcRec(){
 function ofcOrderAdvice(){
   const el = document.getElementById('ofcOrderAdvice'); if (!el) return;
   const r = ofcSvcRec(), nm = ofcPerson(), dor = r.d ? formatDate(r.d) : '____';
+  if (ofcNoWbhs()) {
+    el.innerHTML = '<b>NO WBHS SCHEME AVAILED &mdash; ' + ofcEsc(nm) + ' (DOR ' + dor + '):</b><br>Order No. 92-F(MED)WB dt. 09.10.2026 is aimed at employees <u>enrolled under WBHS</u>; the employee is <b>not enrolled</b>, so <b>Annexure-A is not required</b>. The card is still surrendered now because (a) Medical Allowance continued to be drawn although he is a beneficiary in the Swasthya Sathi card (inadmissible), and (b) Medical Relief / F.M.A. is to be paid with the pension, which cannot run together with a Swasthya Sathi card.<br>'+
+      '<b>Steps:</b> 1) stop M.A. from the next bill; 2) refund the over-drawn amount by <b>T.R. Form No. 7</b>; 3) card holder surrenders the FULL card (Form D + application) and takes the acknowledgement; 4) employee gives the &ldquo;No WBHS availed&rdquo; declaration; 5) H.M. issues the <b>No-Demand / Over-Drawal Clearance Certificate</b> (tick it under Treasury clearance) for the Treasury pension papers &mdash; all before <b>31.10.2026</b>.';
+    return;
+  }
   let h = '<b>Order No. 92-F(MED)WB dt. 09.10.2026 \u2014 applicability for ' + ofcEsc(nm) + ':</b><br>';
   if (ofcIsPen()) {
     h += (ofcFamPen() ? 'FAMILY PENSIONER' : 'PENSIONER') + ' (' + (ofcMaPos() === 'WAIVED' ? 'Fixed Medical Allowance NOT taken' : 'Fixed Medical Allowance taken with pension') + '). The Order applies <u>only if the pensioner / beneficiaries hold or held</u> a Swasthya Sathi / Ayushman Bharat card. Annexure-A (PPO No.; HRMS / GPF = N.A.) and the surrender proof go directly to the <b>office where the WBHS claim is submitted</b>, by <b>31.10.2026</b> \u2014 no Head of Office / school routing. ' +
@@ -9729,7 +9736,7 @@ function ofcApplyRecommended(){
 function ofcFullCard(){ return (val('ofcSurrExt') || 'FULL') === 'FULL'; }
 function ofcCancelTxt(){ return ofcFullCard() ? 'the <b>entire card, with all members included in it,</b> be cancelled / deactivated' : 'the name(s) above be deleted from the card'; }
 function ofcMaPos(){ return ofcCase() === 'MA_SS' ? (val('ofcMaPos') || 'DRAWN') : 'DRAWN'; }
-function ofcDocVisible(d){ if (ofcIsPen() && d.noPen) return false; if (d.penOnly && !ofcIsPen()) return false; return d.cases.includes(ofcCase()) && (!d.route || d.route === ofcRoute()) && (!d.maPos || d.maPos === ofcMaPos()); }
+function ofcDocVisible(d){ if (d.nw && !ofcNoWbhs()) return false; if (d.id === 'ssdecl' && ofcNoWbhs()) return false; if (ofcIsPen() && d.noPen) return false; if (d.penOnly && !ofcIsPen()) return false; return d.cases.includes(ofcCase()) && (!d.route || d.route === ofcRoute()) && (!d.maPos || d.maPos === ofcMaPos()); }
 function ofcWaivedTxt(){ const m = val('ofcStoppedFrom'); if (ofcIsPen()) return m ? 'has not drawn / is not drawing the Fixed Medical Allowance (F.M.A.) with pension from ' + monthLabelShort(m) + ' onwards' : 'has not been drawing the Fixed Medical Allowance (F.M.A.) with pension at any time'; return m ? 'has not drawn / has waived the Medical Allowance from ' + monthLabelShort(m) + ' onwards' : 'has been waiving (not drawing) the Medical Allowance from time to time'; }
 function ofcEmpRel(){ const r = (val('ofcCardRel') || '').toLowerCase(), f = ofcFemale();
   if (r === 'wife') return 'husband'; if (r === 'husband') return 'wife';
@@ -10421,6 +10428,49 @@ function ofcDocWvSurr(){
    '<div class="ofc-enc">Enclosures: (1) Card copy. (2) Form D. (3) Declaration of employee.</div>');
 }
 
+
+// ------------------------------- NO WBHS SCHEME AVAILED ------------------------------------
+function ofcNoWbhs(){ return val('ofcWbhsStat') === 'NONE'; }
+function ofcDorTxt(){ const d = (typeof getDOR === 'function') ? getDOR() : null; return d ? formatDate(d) : '31.10.2026'; }
+function ofcOnWbhsStat(){
+  ofcRefreshDocList();
+  if (ofcNoWbhs()) ['nowbhs', 'clrown'].forEach(id => { const e = document.getElementById('ofcDoc_' + id); if (e) e.checked = true; });
+}
+// rewrites the WBHS-enrolled wording of the standard surrender set when the employee never joined WBHS
+function ofcNoWbhsFix(h){
+  if (!ofcNoWbhs()) return h;
+  const dor = ofcDorTxt(), why = 'is not enrolled under the West Bengal Health Scheme (WBHS) and has not availed any WBHS scheme; as retirement is on ' + dor + ' and Medical Relief / F.M.A. is to be paid with the pension, the Swasthya Sathi card is being surrendered now (Order No. 92-F(MED)WB dt. 09.10.2026 also noted)';
+  return h
+   .replace(/I am an employee covered under the West Bengal Health Scheme \(WBHS\)(?: \(Enrolment Certificate No\. [^)]*\))?\. In view of the Finance Department \(Medical Cell\) Order No\. 92-F\(MED\)WB dated 09\.10\.2026 directing mandatory surrender of Swasthya Sathi \/ Ayushman Bharat cards by employees and their beneficiaries, I request/,
+            'I am an employee who is not enrolled under the West Bengal Health Scheme (WBHS) and have not availed any WBHS scheme. I retire on ' + dor + ', Medical Relief / F.M.A. is to be paid with my pension and the Treasury requires the matter to be regularised; the Finance Department Order No. 92-F(MED)WB dated 09.10.2026 is also noted. I request')
+   .replace(/My (\w+) is enrolled under the West Bengal Health Scheme \(WBHS\)\. In terms of the above Order, a card of this kind is required to be surrendered to the issuing authority latest by <b>31\.10\.2026<\/b>\./,
+            'My $1 ' + why + ', latest by <b>31.10.2026</b>.')
+   .replace(/In terms of the above Order, Government employees and their beneficiaries enrolled under WBHS who hold Swasthya Sathi \/ Ayushman Bharat cards are required to surrender such cards to the respective issuing authority, and to submit the Annexure-A declaration with proof of surrender to the Head of Office, positively by 31\.10\.2026\./,
+            'Although my ' + ofcEmpRel() + ' is not enrolled under WBHS, he / she retires on ' + dor + ' and Medical Relief / F.M.A. will be paid with the pension; I am therefore surrendering the card, positively before 31.10.2026, and the surrender acknowledgement will be furnished to the Head of Office / Treasury.')
+   .replace(/(?<!not )enrolled under the West Bengal Health Scheme \(WBHS\)(?: \(Enrolment Certificate No\. [^)]*\))?/g, 'not enrolled under the West Bengal Health Scheme (WBHS) (no WBHS scheme availed)')
+   .replace(/a WBHS enrolled (employee|pensioner|family pensioner)/g, 'an $1 not enrolled under WBHS')
+   .replace(/WBHS enrolled /g, 'non-WBHS ')
+   .replace(/Annexure-A declaration with proof of surrender/g, 'proof of surrender and the &ldquo;No WBHS availed&rdquo; declaration')
+   .replace(/Annexure-A( declaration)?/g, '&ldquo;No WBHS availed&rdquo; declaration');
+}
+function ofcDocNoWbhs(){
+  const emp = ofcPerson(), s = ofcSummary(), hol = ofcHolderName(), rel = (val('ofcCardRel') || 'wife'), dor = ofcDorTxt();
+  const ref = val('ofcChallanNo') ? ofcPayRef() : 'T.R. Form No. 7 challan (copy enclosed)';
+  return ofcPage(
+   '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:6px 0 12px;">DECLARATION OF THE ' + (ofcIsPen() ? ofcPenLabel().toUpperCase() : 'EMPLOYEE') + '<br>NO WBHS SCHEME AVAILED &mdash; SWASTHYA SATHI CARD SURRENDERED</div>' +
+   '<p>I, <b>' + ofcEsc(emp) + '</b>, ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', retiring on superannuation on <b>' + ofcEsc(dor) + '</b>, do hereby declare that:</p>' +
+   '<ol class="ofc-ol">' +
+   '<li>I am <b>not enrolled</b> under the West Bengal Health Scheme (WBHS); no WBHS Enrolment Certificate has been issued to me and I have <b>not availed</b> any cashless / reimbursement benefit under WBHS at any time.</li>' +
+   '<li>My ' + ofcEsc(rel) + ', <b>' + ofcEsc(hol) + '</b>, ' + ofcEsc(ofcHolderOccText()) + ', holds Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + (val('ofcCardIssue') ? ' (issued ' + ofcD(val('ofcCardIssue')) + ')' : '') + ', in which my name is included as a beneficiary.</li>' +
+   (s.n ? '<li>Medical Allowance was drawn by me inadvertently for ' + ofcEsc(s.periodLong) + ' (' + s.n + ' months) amounting to <b>' + ofcMoney(s.total) + '</b> (Rupees ' + numberToWords(s.total) + ' only), due to lack of awareness of the admissibility conditions. The entire amount has been refunded by ' + ofcEsc(ref) + ', and the Medical Allowance has been stopped' + (val('ofcStoppedFrom') ? ' from ' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) : '') + '.</li>' : '') +
+   '<li>The said card has been / is being surrendered in <b>full</b> to the issuing authority' + (val('ofcSurrAck') ? ' (Acknowledgement: ' + ofcEsc(val('ofcSurrAck')) + ')' : '') + ' <u>before 31.10.2026</u>, and no benefit under the card shall be availed after surrender. The surrender acknowledgement is enclosed.</li>' +
+   '<li>As I am not under WBHS, I request that Medical Relief / Fixed Medical Allowance be sanctioned with my pension, and that this declaration be accepted in place of Annexure-A of Order No. 92-F(MED)WB dt. 09.10.2026, which applies to WBHS-enrolled persons.</li>' +
+   '<li>The above statements are true to the best of my knowledge and belief and I shall be personally responsible for any wrong statement.</li></ol>' +
+   '<div style="margin-top:14px;display:flex;justify-content:space-between;"><div>Place: ' + ofcEsc(val('odPoName') || '') + '<br>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
+   '<div style="text-align:center;">Signature: ______________________<br><b>' + ofcEsc(emp).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '</div></div>' +
+   '<div class="ofc-enc">Enclosures: (1) Copy of Swasthya Sathi card. (2) Surrender acknowledgement / Form D. (3) Receipted T.R. Form No. 7 challan. (4) No-Demand / Over-Drawal Clearance Certificate.</div>');
+}
+
 // ------------------------------- print --------------------------------------------------
 function ofcPrintSelected(){
   const s = ofcSummary();
@@ -10429,7 +10479,7 @@ function ofcPrintSelected(){
   if (!s.n && docs.some(d => !d.noAmt)) { alert('No over-drawn months yet. Generate the month-wise rows first (Long-Period generator or Auto-Fetch), or tick only the "No M.A. over-drawal" letter.'); return; }
   setPrintOrientation('portrait');
   const banner = '<div class="ofc-noprint" style="background:#ecfeff;border:1px solid #67e8f9;color:#164e63;padding:8px 12px;margin:0 0 10px;font:13px Arial,sans-serif;">&#9998; Click on any text in the pages below to edit it before printing. Pages: ' + docs.length + '.</div>';
-  document.getElementById('printArea').innerHTML = banner + docs.map(d => window[d.fn]()).join('');
+  document.getElementById('printArea').innerHTML = banner + docs.map(d => ofcNoWbhsFix(window[d.fn]())).join('');
   document.getElementById('modalOverlay').classList.add('active');
 }
 
@@ -11068,7 +11118,7 @@ window.printAnnex98 = function () {
 // =====================================================================================
 // DEFAULT CASE  --  SUBHENDU KARMAKAR (Swasthya Sathi / WBHS, Order 92-F(MED)WB dt. 09.10.2026)
 // Opens ready-made: employee is a BENEFICIARY in his wife's card (wife = non-employee card holder),
-// card since Sep-2023 (never used), M.A. drawn continuously up to Oct-2026, retires 31.10.2026.
+// card of Smt. Aparna Karmakar issued 29-11-2023, NOT enrolled under WBHS, M.A. drawn continuously up to Oct-2026, retires 31.10.2026.
 // Every document in tab 4 follows this case.  Edit any field to change the case; fields marked
 // "fill" below are left blank on purpose (not known) and print as blank lines.
 // =====================================================================================
@@ -11083,22 +11133,22 @@ window.printAnnex98 = function () {
       try { syncSharedFields(); } catch(e) {}
       try { calculateDOR(); } catch(e) {}
       // card / beneficiary facts
-      put('ofcHolderType', 'BEN'); put('ofcCardHolder', 'Smt. NILA'); put('ofcCardRel', 'wife'); put('ofcCardNo', '');
+      put('ofcHolderType', 'BEN'); put('ofcCardHolder', 'Smt. APARNA KARMAKAR'); put('ofcCardRel', 'wife'); put('ofcCardNo', '19071337141106279'); put('ofcWbhsStat', 'NONE');
       put('ofcHolderOcc', 'a housewife / homemaker'); put('ofcSsRoute', 'HOLDER'); put('ofcSurrExt', 'FULL');
       put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'N');
-      put('ofcCardIssue', '2023-09-01'); put('ofcStoppedFrom', '2026-11'); put('ofcMaTo', '2026-10');
+      put('ofcCardIssue', '2023-11-29'); put('ofcStoppedFrom', '2026-11'); put('ofcMaTo', '2026-10');
       put('ofcPenDate', '2026-10-31');
       try { ofcOnHolderChange(); } catch(e) {}
       // build the Swasthya Sathi case (tab 4) in its own snapshot, then return to tab-2 state
       owSetMode('SS');
-      put('ofcCardIssue', '2023-09-01'); put('ofcMaTo', '2026-10');
-      ofcGenMaFromCard();                            // M.A. over-drawal Sep-2023 .. Oct-2026
+      put('ofcCardIssue', '2023-11-29'); put('ofcMaTo', '2026-10');
+      ofcGenMaFromCard();                            // M.A. over-drawal Nov-2023 .. Oct-2026
       try { ofcApplyRecommended(); } catch(e) {}     // how it came to notice (Treasury pension clearance - retiring)
       try { ofcOrderAdvice(); } catch(e) {}
       owSetMode('GEN');
       // if tab 4 is the one on screen, show it
       var b = document.querySelector('.tab-btn.ss-tab.active'); if (b) { owSetMode('SS'); }
-      try { ofcRefreshDocList(); } catch(e) {}
+      try { ofcOnWbhsStat(); } catch(e) {}
     } catch (e) { console.warn('Subhendu default case failed:', e); }
     window.alert = realAlert;
   }
