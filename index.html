@@ -1743,6 +1743,30 @@ table.fxf-emol table td{text-align:left;border:none}
         </div>
     </div>
 
+    <!-- WRONG-INCREMENT / EXTRA-STAGE OVERDRAWN GENERATOR -->
+    <h3 id="wiHeading">Wrong Increment Over-Drawal &mdash; Option Date Not Changeable (Auto from Pay Table, Up to Date)</h3>
+    <div class="panel" style="border-left:4px solid #dc2626;">
+        <div style="font-size:0.82rem; color:#475569; margin-bottom:8px;">
+            For a case where the 10-year (CAS) benefit stands on its own date, but an increment was granted <b>again</b> on a date which was not permissible (the Date of Option / increment date cannot be changed), so pay was drawn one stage higher than admissible month after month.
+            Admissible Basic is taken month-by-month from the generated Pay Tables (ROPA-98 / 09 / 19); Drawn Basic is the same pay moved up by the extra stage(s) (ROPA-98 ladder / ROPA-09 3% rule / ROPA-19 matrix cell). D.A., H.R.A., M.A. and I.R. are worked out on each side, so the difference is the over-drawal. Generate the Pay Tables in Tab 1 first.
+        </div>
+        <div class="grid">
+            <div class="fg"><label>Date of Joining (for the note)</label><input type="date" id="wiDoj" value="1998-01-06"></div>
+            <div class="fg"><label>10-Year (CAS) Benefit Date &mdash; stands</label><input type="date" id="wiCasDate" value="2008-01-06"></div>
+            <div class="fg"><label>Increment Wrongly Granted On</label><input type="date" id="wiWrongDate" value="2008-07-01"></div>
+            <div class="fg"><label>Extra Stage(s) Drawn</label><input type="number" id="wiSteps" value="1" min="1" max="5"></div>
+            <div class="fg"><label>Period From (month)</label><input type="month" id="wiFrom" value="2008-07"></div>
+            <div class="fg"><label>Period To (month) &mdash; blank = till date</label><input type="month" id="wiTo" value=""></div>
+            <div class="fg"><label>Existing Table Rows</label>
+                <select id="wiApply"><option value="replace" selected>Replace with generated rows</option><option value="append">Append to existing rows</option></select></div>
+            <div class="fg"><label><input type="checkbox" id="wiSetReason" checked style="width:auto;"> Write the &ldquo;Sub:&rdquo; reason automatically</label></div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn-sync" onclick="generateWrongIncrementOverdrawn()">&#9889; Generate Month-Wise Over-Drawal (Wrong Increment)</button>
+            <button type="button" class="btn-print" onclick="seedSamirCase()">Load Samir Kumar Sen case (Bankura Town H.S.)</button>
+        </div>
+    </div>
+
     <!-- 1. SCHOOL & EMPLOYEE DETAILS (SYNCED) -->
     <h3>1. School &amp; Employee Details (Ref Synced)</h3>
     <div class="panel">
@@ -6964,6 +6988,97 @@ function generateLongAllowanceOverdrawn() {
     alert(`Generated ${rows.length} month row(s). Total over-drawn: Rs. ${tot.toLocaleString('en-IN')}`);
 }
 
+// ===================== WRONG INCREMENT (EXTRA STAGE) OVER-DRAWAL =====================
+// Drawn pay = admissible pay moved up by N stages from the wrongly granted increment month onward.
+function wiStepUp(snap, steps) {
+    let pb = snap.payBand || 0; const gp = snap.gradePay || 0;
+    for (let i = 0; i < steps; i++) {
+        if (snap.era === 'ROPA-09') {
+            pb += calculate09Increment(pb, gp);
+        } else if (snap.era === 'ROPA-19') {
+            const arr = (typeof matrixData19 !== 'undefined' && matrixData19[snap.level]) || [];
+            const k = arr.findIndex(v => v > pb); if (k > -1) pb = arr[k];
+        } else {
+            let lad = null; const keys = Object.keys(matrixData98 || {});
+            for (const key of keys) { const a = matrixData98[key]; if (a.indexOf(pb) > -1 && `${a[0]}-${a[a.length - 1]}` === snap.scale) { lad = a; break; } }
+            if (!lad) for (const key of keys) { const a = matrixData98[key]; if (a.indexOf(pb) > -1) { lad = a; break; } }
+            if (lad) { const k = lad.findIndex(v => v > pb); if (k > -1) pb = lad[k]; }
+        }
+    }
+    return { payBand: pb, gradePay: gp };
+}
+function wiDmy(iso) { const p = String(iso || '').split('-'); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : ''; }
+function generateWrongIncrementOverdrawn() {
+    const wrongIso = val('wiWrongDate'); const steps = Math.max(1, parseInt(val('wiSteps'), 10) || 1);
+    const from = val('wiFrom');
+    let to = val('wiTo');
+    if (!to) { const t = new Date(); to = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`; document.getElementById('wiTo').value = to; }
+    if (!wrongIso || !from) { alert('Please fill the date of wrongly granted increment and the Period From month.'); return; }
+    if (from > to) { alert('Period From cannot be later than Period To.'); return; }
+    if (!window.pfTimeline98 && !window.pfTimeline09 && !window.pfTimeline19) processFixationTimeline();
+    if (!((window.pfTimeline98 && window.pfTimeline98.length) || (window.pfTimeline09 && window.pfTimeline09.length) || (window.pfTimeline19 && window.pfTimeline19.length))) {
+        alert('Pay Tables are not generated yet. Fill Tab 1 (DOJ, scale / option date, ROPA-98 / 09 / 19) and click Generate Pay Tables, then run this again.'); return;
+    }
+    const wrongMonth = wrongIso.slice(0, 7);
+    const hraMode = val('hraMode') || 'auto', hraRatePct = num('hraRate'), hraFixed = num('hraFixed');
+    const irBaseAdm = (window.pfTimeline19 && window.pfTimeline19.length > 0) ? payBandWeightedFromTimeline(2016, 7, num('prevBasic')) : num('prevBasic');
+    const s16 = getAdmissibleSnapshotForDate(new Date(2016, 6, 1));
+    const irBaseDr = s16 ? wiStepUp({ era: 'ROPA-09', payBand: irBaseAdm, gradePay: s16.gradePay || 0, level: s16.level }, steps).payBand : irBaseAdm;
+
+    let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number);
+    const rows = []; let guard = 0;
+    while ((y < ty || (y === ty && m <= tm)) && guard++ < 700) {
+        const mStr = `${y}-${String(m).padStart(2, '0')}`;
+        const snap = getAdmissibleSnapshotForDate(new Date(y, m - 1, 1));
+        if (!snap) { m++; if (m > 12) { m = 1; y++; } continue; }
+        const extra = (mStr >= wrongMonth);
+        const dr = extra ? wiStepUp(snap, steps) : { payBand: snap.payBand, gradePay: snap.gradePay || 0 };
+        const admBasic = snap.payBand + (snap.gradePay || 0), drBasic = dr.payBand + dr.gradePay;
+        const rate = getDaRates(mStr).drawn;
+        const ma = defaultMaForMonth(y, m);
+        const hraRate = defaultHraRateForMonth(y, m, hraRatePct);
+        rows.push({
+            id: ++odSeq, month: mStr, band: snap.band, scale: snap.scale,
+            drPayBand: dr.payBand, drGradePay: dr.gradePay, drDP: 0, drDA: Math.round(drBasic * rate),
+            drHRA: calculateHraAmount(drBasic, y, m, hraRate, hraMode, hraFixed), drMA: ma, drIR: defaultIrForMonth(y, m, extra ? irBaseDr : irBaseAdm),
+            admPayBand: snap.payBand, admGradePay: snap.gradePay || 0, admDP: 0, admDA: Math.round(admBasic * rate),
+            admHRA: calculateHraAmount(admBasic, y, m, hraRate, hraMode, hraFixed), admMA: ma, admIR: defaultIrForMonth(y, m, irBaseAdm),
+            remarks: extra ? `Increment wrongly granted on ${wiDmy(wrongIso)}: pay drawn Rs.${drBasic} vs admissible Rs.${admBasic}` : ''
+        });
+        m++; if (m > 12) { m = 1; y++; }
+    }
+    if (!rows.length) { alert('No months generated for that period.'); return; }
+    odRows = (val('wiApply') === 'append') ? odRows.concat(rows) : rows;
+    odRows.sort((a, b) => a.month.localeCompare(b.month));
+
+    const ps = document.getElementById('reasonPreset');
+    if (ps && !ps.querySelector('option[value="SAL_INC"]') && typeof owRebuildPreset === 'function') owRebuildPreset('SAL_INC');
+    if (ps) { ps.value = 'SAL_INC'; if (typeof ofcApplyReasonPreset === 'function') ofcApplyReasonPreset(); }
+    if (document.getElementById('wiSetReason').checked) {
+        const cas = wiDmy(val('wiCasDate')), doj = wiDmy(val('wiDoj'));
+        document.getElementById('reasonText').value =
+            `excess pay and allowances drawn from ${monthLabelShort(from)} to ${monthLabelShort(to)} (${rows.length} months), as an increment was wrongly granted again on ${wiDmy(wrongIso)}, which was not permissible because the Date of Option / increment date cannot be changed. The 10-year benefit (D.O.J. ${doj}) stands on ${cas}, but pay was drawn one stage higher than admissible.`;
+    }
+    renderOdTable();
+    if (typeof refreshAllOverdrawn === 'function') refreshAllOverdrawn();
+    const tot = (window._odSums && window._odSums.overDrawn) || 0;
+    alert(`Generated ${rows.length} month row(s) up to ${monthLabelShort(to)}. Total over-drawn: Rs. ${tot.toLocaleString('en-IN')}`);
+}
+// Quick-load for the Samir Kumar Sen case (details from his over-drawal workbook)
+function seedSamirCase() {
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
+    set('staffName', 'SAMIR KUMAR SEN'); set('designation', 'ASSISTANT TEACHER'); set('doj', '1998-01-06');
+    set('schoolName', 'BANKURA TOWN HIGH SCHOOL'); set('subDivision', 'BANKURA SADAR');
+    set('odEmpName', 'SAMIR KUMAR SEN'); set('odEmpDesig', 'A.T.'); set('odSchoolName', 'BANKURA TOWN HIGH SCHOOL');
+    set('odPoName', 'BANKURA'); set('odBlock', 'BANKURA'); set('odDistrict', 'BANKURA'); set('odSubDivision', 'BANKURA SADAR');
+    set('chlBank', 'S.B.I. ; BANKURA'); set('chlTreasury', 'BANKURA'); set('chlTreasuryCode', 'B A A');
+    set('chlDeptOfficer', 'D.I./S (S.E) ; BANKURA');
+    set('chlTenderedBy', 'H.M. / T.I.C. / Secretary / President / Administrator : BANKURA TOWN HIGH SCHOOL, P.O.-BANKURA, Dist.-BANKURA, P.I.N.-722101');
+    set('wiDoj', '1998-01-06'); set('wiCasDate', '2008-01-06'); set('wiWrongDate', '2008-07-01'); set('wiFrom', '2008-07'); set('wiTo', ''); set('wiSteps', '1');
+    try { syncSharedFields(); } catch (e) { console.warn(e); }
+    alert('Samir Kumar Sen loaded (DOJ 06.01.1998). Now set his scale / option date in Tab 1, click Generate Pay Tables, then press "Generate Month-Wise Over-Drawal (Wrong Increment)".');
+}
+
 // ===================== TAB 3: DA CASE (AUTO ARREAR CALCULATION) =====================
 // Historical D.A. rate change points, as fraction of Basic Pay: [ 'YYYY-MM', rate ]
 // ROPA-2009 era (Apr-2008 to Dec-2019)
@@ -9556,6 +9671,9 @@ const OFC_PRESETS = {
   SAL_FIX:  { label:'Excess pay drawn due to wrong pay fixation / increment', grp:'SAL', item:'salary (pay and allowances)',
               reason:'excess pay and allowances drawn during {PERIOD} due to wrong pay fixation / wrong grant of increment.',
               cause:'Pay was fixed / increment was granted at a higher amount than admissible, which came to notice on verification, and the excess pay and allowances were drawn inadvertently during the aforesaid period.' },
+  SAL_INC:  { label:'Increment wrongly granted again (option / increment date not changeable) - extra stage drawn', grp:'SAL', item:'salary (pay and allowances)',
+              reason:'excess pay and allowances drawn during {PERIOD} ({N} months) as an additional increment was wrongly granted, which was not permissible because the Date of Option / increment date cannot be changed.',
+              cause:'An increment was granted again on a date which was not permissible, as the Date of Option / increment date cannot be changed. The 10-year (CAS) benefit stands on its own due date, but pay continued to be drawn one stage higher than admissible, which came to notice on verification, and the excess was drawn inadvertently during the aforesaid period.' },
   SAL_DA:   { label:'D.A. / I.R. drawn at a rate higher than admissible', grp:'SAL', item:'salary (D.A. / I.R. component)',
               reason:'excess drawal of D.A. / I.R. during {PERIOD} at a rate higher than the admissible rate.',
               cause:'D.A. / I.R. was drawn at a rate higher than the admissible rate during the aforesaid period, inadvertently and without any deliberate intention.' },
