@@ -1941,7 +1941,7 @@ table.fxf-emol table td{text-align:left;border:none}
 
         <!-- Swasthya Sathi block -->
         <div id="ofcSsBlock" style="display:none; border:1px solid #67e8f9; border-radius:6px; padding:10px; margin-bottom:10px; background:#f0fdfa;">
-            <div style="font-weight:bold; color:#0f766e; margin-bottom:6px;">Swasthya Sathi Card &mdash; Beneficiary &amp; Surrender (after payment of the over-drawn amount)</div>
+            <div style="font-weight:bold; color:#0f766e; margin-bottom:6px;">Swasthya Sathi Card &mdash; Beneficiary &amp; Surrender (after payment of the over-drawn amount) <button type="button" class="btn-print" style="margin-left:10px;" onclick="seedSubhenduCase()">Load Subhendu case (retiring 31.10.2026)</button> <button type="button" class="btn-print" style="margin-left:4px;" onclick="seedPrabirCase()">Load Prabir case (running service, self H.O.I.)</button></div>
             <div class="grid">
                 <div class="fg"><label>Employee Is</label>
                     <select id="ofcHolderType" onchange="ofcOnHolderChange()"><option value="BEN">Beneficiary under card of a family member</option><option value="SELF">Card holder himself / herself</option></select></div>
@@ -9712,8 +9712,8 @@ function ofcOrderAdvice(){
   const el = document.getElementById('ofcOrderAdvice'); if (!el) return;
   const r = ofcSvcRec(), nm = ofcPerson(), dor = r.d ? formatDate(r.d) : '____';
   if (ofcNoWbhs()) {
-    el.innerHTML = '<b>NO WBHS SCHEME AVAILED &mdash; ' + ofcEsc(nm) + ' (DOR ' + dor + '):</b><br>Order No. 92-F(MED)WB dt. 09.10.2026 is aimed at employees <u>enrolled under WBHS</u>; the employee is <b>not enrolled</b>, so <b>Annexure-A is not required</b>. The card is still surrendered now because (a) Medical Allowance continued to be drawn although he is a beneficiary in the Swasthya Sathi card (inadmissible), and (b) Medical Relief / F.M.A. is to be paid with the pension, which cannot run together with a Swasthya Sathi card.<br>'+
-      '<b>Steps:</b> 1) stop M.A. from the next bill; 2) refund the over-drawn amount by <b>T.R. Form No. 7</b>; 3) card holder surrenders the FULL card (Form D + application) and takes the acknowledgement; 4) employee gives the &ldquo;No WBHS availed&rdquo; declaration; 5) H.M. issues the <b>No-Demand / Over-Drawal Clearance Certificate</b> (tick it under Treasury clearance) for the Treasury pension papers &mdash; all before <b>31.10.2026</b>.';
+    el.innerHTML = '<b>NO WBHS SCHEME AVAILED &mdash; ' + ofcEsc(nm) + ' (DOR ' + dor + '):</b><br>Order No. 92-F(MED)WB dt. 09.10.2026 is aimed at employees <u>enrolled under WBHS</u>; the employee is <b>not enrolled</b>, so <b>Annexure-A is not required</b>. The card is still surrendered now because (a) Medical Allowance continued to be drawn although he is a beneficiary in the Swasthya Sathi card (inadmissible)' + (ofcNearRet() ? ', and (b) Medical Relief / F.M.A. is to be paid with the pension, which cannot run together with a Swasthya Sathi card.' : '. Retirement is not near, so this is a <b>self-observed regularisation</b> (no Treasury pension objection); alternatively the card may be kept and only the M.A. refunded &mdash; decide with the D.I. / D.D.O. before printing.') + '<br>'+
+      '<b>Steps:</b> 1) stop M.A. from the next bill; 2) refund the over-drawn amount by <b>T.R. Form No. 7</b>; 3) card holder surrenders the FULL card (Form D + application) and takes the acknowledgement; 4) employee gives the &ldquo;No WBHS availed&rdquo; declaration; 5) ' + (ofcNearRet() ? 'H.M. issues the <b>No-Demand / Over-Drawal Clearance Certificate</b> (tick it under Treasury clearance) for the Treasury pension papers' : 'file the papers with the D.D.O. (no Treasury clearance needed now)') + ' &mdash; all before <b>31.10.2026</b>.';
     return;
   }
   let h = '<b>Order No. 92-F(MED)WB dt. 09.10.2026 \u2014 applicability for ' + ofcEsc(nm) + ':</b><br>';
@@ -10431,6 +10431,7 @@ function ofcDocWvSurr(){
 
 // ------------------------------- NO WBHS SCHEME AVAILED ------------------------------------
 function ofcNoWbhs(){ return val('ofcWbhsStat') === 'NONE'; }
+function ofcNearRet(){ try { return ofcSvcRec().k === 'PEN'; } catch(e) { return true; } }
 function ofcDorTxt(){ const d = (typeof getDOR === 'function') ? getDOR() : null; return d ? formatDate(d) : '31.10.2026'; }
 function ofcOnWbhsStat(){
   ofcRefreshDocList();
@@ -10439,14 +10440,16 @@ function ofcOnWbhsStat(){
 // rewrites the WBHS-enrolled wording of the standard surrender set when the employee never joined WBHS
 function ofcNoWbhsFix(h){
   if (!ofcNoWbhs()) return h;
-  const dor = ofcDorTxt(), why = 'is not enrolled under the West Bengal Health Scheme (WBHS) and has not availed any WBHS scheme; as retirement is on ' + dor + ' and Medical Relief / F.M.A. is to be paid with the pension, the Swasthya Sathi card is being surrendered now (Order No. 92-F(MED)WB dt. 09.10.2026 also noted)';
+  const near = ofcNearRet(), dor = ofcDorTxt(),
+    why = near ? 'is not enrolled under the West Bengal Health Scheme (WBHS) and has not availed any WBHS scheme; as retirement is on ' + dor + ' and Medical Relief / F.M.A. is to be paid with the pension, the Swasthya Sathi card is being surrendered now (Order No. 92-F(MED)WB dt. 09.10.2026 also noted)'
+               : 'is not enrolled under the West Bengal Health Scheme (WBHS) and has not availed any WBHS scheme; the matter came to notice on self-check and is being regularised voluntarily, so the Swasthya Sathi card is being surrendered (Order No. 92-F(MED)WB dt. 09.10.2026 also noted)';
   return h
    .replace(/I am an employee covered under the West Bengal Health Scheme \(WBHS\)(?: \(Enrolment Certificate No\. [^)]*\))?\. In view of the Finance Department \(Medical Cell\) Order No\. 92-F\(MED\)WB dated 09\.10\.2026 directing mandatory surrender of Swasthya Sathi \/ Ayushman Bharat cards by employees and their beneficiaries, I request/,
-            'I am an employee who is not enrolled under the West Bengal Health Scheme (WBHS) and have not availed any WBHS scheme. I retire on ' + dor + ', Medical Relief / F.M.A. is to be paid with my pension and the Treasury requires the matter to be regularised; the Finance Department Order No. 92-F(MED)WB dated 09.10.2026 is also noted. I request')
+            'I am an employee who is not enrolled under the West Bengal Health Scheme (WBHS) and have not availed any WBHS scheme. ' + (near ? 'I retire on ' + dor + ', Medical Relief / F.M.A. is to be paid with my pension and the Treasury requires the matter to be regularised' : 'The matter has come to my notice on self-check and I am regularising it voluntarily') + '; the Finance Department Order No. 92-F(MED)WB dated 09.10.2026 is also noted. I request')
    .replace(/My (\w+) is enrolled under the West Bengal Health Scheme \(WBHS\)\. In terms of the above Order, a card of this kind is required to be surrendered to the issuing authority latest by <b>31\.10\.2026<\/b>\./,
             'My $1 ' + why + ', latest by <b>31.10.2026</b>.')
    .replace(/In terms of the above Order, Government employees and their beneficiaries enrolled under WBHS who hold Swasthya Sathi \/ Ayushman Bharat cards are required to surrender such cards to the respective issuing authority, and to submit the Annexure-A declaration with proof of surrender to the Head of Office, positively by 31\.10\.2026\./,
-            'Although my ' + ofcEmpRel() + ' is not enrolled under WBHS, he / she retires on ' + dor + ' and Medical Relief / F.M.A. will be paid with the pension; I am therefore surrendering the card, positively before 31.10.2026, and the surrender acknowledgement will be furnished to the Head of Office / Treasury.')
+            'Although my ' + ofcEmpRel() + ' is not enrolled under WBHS, ' + (near ? 'he / she retires on ' + dor + ' and Medical Relief / F.M.A. will be paid with the pension' : 'the Medical Allowance and the Swasthya Sathi card cannot be held together') + '; I am therefore surrendering the card, positively before 31.10.2026, and the surrender acknowledgement will be furnished to the Head of Office / Treasury.')
    .replace(/(?<!not )enrolled under the West Bengal Health Scheme \(WBHS\)(?: \(Enrolment Certificate No\. [^)]*\))?/g, 'not enrolled under the West Bengal Health Scheme (WBHS) (no WBHS scheme availed)')
    .replace(/a WBHS enrolled (employee|pensioner|family pensioner)/g, 'an $1 not enrolled under WBHS')
    .replace(/WBHS enrolled /g, 'non-WBHS ')
@@ -10458,13 +10461,13 @@ function ofcDocNoWbhs(){
   const ref = val('ofcChallanNo') ? ofcPayRef() : 'T.R. Form No. 7 challan (copy enclosed)';
   return ofcPage(
    '<div class="ofc-hd" style="font-size:13pt;text-decoration:underline;margin:6px 0 12px;">DECLARATION OF THE ' + (ofcIsPen() ? ofcPenLabel().toUpperCase() : 'EMPLOYEE') + '<br>NO WBHS SCHEME AVAILED &mdash; SWASTHYA SATHI CARD SURRENDERED</div>' +
-   '<p>I, <b>' + ofcEsc(emp) + '</b>, ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + ', retiring on superannuation on <b>' + ofcEsc(dor) + '</b>, do hereby declare that:</p>' +
+   '<p>I, <b>' + ofcEsc(emp) + '</b>, ' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + (ofcNearRet() ? ', retiring on superannuation on <b>' + ofcEsc(dor) + '</b>' : '') + ', do hereby declare that:</p>' +
    '<ol class="ofc-ol">' +
    '<li>I am <b>not enrolled</b> under the West Bengal Health Scheme (WBHS); no WBHS Enrolment Certificate has been issued to me and I have <b>not availed</b> any cashless / reimbursement benefit under WBHS at any time.</li>' +
    '<li>My ' + ofcEsc(rel) + ', <b>' + ofcEsc(hol) + '</b>, ' + ofcEsc(ofcHolderOccText()) + ', holds Swasthya Sathi card No. ' + ofcB(val('ofcCardNo'), 14) + (val('ofcCardIssue') ? ' (issued ' + ofcD(val('ofcCardIssue')) + ')' : '') + ', in which my name is included as a beneficiary.</li>' +
    (s.n ? '<li>Medical Allowance was drawn by me inadvertently for ' + ofcEsc(s.periodLong) + ' (' + s.n + ' months) amounting to <b>' + ofcMoney(s.total) + '</b> (Rupees ' + numberToWords(s.total) + ' only), due to lack of awareness of the admissibility conditions. The entire amount has been refunded by ' + ofcEsc(ref) + ', and the Medical Allowance has been stopped' + (val('ofcStoppedFrom') ? ' from ' + ofcEsc(monthLabelShort(val('ofcStoppedFrom'))) : '') + '.</li>' : '') +
    '<li>The said card has been / is being surrendered in <b>full</b> to the issuing authority' + (val('ofcSurrAck') ? ' (Acknowledgement: ' + ofcEsc(val('ofcSurrAck')) + ')' : '') + ' <u>before 31.10.2026</u>, and no benefit under the card shall be availed after surrender. The surrender acknowledgement is enclosed.</li>' +
-   '<li>As I am not under WBHS, I request that Medical Relief / Fixed Medical Allowance be sanctioned with my pension, and that this declaration be accepted in place of Annexure-A of Order No. 92-F(MED)WB dt. 09.10.2026, which applies to WBHS-enrolled persons.</li>' +
+   '<li>' + (ofcNearRet() ? 'As I am not under WBHS, I request that Medical Relief / Fixed Medical Allowance be sanctioned with my pension, and that' : 'As I am not under WBHS, I request that the matter be treated as regularised, that Medical Allowance be allowed from the month following surrender of the card if admissible, and that') + ' this declaration be accepted in place of Annexure-A of Order No. 92-F(MED)WB dt. 09.10.2026, which applies to WBHS-enrolled persons.</li>' +
    '<li>The above statements are true to the best of my knowledge and belief and I shall be personally responsible for any wrong statement.</li></ol>' +
    '<div style="margin-top:14px;display:flex;justify-content:space-between;"><div>Place: ' + ofcEsc(val('odPoName') || '') + '<br>Date: ' + ofcD(val('ofcAppDate')) + '</div>' +
    '<div style="text-align:center;">Signature: ______________________<br><b>' + ofcEsc(emp).toUpperCase() + '</b><br>' + ofcEsc(ofcDesig()) + ', ' + ofcEsc(ofcSchool()) + '</div></div>' +
@@ -11153,6 +11156,28 @@ window.printAnnex98 = function () {
     window.alert = realAlert;
   }
   window.seedSubhenduCase = seedSubhenduCase;
+  // Prabir (Head of Institution) -- running service, far from retirement. Name / DOB / card facts are NOT known:
+  // they are cleared on purpose so nothing of the Subhendu case is printed; fill them in (M.A. months via 'Auto-Generate').
+  function seedPrabirCase(){
+    var realAlert = window.alert; window.alert = function(){};
+    try {
+      owSetMode('SS');
+      put('staffName', 'PRABIR'); put('odEmpName', 'PRABIR'); put('staffSex', 'Male'); put('dob', '');
+      try { syncSharedFields(); } catch(e) {}
+      try { calculateDOR(); } catch(e) {}
+      put('ofcHolderType', 'BEN'); put('ofcCardHolder', ''); put('ofcCardRel', 'wife'); put('ofcCardNo', ''); put('ofcCardIssue', '');
+      put('ofcHolderOcc', 'a housewife / homemaker'); put('ofcSsRoute', 'HOLDER'); put('ofcSurrExt', 'FULL');
+      put('ofcMaPos', 'DRAWN'); put('ofcSvcStatus', 'RUNNING'); put('ofcSelfHoi', 'Y'); put('ofcWbhsStat', 'NONE');
+      put('ofcStoppedFrom', ''); put('ofcMaTo', ''); put('ofcPenDate', ''); put('ofcChallanNo', ''); put('ofcPayDate', '');
+      try { odRows.length = 0; renderOdTable(); } catch(e) {}
+      try { ofcOnHolderChange(); } catch(e) {}
+      try { ofcApplyRecommended(); } catch(e) {}
+      try { ofcOnWbhsStat(); } catch(e) {}
+    } catch (e) { console.warn('Prabir case failed:', e); }
+    window.alert = realAlert;
+    try { realAlert('Prabir case loaded. Now fill: full name, date of birth, wife\'s name, card no., card issue date, "Allowance Stopped From", then press "Auto-Generate M.A. Over-Drawal from Card Issue Date".'); } catch(e) {}
+  }
+  window.seedPrabirCase = seedPrabirCase;
   window.addEventListener('load', function(){ setTimeout(seedSubhenduCase, 0); });
 })();
 </script>
