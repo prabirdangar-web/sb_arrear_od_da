@@ -1755,7 +1755,7 @@ table.fxf-emol table td{text-align:left;border:none}
             <div class="fg"><label>10-Year (CAS) Benefit Date &mdash; stands</label><input type="date" id="wiCasDate" value="2008-01-06"></div>
             <div class="fg"><label>Increment Wrongly Granted On</label><input type="date" id="wiWrongDate" value="2008-07-01"></div>
             <div class="fg"><label>Extra Stage(s) Drawn</label><input type="number" id="wiSteps" value="1" min="1" max="5"></div>
-            <div class="fg"><label>Period From (month)</label><input type="month" id="wiFrom" value="2008-07"></div>
+            <div class="fg"><label>Period From (month)</label><input type="month" id="wiFrom" value="2008-04"></div>
             <div class="fg"><label>Period To (month) &mdash; blank = till date</label><input type="month" id="wiTo" value=""></div>
             <div class="fg"><label>Existing Table Rows</label>
                 <select id="wiApply"><option value="replace" selected>Replace with generated rows</option><option value="append">Append to existing rows</option></select></div>
@@ -4970,7 +4970,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             lwpConsumedSoFar09 = cumulativeLwp09;
             const okLower = (k === 0) ? resolved.date >= optionDate : resolved.date > segStart;
             const okUpper = segEnd ? resolved.date < segEnd : resolved.date <= endDate;
-            if (!resolved.skip && okLower && okUpper) {
+            if (!resolved.skip && okLower && okUpper && !(window.__skipAnnual09 && window.__skipAnnual09.indexOf(yr) > -1)) {
                 pushEvent(resolved.date, { label: "INCREMENT", isAnnual: true, isLwpDeferred: resolved.lwpShifted, notionalDate: julDate });
             }
             prevCycleBoundary09 = julDate;
@@ -5681,6 +5681,19 @@ function getAdmissibleSnapshotForDate(d) {
         };
     }
     return null;
+}
+
+// OVER-DRAWAL SNAPSHOT: ROPA-09 pay applies from 01.04.2008 (monetary benefit) up to 31.12.2019,
+// ROPA-19 from 01.01.2020. Used by the over-drawal generators only (Tab 1 pay tables keep their own era split).
+function getOdSnapshot(d) {
+    const en09 = document.getElementById('enableRopa09').checked;
+    if (en09 && window.pfTimeline09 && window.pfTimeline09.length > 0 && d >= new Date(2008, 3, 1) && d <= new Date(2019, 11, 31)) {
+        let applicable = window.pfTimeline09[0];
+        for (let r of window.pfTimeline09) { if (new Date(r.date) <= d) applicable = r; else break; }
+        const bp = applicable.snapBandPay || 0, gp = applicable.snapGp || 0;
+        return { era: 'ROPA-09', band: (pbMap09[gp] || 'PB-4:9000-40500').split(':')[0], scale: (pbMap09[gp] || 'PB-4:9000-40500').split(':')[1] || '', payBand: bp, gradePay: gp, revBasic: bp + gp };
+    }
+    return getAdmissibleSnapshotForDate(d);
 }
 
 // COMPLETE TIMELINE GENERATOR MAIN FUNCTION
@@ -6932,7 +6945,7 @@ function generateLongAllowanceOverdrawn() {
     let guard = 0;
     while ((y < ty || (y === ty && m <= tm)) && guard++ < 600) {
         const mStr = `${y}-${String(m).padStart(2, '0')}`;
-        const snap = getAdmissibleSnapshotForDate(new Date(y, m - 1, 1));
+        const snap = getOdSnapshot(new Date(y, m - 1, 1));
         const fallbackBasic = num('prevBasic');
         const pb = snap ? snap.payBand : fallbackBasic;
         const gp = snap ? snap.gradePay : 0;
@@ -7022,17 +7035,32 @@ function generateWrongIncrementOverdrawn() {
     const wrongMonth = wrongIso.slice(0, 7);
     const hraMode = val('hraMode') || 'auto', hraRatePct = num('hraRate'), hraFixed = num('hraFixed');
     const irBaseAdm = (window.pfTimeline19 && window.pfTimeline19.length > 0) ? payBandWeightedFromTimeline(2016, 7, num('prevBasic')) : num('prevBasic');
-    const s16 = getAdmissibleSnapshotForDate(new Date(2016, 6, 1));
+    const s16 = getOdSnapshot(new Date(2016, 6, 1));
     const irBaseDr = s16 ? wiStepUp({ era: 'ROPA-09', payBand: irBaseAdm, gradePay: s16.gradePay || 0, level: s16.level }, steps).payBand : irBaseAdm;
 
+    // ROPA-09 case: DRAWN = pay table as normally generated (annual increment on 1st July as drawn, CAS 10-yr as per ROPA-09 rule);
+    // ADMISSIBLE = same table with the annual increment of the wrong year NOT granted (next annual increment falls a year later).
+    const wrongD = new Date(wrongIso + 'T00:00:00');
+    const twoPass = document.getElementById('enableRopa09').checked && wrongD >= new Date(2008, 3, 1) && wrongD <= new Date(2019, 11, 31) && steps === 1;
+    let setDrawn = null, setAdm = null;
+    if (twoPass) {
+        window.__skipAnnual09 = []; processFixationTimeline();
+        setDrawn = { t98: window.pfTimeline98, t09: window.pfTimeline09, t19: window.pfTimeline19 };
+        window.__skipAnnual09 = [wrongD.getFullYear()]; processFixationTimeline();
+        setAdm = { t98: window.pfTimeline98, t09: window.pfTimeline09, t19: window.pfTimeline19 };
+    }
+    const useSet = (st) => { window.pfTimeline98 = st.t98; window.pfTimeline09 = st.t09; window.pfTimeline19 = st.t19; };
     let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number);
     const rows = []; let guard = 0;
     while ((y < ty || (y === ty && m <= tm)) && guard++ < 700) {
         const mStr = `${y}-${String(m).padStart(2, '0')}`;
-        const snap = getAdmissibleSnapshotForDate(new Date(y, m - 1, 1));
+        if (twoPass) useSet(setAdm);
+        const snap = getOdSnapshot(new Date(y, m - 1, 1));
         if (!snap) { m++; if (m > 12) { m = 1; y++; } continue; }
         const extra = (mStr >= wrongMonth);
-        const dr = extra ? wiStepUp(snap, steps) : { payBand: snap.payBand, gradePay: snap.gradePay || 0 };
+        let dr;
+        if (twoPass) { useSet(setDrawn); const sd = getOdSnapshot(new Date(y, m - 1, 1)); dr = { payBand: sd.payBand, gradePay: sd.gradePay || 0 }; useSet(setAdm); }
+        else dr = extra ? wiStepUp(snap, steps) : { payBand: snap.payBand, gradePay: snap.gradePay || 0 };
         const admBasic = snap.payBand + (snap.gradePay || 0), drBasic = dr.payBand + dr.gradePay;
         const rate = getDaRates(mStr).drawn;
         const ma = defaultMaForMonth(y, m);
@@ -7047,6 +7075,7 @@ function generateWrongIncrementOverdrawn() {
         });
         m++; if (m > 12) { m = 1; y++; }
     }
+    if (twoPass) { window.__skipAnnual09 = []; processFixationTimeline(); }
     if (!rows.length) { alert('No months generated for that period.'); return; }
     odRows = (val('wiApply') === 'append') ? odRows.concat(rows) : rows;
     odRows.sort((a, b) => a.month.localeCompare(b.month));
@@ -7057,7 +7086,7 @@ function generateWrongIncrementOverdrawn() {
     if (document.getElementById('wiSetReason').checked) {
         const cas = wiDmy(val('wiCasDate')), doj = wiDmy(val('wiDoj'));
         document.getElementById('reasonText').value =
-            `excess pay and allowances drawn from ${monthLabelShort(from)} to ${monthLabelShort(to)} (${rows.length} months), as an increment was wrongly granted again on ${wiDmy(wrongIso)}, which was not permissible because the Date of Option / increment date cannot be changed. The 10-year benefit (D.O.J. ${doj}) stands on ${cas}, but pay was drawn one stage higher than admissible.`;
+            `excess pay and allowances drawn from ${monthLabelShort(from)} to ${monthLabelShort(to)} (${rows.length} months), as the annual increment was granted on ${wiDmy(wrongIso)}, which was not permissible (the Date of Option / increment date cannot be changed). The 10-year benefit (D.O.J. ${doj}, due ${cas}) is allowed as per ROPA-09 rule from 01.07.${wrongIso.slice(0,4)}; the normal annual increment falls due one year later, so pay was drawn one stage higher than admissible. Over-drawal worked out as per ROPA-09 from 01.04.2008 up to 31.12.2019 and as per ROPA-19 from 01.01.2020.`;
     }
     renderOdTable();
     if (typeof refreshAllOverdrawn === 'function') refreshAllOverdrawn();
@@ -7074,7 +7103,7 @@ function seedSamirCase() {
     set('chlBank', 'S.B.I. ; BANKURA'); set('chlTreasury', 'BANKURA'); set('chlTreasuryCode', 'B A A');
     set('chlDeptOfficer', 'D.I./S (S.E) ; BANKURA');
     set('chlTenderedBy', 'H.M. / T.I.C. / Secretary / President / Administrator : BANKURA TOWN HIGH SCHOOL, P.O.-BANKURA, Dist.-BANKURA, P.I.N.-722101');
-    set('wiDoj', '1998-01-06'); set('wiCasDate', '2008-01-06'); set('wiWrongDate', '2008-07-01'); set('wiFrom', '2008-07'); set('wiTo', ''); set('wiSteps', '1');
+    set('wiDoj', '1998-01-06'); set('wiCasDate', '2008-01-06'); set('wiWrongDate', '2008-07-01'); set('wiFrom', '2008-04'); set('wiTo', ''); set('wiSteps', '1');
     try { syncSharedFields(); } catch (e) { console.warn(e); }
     alert('Samir Kumar Sen loaded (DOJ 06.01.1998). Now set his scale / option date in Tab 1, click Generate Pay Tables, then press "Generate Month-Wise Over-Drawal (Wrong Increment)".');
 }
