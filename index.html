@@ -1474,6 +1474,11 @@ table.fxf-emol table td{text-align:left;border:none}
     <!-- 6. APPROVAL & FIXATION PARAMETERS -->
     <h3>6. Approval &amp; Pay Fixation Parameters</h3>
     <div class="panel">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; padding:8px 10px; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px;">
+            <input type="hidden" id="sb18FetchedAt"><input type="hidden" id="sb18FetchedFor">
+            <button type="button" id="sb18Btn" onclick="fetch18YFromSb()" style="background:#1e3a8a; color:#fff; border:0; border-radius:6px; padding:7px 14px; font-weight:700; cursor:pointer;" title="Reads this staff's record from the SB (Pay Fixation / Service Book) tool and fills the 18-Year benefit fields below">&#8681; Fetch 18-Year data from SB</button>
+            <span id="sb18Status" style="font-size:0.82rem; font-weight:600; color:#334155;">Staff Name above is matched with the SB tool's saved teacher record (tfhs/ropaPayFixation).</span>
+        </div>
         <div class="grid">
             <div class="fg"><label>Benefit Effective Date (w.e.f.)</label><input type="date" id="benefitDate" value="2025-10-04" onchange="manualArrearDateEdit(); generateArrearTable()"></div>
             <div class="fg wide"><label>Approval Memo No. &amp; Date</label><input id="approvalMemo" value="1890/1(2)/S ; dated : 31-10-2025" onchange="updateAll()"></div>
@@ -5923,6 +5928,130 @@ function payBandWeightedFromTimeline(y, m, fallbackPayBand) {
     return Math.round(sum / totalDays);
 }
 
+// ---- FETCH 18-YEAR DATA FROM THE SB (Pay Fixation / Service Book) TOOL, for the staff shown above ----
+// Source: tfhs/ropaPayFixation -> records[ "STAFF NAME" ] (same document the "Import from Pay Fixation" button reads).
+// 1) refreshes this staff's ROPA / promotion fields + LWP entries from the SB record,
+// 2) rebuilds the pay tables, 3) finds the "18 YEARS" row and fills Section 6:
+//    Benefit w.e.f., Pre-Benefit (drawn) Basic, Post-Benefit Basic, Scale Admissible, Scale Drawn,
+//    and Approval Memo (from SB's D.I. Approval Memo No./Date, if filled there).
+// If SB has no record, or the pay table has no 18-Years row (not eligible / excluded / beyond DOR), nothing in Section 6 is changed.
+function sb18Norm(x) { return String(x || '').trim().replace(/\s+/g, ' ').toUpperCase(); }
+function refreshSb18Button() {
+    const b = document.getElementById('sb18Btn'); if (!b) return;
+    const at = val('sb18FetchedAt');
+    const done = at && sb18Norm(val('sb18FetchedFor')) === sb18Norm(val('staffName'));
+    if (done) {
+        b.innerHTML = '&#8635; Update 18-Year data from SB';
+        b.title = 'Already fetched for this staff on ' + new Date(at).toLocaleString() + ' \u2014 click to re-read the latest SB data and refresh Section 6';
+        b.style.background = '#166534';
+    } else {
+        b.innerHTML = '&#8681; Fetch 18-Year data from SB';
+        b.title = "Reads this staff's record from the SB (Pay Fixation / Service Book) tool and fills the 18-Year benefit fields below";
+        b.style.background = '#1e3a8a';
+    }
+}
+window.addEventListener('DOMContentLoaded', function () {
+    refreshSb18Button();
+    const sn = document.getElementById('staffName');
+    if (sn) { sn.addEventListener('input', refreshSb18Button); sn.addEventListener('change', refreshSb18Button); }
+});
+function sbDmyDash(iso) {
+    if (!iso) return '';
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[3] + '-' + m[2] + '-' + m[1]) : String(iso);
+}
+function sbDescribeScaleAt(d) {
+    const s = getAdmissibleSnapshotForDate(d);
+    if (!s) return '';
+    if (s.era === 'ROPA-98') return String(s.scale || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const tl = (s.era === 'ROPA-19') ? window.pfTimeline19 : window.pfTimeline09;
+    let a = tl && tl.length ? tl[0] : null;
+    if (a) {
+        for (const r of tl) { if (new Date(r.date) <= d) a = r; else break; }
+        const cas = getSameDayPrePromotionCasRow(tl, d); if (cas) a = cas;
+    }
+    const gp = a ? (a.snapGp || 0) : (s.gradePay || 0);
+    const pb = String(pbMap09[gp] || '').replace(':', ': ');
+    if (s.era === 'ROPA-19') {
+        const lvl = (a && (a.snapLevel || levelMap19[a.snapGp])) || s.level || 12;
+        return 'LEVEL-' + lvl + (pb ? ' (' + pb + ', GP: ' + gp + ')' : ' (GP: ' + gp + ')');
+    }
+    return pb ? (pb + ', GP: ' + gp) : ('GP: ' + gp);
+}
+async function fetch18YFromSb() {
+    const st = document.getElementById('sb18Status');
+    const say = (h, c) => { if (st) { st.style.color = c || '#334155'; st.innerHTML = h; } };
+    const norm = x => String(x || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    const name = norm(val('staffName'));
+    if (!name) { say('&#9888; Enter or load the Staff Name first.', '#b45309'); return; }
+    say('Fetching ' + name + ' from SB&hellip;');
+    try {
+        await ensureFirebaseAuth();
+        const snap = await ROPA_FIXATION_DOC_REF.get({ source: 'server' });
+        const recs = (snap.exists && snap.data().records && typeof snap.data().records === 'object') ? snap.data().records : {};
+        const key = Object.keys(recs).find(k => norm(k) === name || norm((recs[k] && recs[k].fields && recs[k].fields.staffName) || (recs[k] && recs[k].staffName)) === name);
+        if (!key) { say('&#10007; No saved SB record found for &ldquo;' + name + '&rdquo;. Section 6 not changed.', '#b91c1c'); return; }
+        const src = recs[key] || {}, sf = src.fields || {};
+
+        // 1. Pay-tab fields + promotion chain + LWP entries from SB (same fields the bulk import uses)
+        const matched = {};
+        ROPA_IMPORT_MATCH_FIELDS.forEach(id => { if (Object.prototype.hasOwnProperty.call(sf, id)) matched[id] = sf[id]; });
+        applyFormFields(matched);
+        try { if (Array.isArray(src.promoEvents)) restorePromoExtraRows(src.promoEvents); } catch (e) { console.warn('SB promo restore failed:', e); }
+        try { togglePromotionSection(); toggleRopa90Section(); toggleRopa98Section(); toggleRopa09Section(); } catch (e) {}
+        const sigs = new Set(lwpRows.map(r => r.type + '|' + r.start + '|' + r.end));
+        let nextId = lwpRows.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1), lwpAdded = 0;
+        mapSbLeaveEntriesToLwpRows(src).forEach(lr => {
+            const sg = lr.type + '|' + lr.start + '|' + lr.end;
+            if (sigs.has(sg)) return;
+            sigs.add(sg); lwpRows.push(Object.assign({ id: nextId++ }, lr)); lwpAdded++;
+        });
+        lwpRowSeq = nextId;
+        try { renderLwpTable(); } catch (e) {}
+        calculateDOR();
+
+        // 2. Rebuild pay tables from the SB data, then look for the 18-Years row
+        processFixationTimeline();
+        const row = find18YearRow();
+        if (!row) {
+            say('&#9888; SB record found (' + key + '), but the pay table has <b>no 18-Years benefit row</b> for this staff (not eligible, already in higher scale, or date beyond DOR). Section 6 not changed.', '#b45309');
+            return;
+        }
+
+        // 3. Fill Section 6
+        const cb = document.getElementById('autoArrearDates'); if (cb) cb.checked = true;
+        syncFixationToArrear();                      // Benefit w.e.f., Arrear From/To, Pre / Post Basic Pay
+        const bd = new Date(row.date); bd.setHours(0, 0, 0, 0);
+        const dayBefore = new Date(bd); dayBefore.setDate(dayBefore.getDate() - 1);
+        const adm = sbDescribeScaleAt(bd), drw = sbDescribeScaleAt(dayBefore);
+        if (adm) document.getElementById('scaleAdmissible').value = adm;
+        if (drw) document.getElementById('scaleDrawn').value = drw;
+
+        let memoTxt = '';
+        const diNo = String(sf.casDiApprovalMemoNo || '').trim().replace(/\/S$/i, '');
+        const diDt = sbDmyDash(sf.casDiApprovalMemoDate);
+        if (diNo || diDt) {
+            memoTxt = (diNo ? diNo + '/S' : '________') + ' ; dated : ' + (diDt || '________');
+            document.getElementById('approvalMemo').value = memoTxt;
+        }
+        const wasUpdate = !!(val('sb18FetchedAt') && sb18Norm(val('sb18FetchedFor')) === name);
+        document.getElementById('sb18FetchedAt').value = new Date().toISOString();
+        document.getElementById('sb18FetchedFor').value = name;
+        refreshSb18Button();
+        updateAll();
+        generateArrearTable();
+        say('&#10003; ' + (wasUpdate ? 'Updated' : 'Fetched') + ' <b>' + key + '</b> &mdash; 18-Year benefit w.e.f. <b>' + sbDmyDash(val('benefitDate')) + '</b>; Basic &#8377;' + val('prevBasic') + ' &rarr; &#8377;' + val('currBasic') +
+            '; Admissible: ' + (adm || '-') + '; Drawn: ' + (drw || '-') +
+            (memoTxt ? '; Approval Memo: ' + memoTxt : '; <span style="color:#b45309">Approval Memo not found in SB (D.I. Approval Memo No./Date) &mdash; enter manually</span>') +
+            (lwpAdded ? '; ' + lwpAdded + ' new LWP entr' + (lwpAdded > 1 ? 'ies' : 'y') + ' added' : '') +
+            '. <span style="color:#475569">Not in SB &mdash; check manually: Salary Updated / Drawn Revised From, Non-B.Ed Fixation Memo.</span>', '#166534');
+    } catch (err) {
+        console.error('Fetch 18-Year data from SB failed:', err);
+        const code = err && err.code ? ' [' + err.code + ']' : '';
+        say('&#10007; Could not fetch from SB: ' + (err.message || err) + code + (err && err.code === 'permission-denied' ? ' &mdash; Firestore rules must allow read of /tfhs/ropaPayFixation for this login.' : ''), '#b91c1c');
+    }
+}
+
 // ---- AUTO-FETCH 18-YEAR ARREAR DATES FROM THE GENERATED PAY FIXATION (default behaviour) ----
 function manualArrearDateEdit() {
     const cb = document.getElementById('autoArrearDates');
@@ -9193,6 +9322,7 @@ function applyLoadedRecord(docId, record) {
     generateArrearTable();
     generateDaCaseTable();
 
+    try { refreshSb18Button(); } catch (e) {}
     alert(`Loaded saved record: "${docId}"\n(Last saved: ${record.savedAt ? new Date(record.savedAt).toLocaleString() : 'unknown'})`);
 }
 
