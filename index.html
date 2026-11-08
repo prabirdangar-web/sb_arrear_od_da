@@ -1472,6 +1472,22 @@ table.fxf-emol table td{text-align:left;border:none}
     </div>
 
     <!-- 6. APPROVAL & FIXATION PARAMETERS -->
+    <h3>6A. Type of Arrear &mdash; choose first</h3>
+    <div class="panel" id="arrearTypePanel" style="border:2px solid #7c3aed; background:#faf5ff;">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end;">
+            <div class="fg wide" style="flex:1; min-width:300px;">
+                <label style="color:#5b21b6; font-weight:bold;">What type of arrear do you want to prepare? (list is built from this staff's generated Pay Table)</label>
+                <select id="arrearTypeSel" onchange="onArrearTypeChange()">
+                    <option value="">&mdash; Select type of arrear &mdash;</option>
+                    <option value="manual">&#9998; Manual entry (type dates &amp; basic pay by hand)</option>
+                </select>
+            </div>
+            <button type="button" class="btn-main" onclick="refreshArrearTypeOptions()" title="Re-read the events from the Pay Table">&#8635; Reload list from Pay Table</button>
+        </div>
+        <div id="arrearTypeStatus" style="margin-top:6px; font-size:0.85rem; font-weight:600;"></div>
+        <div style="font-size:0.75rem; color:#475569; margin-top:2px;">Nothing is loaded by default. 10 Years / 18 Years / 20 Years benefit, H.M. / promotion fixation and annual increments appear here only if they are present in the Pay Table. The 18-Years option is listed only when that benefit exists for this staff.</div>
+    </div>
+
     <h3>6. Approval &amp; Pay Fixation Parameters</h3>
     <div class="panel">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; padding:8px 10px; background:#eff6ff; border:1px solid #93c5fd; border-radius:6px;">
@@ -1501,10 +1517,10 @@ table.fxf-emol table td{text-align:left;border:none}
         <div style="background:#dcfce7; border:1px solid #16a34a; padding:8px 10px; border-radius:6px; margin-bottom:8px; font-size:0.85rem;">
             <label style="display:flex; align-items:center; gap:8px; font-weight:bold; color:#14532d; cursor:pointer;">
                 <input type="checkbox" id="autoArrearDates" checked onchange="if(this.checked){syncFixationToArrear();}">
-                Auto-fetch 18-Year arrear dates from Pay Fixation (default)
+                Auto-fetch arrear dates &amp; basic pay from the selected Pay Table event (Type of Arrear above)
             </label>
             <div id="autoArrearStatus" style="margin-top:4px; color:#166534;"></div>
-            <div style="color:#475569; margin-top:2px;">Benefit w.e.f. / Arrear From = 18-Years CAS date in the generated Pay Table; Arrear To = day before &ldquo;Salary Updated / Drawn Revised From&rdquo;. Editing any of these dates by hand switches this off.</div>
+            <div style="color:#475569; margin-top:2px;">Benefit w.e.f. / Arrear From = date of the selected event in the generated Pay Table; Arrear To = day before &ldquo;Salary Updated / Drawn Revised From&rdquo;. Editing any of these dates by hand switches this off.</div>
         </div>
         <div class="grid">
             <div class="fg"><label>Arrear Period From</label><input type="date" id="arrearFrom" value="2025-10-04" onchange="manualArrearDateEdit(); generateArrearTable()"></div>
@@ -1532,14 +1548,20 @@ table.fxf-emol table td{text-align:left;border:none}
         </div>
 
         <div style="background:#e2e8f0; padding:12px; border-radius:6px; margin-top:10px;">
-            <label style="color:#1e293b; font-weight:bold; margin-bottom:6px; display:block;">Long Period Sub-Period Tool:</label>
-            <div class="grid" style="margin-bottom:0;">
-                <div class="fg"><label>Sub-Period From</label><input type="date" id="subFrom" value="2025-10-04"></div>
-                <div class="fg"><label>Sub-Period To</label><input type="date" id="subTo" value="2025-10-31"></div>
-                <div class="fg"><label>Drawn Basic for Sub-Period (₹)</label><input type="number" id="subDrawnBasic" value="58600"></div>
+            <label style="color:#1e293b; font-weight:bold; margin-bottom:4px; display:block;">Drawn Pay &mdash; Period-wise Lines (for long-term arrears where several different basic pays were drawn)</label>
+            <div style="font-size:0.75rem; color:#475569; margin-bottom:6px;">Add one line for every period in which a different Basic Pay was actually drawn. Admissible Basic Pay is fetched automatically from the Pay Table for every month (shown for each line). A month that has two different drawn pays is worked out day-weighted. Days not covered by any line use the &ldquo;Pre-Benefit / Drawn Basic Pay&rdquo; of Section 6. If lines overlap, the lower line wins.</div>
+            <div id="drawnLinesWrap" class="table-wrap"></div>
+            <div class="grid" style="margin:8px 0 0;">
+                <div class="fg"><label>New Line: From</label><input type="date" id="subFrom" value="2025-10-04"></div>
+                <div class="fg"><label>New Line: To</label><input type="date" id="subTo" value="2025-10-31"></div>
+                <div class="fg"><label>Drawn Basic for this Line (&#8377;)</label><input type="number" id="subDrawnBasic" value="58600"></div>
                 <div class="fg" style="justify-content:flex-end;">
-                    <button class="btn-main" type="button" onclick="applySubPeriodDrawnPay()">Apply Drawn Pay</button>
+                    <button class="btn-main" type="button" onclick="addDrawnLine()">+ Add Line</button>
                 </div>
+            </div>
+            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn-add" type="button" onclick="splitDrawnLinesAtPayTable()" title="Cut the arrear period into lines at every date where the Admissible Basic Pay changes in the Pay Table">&#9986; Split period at Pay Table change dates</button>
+                <button class="btn-add" type="button" style="background:#64748b;" onclick="resetDrawnLines()">Reset to single line (Pre-Benefit basic)</button>
             </div>
         </div>
 
@@ -2642,6 +2664,8 @@ function buildFullRecord() {
         promoEvents: (function () { try { return collectPromoExtraRows(); } catch (e) { return []; } })(),
         lwpRows: lwpRows,
         arrearRows: arrearRows,
+        arrearTypeKey: window._arrearTypeKey || '',
+        drawnLines: drawnLines,
         odRows: odRows,
         ow: (function () { try { return owExport(); } catch (e) { return null; } })(),
         profile: (function () { try { return profCollect(); } catch (e) { return null; } })(),
@@ -6019,8 +6043,11 @@ async function fetch18YFromSb() {
         }
 
         // 3. Fill Section 6
+        window._arrearTypeKey = arrearEventKey(row);   // 18-Year arrear explicitly chosen by this button
         const cb = document.getElementById('autoArrearDates'); if (cb) cb.checked = true;
         syncFixationToArrear();                      // Benefit w.e.f., Arrear From/To, Pre / Post Basic Pay
+        try { const e18 = (window._arrearEvents || []).find(e => e.key === window._arrearTypeKey); if (e18) applyArrearEventTexts(e18); } catch (e) {}
+        resetDrawnLines(true);
         const bd = new Date(row.date); bd.setHours(0, 0, 0, 0);
         const dayBefore = new Date(bd); dayBefore.setDate(dayBefore.getDate() - 1);
         const adm = sbDescribeScaleAt(bd), drw = sbDescribeScaleAt(dayBefore);
@@ -6073,54 +6100,189 @@ function find18YearRow() {
     }
     return null;
 }
-function autoFetch18YArrearDates() {
+
+// ================= TYPE OF ARREAR (chosen by the user - nothing is loaded by default) =================
+window._arrearTypeKey = window._arrearTypeKey || '';
+window._arrearEvents = [];
+function arrearEventKey(r) { return 'ev|' + ymdLocal(new Date(r.date)) + '|' + String(r.label || ''); }
+
+// Collects every benefit / fixation / increment event of the generated Pay Table (all eras).
+function buildArrearEvents() {
+    const out = [], seen = new Set();
+    const e98 = document.getElementById('enableRopa98'), e09 = document.getElementById('enableRopa09');
+    const sets = [
+        ['ROPA-98', (e98 && e98.checked) ? window.pfTimeline98 : null],
+        ['ROPA-09', (e09 && e09.checked) ? window.pfTimeline09 : null],
+        ['ROPA-19', window.pfTimeline19]
+    ];
+    sets.forEach(([era, tl]) => {
+        if (!tl || !tl.length) return;
+        tl.forEach(r => {
+            const label = String(r.label || '').trim();
+            if (!label || !r.date) return;
+            if (/^DOA\b/i.test(label) || /OPTION\s*\/\s*FITMENT/i.test(label)) return;
+            const d = new Date(r.date); d.setHours(0, 0, 0, 0);
+            const key = arrearEventKey(r);
+            if (seen.has(key)) return; seen.add(key);
+            const db = new Date(d); db.setDate(db.getDate() - 1);
+            const post = getAdmissibleSnapshotForDate(d), pre = getAdmissibleSnapshotForDate(db);
+            const m = label.match(/(\d+)\s*YEARS/i);
+            const isIncr = /^INCREMENT$/i.test(label);
+            out.push({ key, date: d, label, era, pre: pre ? pre.revBasic : 0, post: post ? post.revBasic : 0,
+                       n: m ? parseInt(m[1], 10) : 0, cat: m ? 'milestone' : (isIncr ? 'incr' : 'promo') });
+        });
+    });
+    // 18-Years benefit not in the Pay Table but DOJ known: offer a computed fallback (clearly marked)
+    if (!out.some(e => e.n === 18)) {
+        const dojStr = val('doj');
+        if (dojStr) {
+            const dj = new Date(dojStr + 'T00:00:00');
+            const d = new Date(dj.getFullYear() + 18, dj.getMonth(), dj.getDate());
+            const db = new Date(d); db.setDate(db.getDate() - 1);
+            const post = getAdmissibleSnapshotForDate(d), pre = getAdmissibleSnapshotForDate(db);
+            out.push({ key: 'DOJ18', date: d, label: '18 YEARS (computed: DOJ + 18 yrs - not in Pay Table)', era: '', pre: pre ? pre.revBasic : 0, post: post ? post.revBasic : 0, n: 18, cat: 'milestone' });
+        }
+    }
+    out.sort((a, b) => a.date - b.date);
+    window._arrearEvents = out;
+    return out;
+}
+function arrearEventLabel(e) {
+    const inr = n => '\u20B9' + Number(n || 0).toLocaleString('en-IN');
+    return fmtDMY(ymdLocal(e.date)) + ' \u2014 ' + e.label + (e.era ? ' [' + e.era + ']' : '') + (e.pre || e.post ? '  (' + inr(e.pre) + ' \u2192 ' + inr(e.post) + ')' : '');
+}
+function refreshArrearTypeOptions() {
+    const sel = document.getElementById('arrearTypeSel'); if (!sel) return;
+    const evs = buildArrearEvents();
+    let key = window._arrearTypeKey || '';
+    if (key === '18Y-legacy') { const e = evs.find(x => x.n === 18); key = e ? e.key : ''; window._arrearTypeKey = key; }
+    const opt = e => '<option value="' + e.key.replace(/"/g, '&quot;') + '">' + arrearEventLabel(e).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>';
+    const ben = evs.filter(e => e.cat !== 'incr'), inc = evs.filter(e => e.cat === 'incr');
+    let h = '<option value="">\u2014 Select type of arrear \u2014</option>';
+    if (ben.length) h += '<optgroup label="Benefits / Fixations (as per Pay Table)">' + ben.map(opt).join('') + '</optgroup>';
+    if (inc.length) h += '<optgroup label="Annual Increments (as per Pay Table)">' + inc.map(opt).join('') + '</optgroup>';
+    h += '<option value="manual">\u270E Manual entry (type dates &amp; basic pay by hand)</option>';
+    sel.innerHTML = h;
+    sel.value = key;
+    if (sel.value !== key) sel.value = '';
+    updateArrearTypeStatus();
+}
+function updateArrearTypeStatus() {
+    const st = document.getElementById('arrearTypeStatus'); if (!st) return;
+    const key = window._arrearTypeKey || '';
+    const hasTables = (window.pfTimeline19 && window.pfTimeline19.length > 0);
+    if (!key) {
+        st.style.color = '#b91c1c';
+        st.innerHTML = '&#9888; Choose the type of arrear above' + (hasTables ? '.' : ' (generate the Pay Table first to see its events, or pick Manual entry).');
+    } else if (key === 'manual') {
+        st.style.color = '#334155';
+        st.innerHTML = '&#9998; Manual entry &mdash; enter Benefit w.e.f., Arrear period and Pre / Post Basic Pay in Sections 6 &amp; 7, and the drawn-pay lines below.';
+    } else {
+        const ev = (window._arrearEvents || []).find(e => e.key === key);
+        if (!ev) { st.style.color = '#b45309'; st.innerHTML = '&#9888; The selected event is no longer in the Pay Table (data changed). Please choose again.'; return; }
+        st.style.color = '#166534';
+        st.innerHTML = '&#10003; Selected: <b>' + ev.label + '</b> w.e.f. <b>' + fmtDMY(ymdLocal(ev.date)) + '</b>' + (ev.pre || ev.post ? ' &mdash; Basic &#8377;' + ev.pre.toLocaleString('en-IN') + ' &rarr; &#8377;' + ev.post.toLocaleString('en-IN') : '') +
+            (ev.n === 18 ? ' &mdash; <i>18-Year benefit arrear.</i>' : '');
+    }
+}
+function arrearReasonFor(ev) {
+    if (ev.cat === 'milestone') return 'The arrears claimed in this bill are due to the delayed approval of the ' + ev.n + '-year benefit fixation';
+    if (ev.cat === 'incr') return 'The arrears claimed in this bill are due to the delayed sanction / drawal of the annual increment';
+    return 'The arrears claimed in this bill are due to the delayed approval of the pay fixation (' + ev.label + ')';
+}
+function applyArrearEventTexts(ev) {
+    const reasonEl = document.getElementById('reasonLong');
+    if (reasonEl && (!reasonEl.value.trim() || /^The arrears claimed in this bill are due to the delayed /i.test(reasonEl.value.trim()))) reasonEl.value = arrearReasonFor(ev);
+    const bdEl = document.getElementById('benefitDesc');
+    if (bdEl && (!bdEl.value.trim() || /continuous service benefit|pay fixation under|annual increment under/i.test(bdEl.value))) {
+        const rn = ev.era === 'ROPA-98' ? 'ROPA-1998' : (ev.era === 'ROPA-09' ? 'ROPA-2009' : 'ROPA-2019');
+        bdEl.value = ev.cat === 'milestone' ? (ev.n + " years' continuous service benefit under " + rn)
+                   : (ev.cat === 'incr' ? 'annual increment under ' + rn : ev.label + ' pay fixation under ' + rn);
+    }
+    try {
+        const d = new Date(ev.date), db = new Date(d); db.setDate(db.getDate() - 1);
+        const adm = sbDescribeScaleAt(d), drw = sbDescribeScaleAt(db);
+        if (adm && document.getElementById('scaleAdmissible')) document.getElementById('scaleAdmissible').value = adm;
+        if (drw && document.getElementById('scaleDrawn')) document.getElementById('scaleDrawn').value = drw;
+    } catch (e) {}
+}
+function onArrearTypeChange() {
+    const sel = document.getElementById('arrearTypeSel'); if (!sel) return;
+    const key = sel.value;
+    window._arrearTypeKey = key;
+    const cb = document.getElementById('autoArrearDates');
+    const st = document.getElementById('autoArrearStatus');
+    drawnLines = []; drawnLineSeq = 1;
+    if (!key) { updateArrearTypeStatus(); renderDrawnLines(); return; }
+    if (key === 'manual') {
+        if (cb) cb.checked = false;
+        if (st) st.innerHTML = 'Manual dates in use &mdash; enter them in this section.';
+        updateArrearTypeStatus();
+        resetDrawnLines(true);
+        updateAll(); generateArrearTable();
+        return;
+    }
+    if (cb) cb.checked = true;
+    syncFixationToArrear();                     // fills Benefit w.e.f., Arrear From/To, Pre / Post Basic
+    const ev = (window._arrearEvents || []).find(e => e.key === key);
+    if (ev) applyArrearEventTexts(ev);
+    updateArrearTypeStatus();
+    resetDrawnLines(true);
+    updateAll(); generateArrearTable();
+}
+
+// ---- AUTO-FETCH ARREAR DATES FROM THE EVENT CHOSEN IN "TYPE OF ARREAR" ----
+function manualArrearDateEdit() {
+    const cb = document.getElementById('autoArrearDates');
+    if (cb && cb.checked) {
+        cb.checked = false;
+        const st = document.getElementById('autoArrearStatus');
+        if (st) st.innerHTML = 'Manual dates in use &mdash; tick the box above to go back to auto-fetch.';
+    }
+}
+function ymdLocal(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function autoFetch18YArrearDates() {      // name kept for older callers; now works for ANY selected event
     const cb = document.getElementById('autoArrearDates');
     if (!cb || !cb.checked) return false;
     const st = document.getElementById('autoArrearStatus');
-    const row = find18YearRow();
-    let from, viaDoj = false;
-    if (row) {
-        from = new Date(row.date); from.setHours(0, 0, 0, 0);
-    } else {
-        // No 18-Years row in the Pay Table (not generated yet / scale excluded): fall back to DOJ + 18 years.
-        const dojStr = val('doj');
-        if (!dojStr) {
-            if (st) st.innerHTML = '&#9888; Date of Joining missing &mdash; arrear dates left unchanged.';
-            return false;
-        }
-        const dj = new Date(dojStr + 'T00:00:00');
-        from = new Date(dj.getFullYear() + 18, dj.getMonth(), dj.getDate());
-        viaDoj = true;
-    }
+    const key = window._arrearTypeKey || '';
+    if (!key) { if (st) st.innerHTML = '<span style="color:#b91c1c;">&#9888; Select the Type of Arrear (6A) &mdash; nothing is auto-loaded until you choose.</span>'; return false; }
+    if (key === 'manual') return false;
+    const ev = (window._arrearEvents || []).find(e => e.key === key);
+    if (!ev) { if (st) st.innerHTML = '<span style="color:#b45309;">&#9888; Selected event not found in the current Pay Table &mdash; choose again in 6A.</span>'; return false; }
+    const from = new Date(ev.date); from.setHours(0, 0, 0, 0);
     document.getElementById('benefitDate').value = ymdLocal(from);
     document.getElementById('arrearFrom').value = ymdLocal(from);
-    let toTxt = '';
+    let warn = '';
     const su = val('salaryUpdatedFrom');
     if (su) {
         const to = new Date(su + 'T00:00:00'); to.setDate(to.getDate() - 1);
         if (to >= from) { document.getElementById('arrearTo').value = ymdLocal(to); }
-    }
-    ['subFrom'].forEach(id => { const el = document.getElementById(id); if (el) el.value = val('arrearFrom'); });
+        else warn = ' <span style="color:#b45309;">&#9888; &ldquo;Salary Updated / Drawn Revised From&rdquo; is not after the event date &mdash; set Arrear Period To by hand.</span>';
+    } else warn = ' <span style="color:#b45309;">&#9888; Enter &ldquo;Salary Updated / Drawn Revised From&rdquo; (Section 6) to fix Arrear Period To.</span>';
+    const subFrom = document.getElementById('subFrom'); if (subFrom) subFrom.value = val('arrearFrom');
     const subTo = document.getElementById('subTo'); if (subTo) subTo.value = val('arrearTo');
-    if (st) st.innerHTML = '&#10003; Auto-fetched: ' + fmtDMY(val('arrearFrom')) + ' TO ' + fmtDMY(val('arrearTo')) + ' (18 Years benefit w.e.f. ' + fmtDMY(val('benefitDate')) + (viaDoj ? ', computed as DOJ + 18 years &mdash; no 18-Years row in Pay Table' : ', from Pay Table') + ')';
+    if (st) st.innerHTML = '&#10003; Auto-fetched: ' + fmtDMY(val('arrearFrom')) + ' TO ' + fmtDMY(val('arrearTo')) + ' (' + ev.label + ' w.e.f. ' + fmtDMY(val('benefitDate')) + (key === 'DOJ18' ? ', computed as DOJ + 18 years &mdash; no 18-Years row in Pay Table' : ', from Pay Table') + ')' + warn;
     return true;
 }
 
 function syncFixationToArrear() {
-    autoFetch18YArrearDates();
-    const bd = val('benefitDate') ? new Date(val('benefitDate') + 'T00:00:00') : null;
-    if (bd) {
-        const snapAtBd = getAdmissibleSnapshotForDate(bd);
-        const dayBefore = new Date(bd); dayBefore.setDate(dayBefore.getDate() - 1);
-        const snapBefore = getAdmissibleSnapshotForDate(dayBefore);
-
-        if (snapAtBd) document.getElementById('currBasic').value = snapAtBd.revBasic;
-        if (snapBefore) document.getElementById('prevBasic').value = snapBefore.revBasic;
-        const cbA = document.getElementById('autoArrearDates');
-        const sdb = document.getElementById('subDrawnBasic');
-        if (cbA && cbA.checked && sdb && snapBefore) sdb.value = snapBefore.revBasic;
+    try { refreshArrearTypeOptions(); } catch (e) { console.warn('Arrear type list failed:', e); }
+    const fetched = autoFetch18YArrearDates();
+    if (fetched) {
+        const bd = val('benefitDate') ? new Date(val('benefitDate') + 'T00:00:00') : null;
+        if (bd) {
+            const snapAtBd = getAdmissibleSnapshotForDate(bd);
+            const dayBefore = new Date(bd); dayBefore.setDate(dayBefore.getDate() - 1);
+            const snapBefore = getAdmissibleSnapshotForDate(dayBefore);
+            if (snapAtBd) document.getElementById('currBasic').value = snapAtBd.revBasic;
+            if (snapBefore) document.getElementById('prevBasic').value = snapBefore.revBasic;
+            const sdb = document.getElementById('subDrawnBasic');
+            if (sdb && snapBefore) sdb.value = snapBefore.revBasic;
+        }
     }
-
     if (val('arrearFrom') && val('arrearTo')) {
         generateArrearTable();
     }
@@ -6182,7 +6344,7 @@ function generateArrearTable() {
     while (curr <= end) {
         let y = curr.getFullYear(), m = curr.getMonth() + 1;
         let tDays = daysInMonth(y, m);
-        let admBasic, drBasic = prevB;
+        let admBasic, drBasic = drawnBasicForMonth(y, m, prevB);
 
         if (hasTables) {
             admBasic = monthWeightedBasicFromTimeline(y, m, prevB);
@@ -6427,22 +6589,108 @@ function renderDashboardTable() {
     updateAll();
 }
 
-function applySubPeriodDrawnPay() {
-    const sFrom = new Date(val('subFrom') + 'T00:00:00');
-    const sTo = new Date(val('subTo') + 'T00:00:00');
-    const sDrawn = num('subDrawnBasic');
+// ================= DRAWN PAY - PERIOD-WISE LINES =================
+let drawnLines = [];      // { id, from:'YYYY-MM-DD', to:'YYYY-MM-DD', basic }
+let drawnLineSeq = 1;
 
-    let count = 0;
-    arrearRows.forEach(row => {
-        let rDate = new Date(row.y, row.m - 1, 1);
-        if (rDate >= new Date(sFrom.getFullYear(), sFrom.getMonth(), 1) &&
-            rDate <= new Date(sTo.getFullYear(), sTo.getMonth(), 1)) {
-            row.drBasic = sDrawn; count++;
+function drawnBasicOnDay(dt, fallback) {
+    let hit = null;
+    for (const l of drawnLines) {
+        if (!l.from || !l.to) continue;
+        const f = new Date(l.from + 'T00:00:00'), t = new Date(l.to + 'T00:00:00');
+        if (dt >= f && dt <= t) hit = l;       // later line wins on overlap
+    }
+    return hit ? (Number(hit.basic) || 0) : fallback;
+}
+// Day-weighted drawn Basic of a month (same method as the admissible Basic from the Pay Table).
+function drawnBasicForMonth(y, m, fallback) {
+    if (!drawnLines.length) return fallback;
+    const n = daysInMonth(y, m);
+    let sum = 0;
+    for (let d = 1; d <= n; d++) sum += drawnBasicOnDay(new Date(y, m - 1, d), fallback);
+    return Math.round(sum / n);
+}
+function sortDrawnLines() { drawnLines.sort((a, b) => String(a.from).localeCompare(String(b.from))); }
+function addDrawnLine() {
+    const f = val('subFrom'), t = val('subTo'), b = num('subDrawnBasic');
+    if (!f || !t) { alert('Enter the From and To dates of the line.'); return; }
+    if (t < f) { alert('"To" date cannot be before "From" date.'); return; }
+    if (!(b > 0)) { alert('Enter the Drawn Basic Pay for this line.'); return; }
+    drawnLines.push({ id: drawnLineSeq++, from: f, to: t, basic: b });
+    sortDrawnLines(); renderDrawnLines(); generateArrearTable();
+}
+function applySubPeriodDrawnPay() { addDrawnLine(); }     // backward-compatible name
+function updateDrawnLine(id, field, value) {
+    const l = drawnLines.find(x => x.id === id); if (!l) return;
+    l[field] = (field === 'basic') ? (parseFloat(value) || 0) : value;
+    if (field !== 'basic') { sortDrawnLines(); renderDrawnLines(); }
+    generateArrearTable();
+}
+function removeDrawnLine(id) { drawnLines = drawnLines.filter(x => x.id !== id); renderDrawnLines(); generateArrearTable(); }
+function resetDrawnLines(quiet) {
+    const f = val('arrearFrom'), t = val('arrearTo'), b = num('prevBasic');
+    drawnLines = (f && t && b > 0) ? [{ id: drawnLineSeq++, from: f, to: t, basic: b }] : [];
+    renderDrawnLines();
+    if (!quiet) generateArrearTable();
+}
+// Text like "Rs 58,600 -> w.e.f. 04-10-2025: Rs 68,531" = Admissible Basic Pay (Pay Table) over the line.
+function admissibleSpanText(f, t) {
+    if (!f || !t) return '';
+    const a = new Date(f + 'T00:00:00'), b = new Date(t + 'T00:00:00');
+    if (isNaN(a) || isNaN(b) || b < a) return '';
+    if ((b - a) / 864e5 > 9300) return '';
+    if (!(window.pfTimeline19 && window.pfTimeline19.length)) return 'Pay Table not generated';
+    let prev = null; const parts = [];
+    for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
+        const sn = getAdmissibleSnapshotForDate(new Date(d));
+        const v = sn ? sn.revBasic : null;
+        if (v !== prev) { parts.push({ d: ymdLocal(d), v }); prev = v; }
+    }
+    return parts.map((p, i) => (i === 0 ? '' : 'w.e.f. ' + fmtDMY(p.d) + ': ') + '\u20B9' + Number(p.v || 0).toLocaleString('en-IN')).join(' \u2192 ');
+}
+function renderDrawnLines() {
+    const wrap = document.getElementById('drawnLinesWrap'); if (!wrap) return;
+    if (!drawnLines.length) {
+        wrap.innerHTML = '<div style="font-size:0.8rem; color:#475569;">No lines added &mdash; the Pre-Benefit / Drawn Basic Pay of Section 6 is used for the whole arrear period.</div>';
+        return;
+    }
+    wrap.innerHTML = '<table style="border-collapse:collapse; font-size:0.85rem; width:100%;"><thead><tr style="background:#cbd5e1;">' +
+        '<th style="padding:4px;">#</th><th style="padding:4px;">From</th><th style="padding:4px;">To</th><th style="padding:4px;">Drawn Basic (&#8377;)</th><th style="padding:4px;">Admissible Basic as per Pay Table</th><th></th></tr></thead><tbody>' +
+        drawnLines.map((l, i) => '<tr>' +
+            '<td style="padding:3px; text-align:center;">' + (i + 1) + '</td>' +
+            '<td style="padding:3px;"><input type="date" class="tbl-input" style="width:140px;" value="' + l.from + '" onchange="updateDrawnLine(' + l.id + ',\'from\',this.value)"></td>' +
+            '<td style="padding:3px;"><input type="date" class="tbl-input" style="width:140px;" value="' + l.to + '" onchange="updateDrawnLine(' + l.id + ',\'to\',this.value)"></td>' +
+            '<td style="padding:3px;"><input type="number" class="tbl-input" style="width:110px;" value="' + l.basic + '" onchange="updateDrawnLine(' + l.id + ',\'basic\',this.value)"></td>' +
+            '<td style="padding:3px; color:#166534; font-weight:600;">' + admissibleSpanText(l.from, l.to) + '</td>' +
+            '<td style="padding:3px;"><button type="button" class="btn-del" onclick="removeDrawnLine(' + l.id + ')">Del</button></td></tr>').join('') +
+        '</tbody></table>';
+}
+// Cuts the arrear period into lines wherever the Admissible Basic changes in the Pay Table;
+// the drawn basic of each new line starts from what was drawn on that day (edit it afterwards).
+function splitDrawnLinesAtPayTable() {
+    const f = val('arrearFrom'), t = val('arrearTo');
+    if (!f || !t) { alert('Set the Arrear Period From / To first.'); return; }
+    const a = new Date(f + 'T00:00:00'), b = new Date(t + 'T00:00:00');
+    if (b < a) { alert('Arrear Period To is before From.'); return; }
+    if ((b - a) / 864e5 > 9300) { alert('Period too long to split (over 25 years).'); return; }
+    if (!(window.pfTimeline19 && window.pfTimeline19.length)) { alert('Generate the Pay Table first.'); return; }
+    const fb = num('prevBasic');
+    const segs = []; let cur = null, prevV = null;
+    for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
+        const sn = getAdmissibleSnapshotForDate(new Date(d));
+        const v = sn ? sn.revBasic : null;
+        if (cur === null || v !== prevV) {
+            if (cur) { cur.to = ymdLocal(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1)); segs.push(cur); }
+            cur = { from: ymdLocal(d), to: '', basic: drawnBasicOnDay(new Date(d), fb) };
+            prevV = v;
         }
-    });
-
-    renderDashboardTable();
-    alert(`Sub-period drawn pay ₹${sDrawn} applied across ${count} month(s).`);
+    }
+    if (cur) { cur.to = ymdLocal(b); segs.push(cur); }
+    const old = drawnLines;
+    drawnLines = segs.map(sg => Object.assign({ id: drawnLineSeq++ }, sg));
+    // keep the user's own drawn basic where an old line starts on the same date
+    drawnLines.forEach(l => { const o = old.find(x => x.from === l.from); if (o) l.basic = o.basic; });
+    renderDrawnLines(); generateArrearTable();
 }
 
 function updateAll() {
@@ -9305,6 +9553,11 @@ function applyLoadedRecord(docId, record) {
     if (!daSchedule.some(r => r.from === '2026-10')) daSchedule.push({ id: 9000, from: '2026-10', pct: 38 });
     daScheduleSeq = daSchedule.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
     renderDaSchedule();
+    // Type of Arrear + period-wise drawn pay lines (older records: 18-Year if auto was on, else manual)
+    drawnLines = Array.isArray(record.drawnLines) ? record.drawnLines : [];
+    drawnLineSeq = drawnLines.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+    window._arrearTypeKey = (typeof record.arrearTypeKey === 'string') ? record.arrearTypeKey
+        : ((record.fields && record.fields.autoArrearDates === false) ? 'manual' : '18Y-legacy');
     // Rebuild pay tables for this staff so 18-Year dates auto-fetch (skipped if the user switched auto off).
     try { processFixationTimeline(); } catch (e) { console.warn('Auto pay-table build failed:', e); }
 
@@ -9323,6 +9576,7 @@ function applyLoadedRecord(docId, record) {
     generateDaCaseTable();
 
     try { refreshSb18Button(); } catch (e) {}
+    try { refreshArrearTypeOptions(); renderDrawnLines(); } catch (e) {}
     alert(`Loaded saved record: "${docId}"\n(Last saved: ${record.savedAt ? new Date(record.savedAt).toLocaleString() : 'unknown'})`);
 }
 
@@ -11467,6 +11721,11 @@ window.printAnnex98 = function () {
   window.seedBlankCase = seedBlankCase;
   window.addEventListener('load', function(){ setTimeout(seedSubhenduCase, 0); });
 })();
+</script>
+<script>
+window.addEventListener('DOMContentLoaded', function () {
+    try { renderDrawnLines(); refreshArrearTypeOptions(); } catch (e) { console.warn(e); }
+});
 </script>
 </body>
 </html>
