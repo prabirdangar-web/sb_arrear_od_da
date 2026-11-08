@@ -1479,6 +1479,7 @@ table.fxf-emol table td{text-align:left;border:none}
                 <label style="color:#5b21b6; font-weight:bold;">What type of arrear do you want to prepare? (list is built from this staff's generated Pay Table)</label>
                 <select id="arrearTypeSel" onchange="onArrearTypeChange()">
                     <option value="">&mdash; Select type of arrear &mdash;</option>
+                    <option value="nonbed">Non-B.Ed Fixation arrear (as per Memo)</option>
                     <option value="manual">&#9998; Manual entry (type dates &amp; basic pay by hand)</option>
                 </select>
             </div>
@@ -1499,7 +1500,7 @@ table.fxf-emol table td{text-align:left;border:none}
             <div class="fg"><label>Benefit Effective Date (w.e.f.)</label><input type="date" id="benefitDate" value="2025-10-04" onchange="manualArrearDateEdit(); generateArrearTable()"></div>
             <div class="fg wide"><label>Approval Memo No. &amp; Date</label><input id="approvalMemo" value="1890/1(2)/S ; dated : 31-10-2025" onchange="updateAll()"></div>
             <div class="fg"><label>Salary Updated / Drawn Revised From</label><input type="date" id="salaryUpdatedFrom" value="2025-12-01" onchange="updateAll()"></div>
-            <div class="fg"><label>Non-B.Ed Fixation Memo No.</label><input id="nonBedMemo" value="Memo No. 118 Dated 06/02/2018" onchange="updateAll()"></div>
+            <div class="fg" id="nonBedWrap" style="display:none;"><label>Non-B.Ed Fixation Memo No.</label><input id="nonBedMemo" value="Memo No. 118 Dated 06/02/2018" onchange="updateAll()"></div>
             <div class="fg"><label>Pre-Benefit / Drawn Basic Pay (₹)</label><input type="number" id="prevBasic" value="58600" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Post-Benefit Basic Pay (₹)</label><input type="number" id="currBasic" value="68531" onchange="generateArrearTable()"></div>
             <div class="fg"><label>Scale Admissible (Descriptive)</label><input id="scaleAdmissible" value="LEVEL-12 (PB-4: 9000-40500, GP: 4400)" onchange="updateAll()"></div>
@@ -6071,7 +6072,7 @@ async function fetch18YFromSb() {
             '; Admissible: ' + (adm || '-') + '; Drawn: ' + (drw || '-') +
             (memoTxt ? '; Approval Memo: ' + memoTxt : '; <span style="color:#b45309">Approval Memo not found in SB (D.I. Approval Memo No./Date) &mdash; enter manually</span>') +
             (lwpAdded ? '; ' + lwpAdded + ' new LWP entr' + (lwpAdded > 1 ? 'ies' : 'y') + ' added' : '') +
-            '. <span style="color:#475569">Not in SB &mdash; check manually: Salary Updated / Drawn Revised From, Non-B.Ed Fixation Memo.</span>', '#166534');
+            '. <span style="color:#475569">Not in SB &mdash; check manually: Salary Updated / Drawn Revised From.</span>', '#166534');
     } catch (err) {
         console.error('Fetch 18-Year data from SB failed:', err);
         const code = err && err.code ? ' [' + err.code + ']' : '';
@@ -6161,6 +6162,7 @@ function refreshArrearTypeOptions() {
     let h = '<option value="">\u2014 Select type of arrear \u2014</option>';
     if (ben.length) h += '<optgroup label="Benefits / Fixations (as per Pay Table)">' + ben.map(opt).join('') + '</optgroup>';
     if (inc.length) h += '<optgroup label="Annual Increments (as per Pay Table)">' + inc.map(opt).join('') + '</optgroup>';
+    h += '<option value="nonbed">Non-B.Ed Fixation arrear (as per Memo)</option>';
     h += '<option value="manual">\u270E Manual entry (type dates &amp; basic pay by hand)</option>';
     sel.innerHTML = h;
     sel.value = key;
@@ -6170,10 +6172,14 @@ function refreshArrearTypeOptions() {
 function updateArrearTypeStatus() {
     const st = document.getElementById('arrearTypeStatus'); if (!st) return;
     const key = window._arrearTypeKey || '';
+    const nb = document.getElementById('nonBedWrap'); if (nb) nb.style.display = (key === 'nonbed') ? '' : 'none';
     const hasTables = (window.pfTimeline19 && window.pfTimeline19.length > 0);
     if (!key) {
         st.style.color = '#b91c1c';
         st.innerHTML = '&#9888; Choose the type of arrear above' + (hasTables ? '.' : ' (generate the Pay Table first to see its events, or pick Manual entry).');
+    } else if (key === 'nonbed') {
+        st.style.color = '#334155';
+        st.innerHTML = '&#9998; Non-B.Ed Fixation arrear &mdash; enter the Non-B.Ed Fixation Memo No. in Section 6, then the benefit w.e.f. date, arrear period and Pre / Post Basic Pay, and the drawn-pay lines below.';
     } else if (key === 'manual') {
         st.style.color = '#334155';
         st.innerHTML = '&#9998; Manual entry &mdash; enter Benefit w.e.f., Arrear period and Pre / Post Basic Pay in Sections 6 &amp; 7, and the drawn-pay lines below.';
@@ -6214,8 +6220,14 @@ function onArrearTypeChange() {
     const st = document.getElementById('autoArrearStatus');
     drawnLines = []; drawnLineSeq = 1;
     if (!key) { updateArrearTypeStatus(); renderDrawnLines(); return; }
-    if (key === 'manual') {
+    if (key === 'manual' || key === 'nonbed') {
         if (cb) cb.checked = false;
+        if (key === 'nonbed') {
+            const r = document.getElementById('reasonLong');
+            if (r && (!r.value.trim() || /^The arrears claimed in this bill are due to the delayed /i.test(r.value.trim()))) r.value = 'The arrears claimed in this bill are due to the delayed approval of the Non-B.Ed pay fixation';
+            const bd = document.getElementById('benefitDesc');
+            if (bd && (!bd.value.trim() || /continuous service benefit|pay fixation under|annual increment under/i.test(bd.value))) bd.value = 'Non-B.Ed pay fixation';
+        }
         if (st) st.innerHTML = 'Manual dates in use &mdash; enter them in this section.';
         updateArrearTypeStatus();
         resetDrawnLines(true);
@@ -6249,7 +6261,7 @@ function autoFetch18YArrearDates() {      // name kept for older callers; now wo
     const st = document.getElementById('autoArrearStatus');
     const key = window._arrearTypeKey || '';
     if (!key) { if (st) st.innerHTML = '<span style="color:#b91c1c;">&#9888; Select the Type of Arrear (6A) &mdash; nothing is auto-loaded until you choose.</span>'; return false; }
-    if (key === 'manual') return false;
+    if (key === 'manual' || key === 'nonbed') return false;
     const ev = (window._arrearEvents || []).find(e => e.key === key);
     if (!ev) { if (st) st.innerHTML = '<span style="color:#b45309;">&#9888; Selected event not found in the current Pay Table &mdash; choose again in 6A.</span>'; return false; }
     const from = new Date(ev.date); from.setHours(0, 0, 0, 0);
