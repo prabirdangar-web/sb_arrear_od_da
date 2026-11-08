@@ -1485,6 +1485,13 @@ table.fxf-emol table td{text-align:left;border:none}
             </div>
             <button type="button" class="btn-main" onclick="refreshArrearTypeOptions()" title="Re-read the events from the Pay Table">&#8635; Reload list from Pay Table</button>
         </div>
+        <div style="margin-top:10px; padding:8px 10px; background:#fff; border:1px solid #c4b5fd; border-radius:6px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+            <label for="phEmp" style="font-weight:bold; color:#5b21b6; margin:0;">Is the employee Physically Handicapped (PH)? &mdash; Professional Tax may be exempted as per Govt. rule:</label>
+            <select id="phEmp" onchange="generateArrearTable(); if (typeof generateDaCaseTable === 'function') generateDaCaseTable();" style="min-width:230px;">
+                <option value="no" selected>No &mdash; P-Tax deducted as per slab</option>
+                <option value="yes">Yes (PH) &mdash; P-Tax exempted (Nil)</option>
+            </select>
+        </div>
         <div id="arrearTypeStatus" style="margin-top:6px; font-size:0.85rem; font-weight:600;"></div>
         <div style="font-size:0.75rem; color:#475569; margin-top:2px;">Nothing is loaded by default. 10 Years / 18 Years / 20 Years benefit, H.M. / promotion fixation and annual increments appear here only if they are present in the Pay Table. The 18-Years option is listed only when that benefit exists for this staff.</div>
     </div>
@@ -6310,6 +6317,9 @@ function isNewPtSlabMonth(y, m) {
 }
 
 function ptSlab(gross, y, m) {
+    // PH (physically handicapped) employee: Professional Tax exempted as per Govt. rule (chosen in 6A)
+    const _ph = document.getElementById('phEmp');
+    if (_ph && _ph.value === 'yes') return 0;
     if (isNewPtSlabMonth(y, m)) {
         // New Profession Tax slab effective from Oct-2026
         if (gross <= 20000) return 0;
