@@ -3460,6 +3460,10 @@ function fixationModeLabel(ev, evType) {
     
 /* ===== ROPA-1990 + multi-event promotion chain (ported from SB) ===== */
     const AGP_AMOUNT = 200;
+    // Higher scale / promotion that falls AFTER the ROPA-09 Date of Option (staff opted ROPA-09 while still in the lower scale):
+    // fixation continues in ROPA-09 on the pay as on the option date - NOT re-taken from the ROPA-98 higher-scale pay x 1.86.
+    // Only exception: RECAST (AHM -> AT, no protection) still takes the ROPA-98 AT pay. Same rule as the Pay Fixation / SB tool.
+    const ROPA09_USE_ROPA98_FIT = false;
     const HM98_SCALE_KEY = 5400;
     const gpOfScaleKey98 = k => (k === HM98_SCALE_KEY ? 5400 : k);
     const ROPA90_SCALES = {
@@ -5092,7 +5096,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             // Recast / Reversion falling AFTER the 01-01-2006 option date but inside the ROPA-1998 notional window:
             // the ROPA-98 timeline already holds the correct AT pay on this date (AHM benefit deducted), so ROPA-09 pay
             // = that ROPA-98 basic x 1.86 (rounded up to next Rs.10) + AT Grade Pay - same method as the 01-01-2006 fixation.
-            const r98rev = (!_isBg && Array.isArray(window.__ropa98FitRows) && ev.date > optionDate)
+            const r98rev = (!_isBg && ev.noProtect && Array.isArray(window.__ropa98FitRows) && ev.date > optionDate)
                 ? window.__ropa98FitRows.find(r => r.date.getTime() === ev.date.getTime() && /RECAST|REVERSION/i.test(r.label) && r.snapBasicPay)
                 : null;
             if (r98rev) {
@@ -5144,7 +5148,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             // ROPA-98 basic x 1.86 (rounded up to next Rs.10) + Grade Pay - same method as the 01-01-2006 fixation.
             // AHM / HM posts are NOT re-fitted from ROPA-98 pay: ROPA-09 pay already drawn runs on (one additional increment in the
             // existing ROPA-09 pay + change of Grade Pay), as per vetted fixation (e.g. HM High School 06-10-2007: 21,110 + 640 + GP 5400).
-            const r98fit = (!_isBg && Array.isArray(window.__ropa98FitRows) && ev.date > optionDate && !['ahm', 'hmjr', 'hm', 'hmhs'].includes(ev.kind))
+            const r98fit = (!_isBg && ROPA09_USE_ROPA98_FIT && Array.isArray(window.__ropa98FitRows) && ev.date > optionDate && !['ahm', 'hmjr', 'hm', 'hmhs'].includes(ev.kind))
                 ? window.__ropa98FitRows.find(r => r.date.getTime() === ev.date.getTime() && /PROMOTION|HIGHER SCALE/i.test(r.label) && r.snapBasicPay)
                 : null;
             if (r98fit) {
