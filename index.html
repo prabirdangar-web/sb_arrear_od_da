@@ -2613,14 +2613,67 @@ auth.onAuthStateChanged(user => {
 // Throws a clear "please sign in" error rather than silently proceeding
 // unauthenticated, so callers' existing try/catch + alert() already surface
 // this correctly without any changes at their end.
+// ---- DIRECT OPEN FROM SB.html: "Arrear" button passes ?sb=<TEACHER KEY> ----
+// Takes that ONE teacher from the Pay Fixation / Service Book tool (fresh hand-off copy from the same browser if present,
+// else tfhs/ropaPayFixation), copies the same Pay-Tab fields + promotion events + LWP leave entries that the bulk import copies
+// (Arrear / Over Drawn / DA data already saved for the staff is never touched), saves it, then opens it here.
+async function ckImportOneFromSb(key) {
+    try {
+        await ensureFirebaseAuth();
+        let src = null;
+        try {
+            const h = JSON.parse(localStorage.getItem('TFHS_SB_TO_ARREAR') || 'null');
+            if (h && h.key === key && h.data && (Date.now() - h.savedAt) < 6 * 3600 * 1000) src = h.data;
+            localStorage.removeItem('TFHS_SB_TO_ARREAR');
+        } catch (e) { src = null; }
+        if (!src) {
+            const rs = await ROPA_FIXATION_DOC_REF.get({ source: 'server' });
+            const recs = (rs.exists && rs.data().records && typeof rs.data().records === 'object') ? rs.data().records : {};
+            src = recs[key] || null;
+        }
+        if (!src) { alert('Teacher "' + key + '" was not found in the Pay Fixation / Service Book tool. Save the teacher there first.'); return; }
+        const srcFields = src.fields || {};
+        const staffName = (srcFields.staffName || src.staffName || key || '').trim();
+        const schoolName = (srcFields.schoolName || val('schoolName') || '').trim();
+        const matched = {};
+        ROPA_IMPORT_MATCH_FIELDS.forEach(id => { if (Object.prototype.hasOwnProperty.call(srcFields, id)) matched[id] = srcFields[id]; });
+        matched.staffName = staffName; matched.schoolName = schoolName;
+        const leaveRows = mapSbLeaveEntriesToLwpRows(src);
+        const docId = `${schoolName}__${staffName}`.replace(/[^a-zA-Z0-9]+/g, '_').toLowerCase();
+        const ex = await ARREAR_DOC_REF.get({ source: 'server' });
+        const all = (ex.exists && ex.data().records && typeof ex.data().records === 'object') ? ex.data().records : {};
+        let rec = all[docId] && typeof all[docId] === 'object' ? Object.assign({}, all[docId]) : null;
+        if (rec) {
+            rec.fields = Object.assign({}, rec.fields || {}, matched);
+            const lw = Array.isArray(rec.lwpRows) ? rec.lwpRows.slice() : [];
+            let nid = lw.reduce((mx, r) => Math.max(mx, (r.id || 0) + 1), 1);
+            const sigs = new Set(lw.map(r => `${r.type}|${r.start}|${r.end}`));
+            leaveRows.forEach(lr => { const sg = `${lr.type}|${lr.start}|${lr.end}`; if (!sigs.has(sg)) { sigs.add(sg); lw.push(Object.assign({ id: nid++ }, lr)); } });
+            rec.lwpRows = lw;
+            if (Array.isArray(src.promoEvents)) rec.promoEvents = src.promoEvents;
+        } else {
+            rec = { fields: matched, lwpRows: leaveRows.map((lr, i) => Object.assign({ id: i + 1 }, lr)), promoEvents: Array.isArray(src.promoEvents) ? src.promoEvents : [],
+                    arrearRows: [], odRows: [], daBasicRows: [], daCaseRowData: {} };
+        }
+        rec.savedAt = new Date().toISOString();
+        all[docId] = rec;
+        await ARREAR_DOC_REF.set({ records: all, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        try { await refreshSavedRecordsList(docId); } catch (e) {}
+        await loadFullArrearDataFromDB(docId);
+    } catch (err) {
+        console.error('Open from SB failed:', err);
+        alert('Could not open this teacher from the Pay Fixation tool:\n' + (err.message || err));
+    }
+}
 let __deepLinkDone = false;
 async function ckHandleDeepLink() {
     if (__deepLinkDone) return;
     __deepLinkDone = true;
     const q = new URLSearchParams(location.search);
-    const tab = q.get('tab'), load = q.get('load'), doc = q.get('doc');
+    const tab = q.get('tab'), load = q.get('load'), doc = q.get('doc'), sbKey = q.get('sb');
     try {
         if (tab && (document.getElementById(tab) || tab === 'tabSwasthya')) switchTab(tab);
+        if (sbKey) await ckImportOneFromSb(sbKey);
         if (load) await loadFullArrearDataFromDB(load);
         if (doc) setTimeout(function () { try { showDoc(doc); } catch (e) { console.warn('Deep-link document failed:', e); } }, 400);
     } catch (e) { console.warn('Deep link failed:', e); }
@@ -4688,14 +4741,13 @@ function psfScale(row, regime){
     }
     function tail09(ctx, row, dni) {
         const agp = row.snapAgp || 0, gp = row.snapGp - agp;
-        return '<div class="fxf-box"><div class="pl">Pay provisionally fixed at<br>Rs. <b>' + n0(row.snapBandPay + row.snapGp) + '/-</b> on <b>' + dot(row.date) + '</b><br>including Grade Pay Rs. <b>' + n0(gp) + (agp ? ' + AGP Rs.' + agp : '') + '/-</b><br>under the Pay Band Scale Rs. <b>9000/-&nbsp;&ndash;&nbsp;40,500/-</b> in terms of G.O. NO. 46-SE(B) dated 27.2.09 &amp; G.O. NO. 181-SE(B) dated 8.10.09.<br>Date of next increment .......<b>' + (dni ? dot(dni) : '-') + '</b>.' +
-            '<div class="di">District Inspector of Schools<br>(Secondary Education) ' + esc(ctx.district) + '</div></div>' +
+        /* ROPA-09: provisional-fixation note intentionally left blank - DI office affixes its stamp */
+        return '<div class="fxf-box"><div class="pl" style="min-height:28mm"></div>' +
             '<div class="pr"><div class="sigl">Signature of Head of the Institution /Administrator/President</div></div></div>';
     }
     function tail19(ctx, basic, level, date, dni) {
         return '<div class="fxf-box"><div class="pl"></div><div class="pr"><div class="sigl">Signature of the Head of the Institution with Designation</div></div></div>' +
-            '<div class="fxf-box" style="margin-top:2mm"><div class="pl" style="flex:1.3">Pay provisionally Fixed at Rs. <b>' + n0(basic) + '/-</b><br>on <b>' + dot(date) + '</b> in the level <b>' + level + '</b> of the Pay Matrix<br>in terms of Memo No-437-SE(P&amp;B) / SL / 5S-408 / 19<br>Dated 13.12.2019.<br>Date of next increment:- <b>' + (dni ? dot(dni) : '-') + '</b>.' +
-            '<div class="di">District Inspector of Schools (SE), ' + esc(ctx.district) + '</div></div><div class="pr"></div></div>';
+            '<div class="fxf-box" style="margin-top:2mm"><div class="pl" style="flex:1.3;min-height:28mm"></div><div class="pr"></div></div>';
     }
 function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDate, promos, _isBg) {
     let ladder = matrixData98[scaleKey] || [];
@@ -5148,7 +5200,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             // ROPA-98 basic x 1.86 (rounded up to next Rs.10) + Grade Pay - same method as the 01-01-2006 fixation.
             // AHM / HM posts are NOT re-fitted from ROPA-98 pay: ROPA-09 pay already drawn runs on (one additional increment in the
             // existing ROPA-09 pay + change of Grade Pay), as per vetted fixation (e.g. HM High School 06-10-2007: 21,110 + 640 + GP 5400).
-            const r98fit = (!_isBg && ROPA09_USE_ROPA98_FIT && Array.isArray(window.__ropa98FitRows) && ev.date > optionDate && !['ahm', 'hmjr', 'hm', 'hmhs'].includes(ev.kind))
+            const r98fit = (!_isBg && (ROPA09_USE_ROPA98_FIT || ev.evType === 'highscale') && Array.isArray(window.__ropa98FitRows) && ev.date > optionDate && !['ahm', 'hmjr', 'hm', 'hmhs'].includes(ev.kind))
                 ? window.__ropa98FitRows.find(r => r.date.getTime() === ev.date.getTime() && /PROMOTION|HIGHER SCALE/i.test(r.label) && r.snapBasicPay)
                 : null;
             if (r98fit) {
@@ -5159,7 +5211,16 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
                 incAmt = 0;
                 ev._fit98 = true;
                 ev._fit98Info = { b98: b98, raw: raw98, scaleKey: r98fit.snapScaleKey };
-                slipBlockHTML = `
+                if (ev.evType === 'highscale') {
+                    // HIGHER SCALE inside the ROPA-98 window: fitted directly in the higher scale (ROPA-98 stage x 1.86 + new GP), no promotional increment
+                    slipBlockHTML = `
+                        <div class="slip-box">
+                            <div class="slip-row"><span>1. Existing Pay on ${formatDate(ev.date)} :</span><span>BP: Rs. ${existingBandPay.toLocaleString('en-IN')}, GP: Rs. ${oldGp.toLocaleString('en-IN')}</span></div>
+                            <div class="slip-row"><span>2. Fitted directly into Higher Scale GP ${runningGp.toLocaleString('en-IN')} (No promotional increment) :</span><span>&mdash;</span></div>
+                            <div class="slip-row"><span class="slip-bold">3. Fixed Basic Pay w.e.f ${formatDate(ev.date)} :</span><span class="slip-bold">Rs. ${runningBasicPay.toLocaleString('en-IN')}</span></div>
+                        </div>`;
+                    } else
+                    slipBlockHTML = `
                     <div class="slip-box">
                         <div class="slip-row"><span class="slip-bold">1. ROPA-1998 basic pay as on ${formatDate(ev.date)} after promotion benefit (${ropa98ScaleLabel(r98fit.snapScaleKey)})</span><span class="slip-bold">Rs. ${b98.toLocaleString('en-IN')}</span></div>
                         <div class="slip-row"><span>2. x fitment factor 1.86 = Rs. ${raw98.toFixed(2)} &rarr; rounded up to next Rs.10 (Pay Band)</span><span>Rs. ${runningBandPay.toLocaleString('en-IN')}</span></div>
@@ -5779,6 +5840,7 @@ function getOdSnapshot(d) {
     let axData = { ropa98Enabled: enableRopa98, ropa09Enabled: enableRopa09, ropa19OptionDate: ropa19OptionDate };
 
     let ropa09InitialGp, ropa09InitialBand, ropa09InitialAgp = 0, ropa09HasCarry = false;
+let hsHandled09_outer = [];
     if (enableRopa98) {
         const ropa98OptionInput = document.getElementById('ropa98OptionDate').value;
         const ropa98Scale = parseInt(document.getElementById('ropa98Scale').value, 10);
@@ -5805,6 +5867,23 @@ function getOdSnapshot(d) {
         const ropa09OptionInputForSnap = document.getElementById('ropa09OptionDate').value;
         const snapAsOfDate = ropa09OptionInputForSnap ? new Date(ropa09OptionInputForSnap) : ropa98EndDate;
         const snap98 = getRopa98SnapshotAsOf(ropa98Rows, ropa98BasicPay, ropa98Scale, snapAsOfDate);
+// HIGHER SCALE ON / BEFORE THE ROPA-09 OPTION DATE (but after the ROPA-98 window): the employee is already in the
+            // higher scale when opting, so the existing pay is first fitted in the higher ROPA-98 scale (stage equal to or next
+            // above the pay) and ROPA-09 initial fixation is made on that pay - NOT in the old scale first with a GP difference after.
+            const hsHandled09 = hsHandled09_outer;
+            let hsFit98 = null;
+            promoChain.filter(pc => pc.evType === 'highscale' && pc.date > ropa98EndDate && pc.date <= snapAsOfDate)
+                .sort((x, y) => x.date - y.date).forEach(pc => {
+                    const newKey = pc.targetGp;
+                    const newLadder = matrixData98[newKey];
+                    if (!newLadder || newKey === snap98.scaleKey) return;
+                    let ni = newLadder.findIndex(v => v >= snap98.basic);
+                    if (ni === -1) ni = newLadder.length - 1;
+                    hsFit98 = { date: pc.date, oldBasic: snap98.basic, oldKey: snap98.scaleKey, newKey: newKey, newBasic: newLadder[ni] };
+                    snap98.basic = newLadder[ni];
+                    snap98.scaleKey = newKey;
+                    hsHandled09.push(pc);
+                });
         const rawBand = snap98.basic * ROPA98_TO_09_FACTOR;
         const multipliedBand = ceilToNext10(rawBand);
         axData.ropa98Scale = ropa98Scale;
@@ -5839,6 +5918,7 @@ function getOdSnapshot(d) {
         carryNote98 = `<strong>Carried Forward into ROPA-2009 (Rule II, WBS(ROPA) Rules 2009):</strong> Notional basic pay as on ${formatDate(snapAsOfDate)} under ROPA-1998 = Rs. ${snap98.basic.toLocaleString('en-IN')} &times; fitment factor 1.86 = Rs. ${rawBand.toFixed(2)} &rarr; rounded up to next Rs. 10 = Rs. ${multipliedBand.toLocaleString('en-IN')}` +
             (minEntryApplied ? ` &rarr; below the prescribed Minimum Entry Pay in the Pay Band for GP ${ropa09InitialGp.toLocaleString('en-IN')} (Rs. ${minBandForGp.toLocaleString('en-IN')}) &rarr; stepped up to the minimum entry figure of Rs. ${ropa09InitialBand.toLocaleString('en-IN')}` : ``) +
             ` Pay in Pay Band + Grade Pay Rs. ${ropa09InitialGp.toLocaleString('en-IN')}${ropa09InitialAgp ? ' + AGP Rs. ' + ropa09InitialAgp.toLocaleString('en-IN') + ' (AHM / HM Jr High School)' : ''} = Total Rs. ${(ropa09InitialBand + ropa09InitialGp + ropa09InitialAgp).toLocaleString('en-IN')}. The ROPA-1998 table above continues independently as a notional record up to ${formatDate(ropa98EndDate)}.`;
+if (hsFit98) carryNote98 += ` <strong>Higher Scale on ${formatDate(hsFit98.date)} (option exercised in the higher scale):</strong> existing ROPA-1998 pay Rs. ${hsFit98.oldBasic.toLocaleString('en-IN')} first fitted in the higher scale ${ropa98ScaleLabel(hsFit98.newKey)} at the stage equal to or next above = Rs. ${hsFit98.newBasic.toLocaleString('en-IN')}; ROPA-2009 fixation is made on this pay.`;
     }
 
     if (enableRopa09) {
@@ -5851,7 +5931,7 @@ function getOdSnapshot(d) {
 
         window.__ropa98FitRows = (enableRopa98 && ropa09HasCarry) ? ropa98Rows : null;
         const ropa09Agp0 = ropa09HasCarry ? ropa09InitialAgp : 0;
-        const result09 = computeRopa09Timeline(doj, ropa09OptionDate, ropa09Gp + ropa09Agp0, ropa09BandPay, ropa09EndDate, promoChain, false, ropa09Agp0);
+        const result09 = computeRopa09Timeline(doj, ropa09OptionDate, ropa09Gp + ropa09Agp0, ropa09BandPay, ropa09EndDate, promoChain.filter(pc => !hsHandled09_outer.includes(pc)), false, ropa09Agp0);
         window.__ropa98FitRows = null;
         ropa09Rows = result09.rows;
         appendCessationNoteToLastRow(ropa09Rows, ropa09EndDate);
@@ -11534,8 +11614,8 @@ if (document.readyState !== 'loading') { setTimeout(function(){ try { profInit()
     }
     function tail09(ctx, row, dni) {
         const agp = row.snapAgp || 0, gp = row.snapGp - agp;
-        return '<div class="fxf-box"><div class="pl">Pay provisionally fixed at<br>Rs. <b>' + n0(row.snapBandPay + row.snapGp) + '/-</b> on <b>' + dot(row.date) + '</b><br>including Grade Pay Rs. <b>' + n0(gp) + (agp ? ' + AGP Rs.' + agp : '') + '/-</b><br>under the Pay Band Scale Rs. <b>9000/-&nbsp;&ndash;&nbsp;40,500/-</b> in terms of G.O. NO. 46-SE(B) dated 27.2.09 &amp; G.O. NO. 181-SE(B) dated 8.10.09.<br>Date of next increment .......<b>' + (dni ? dot(dni) : '-') + '</b>.' +
-            '<div class="di">District Inspector of Schools<br>(Secondary Education) ' + esc(ctx.district) + '</div></div>' +
+        /* ROPA-09: provisional-fixation note intentionally left blank - DI office affixes its stamp */
+        return '<div class="fxf-box"><div class="pl" style="min-height:28mm"></div>' +
             '<div class="pr"><div class="sigl">Signature of Head of the Institution /Administrator/President</div></div></div>';
     }
     function ax09Rows(o) {
@@ -11600,8 +11680,7 @@ if (document.readyState !== 'loading') { setTimeout(function(){ try { profInit()
         '<div class="annex-memo">Form for fixation of initial pay in the revised pay structure under memorandum of West Bengal Recognized Non Govt. Aided &amp; Govt. Sponsored Educational Institutions Revision of Pay and Allowances, 2019.</div>';
     function tail19(ctx, basic, level, date, dni) {
         return '<div class="fxf-box"><div class="pl"></div><div class="pr"><div class="sigl">Signature of the Head of the Institution with Designation</div></div></div>' +
-            '<div class="fxf-box" style="margin-top:2mm"><div class="pl" style="flex:1.3">Pay provisionally Fixed at Rs. <b>' + n0(basic) + '/-</b><br>on <b>' + dot(date) + '</b> in the level <b>' + level + '</b> of the Pay Matrix<br>in terms of Memo No-437-SE(P&amp;B) / SL / 5S-408 / 19<br>Dated 13.12.2019.<br>Date of next increment:- <b>' + (dni ? dot(dni) : '-') + '</b>.' +
-            '<div class="di">District Inspector of Schools (SE), ' + esc(ctx.district) + '</div></div><div class="pr"></div></div>';
+            '<div class="fxf-box" style="margin-top:2mm"><div class="pl" style="flex:1.3;min-height:28mm"></div><div class="pr"></div></div>';
     }
     function page19Generic(row, i, rows, ctx) {
         const dni = dniOf(rows, i, row);
@@ -11652,9 +11731,9 @@ if (document.readyState !== 'loading') { setTimeout(function(){ try { profInit()
                 '<div class="fxf-prov"><div class="pl">On the basis of declaration on option exercised by the employee the Basic Pay Provisionally fixed at Rs. <b>' + esc(T('ax98FixedTotal')) + '</b> on <b>' + esc(T('ax98EffectDate')) + '</b> in the Scale of Pay Rs. <b>' + esc(T('ax98RevScaleA')) + '</b> in terms of G.O. No.-25-SE (B) dated 12.02.1999.<br>The Date of next increment:- <b>' + esc(T('ax98NextIncrement')) + '</b><div class="di">District Inspector of Schools (SE)<br>' + esc(ctx.district) + '</div></div>' +
                 '<div class="pr"><div class="sigl">Signature of Checking Authority</div><div style="margin-top:6mm">Designation</div><div style="margin-top:6mm">Date</div></div></div>';
         } else if (id === 'annexRopa19Page') {
-            tail = '<div class="fxf-box" style="margin-top:2mm"><div class="pl" style="flex:1.3">Pay provisionally Fixed at Rs. <b>' + esc(T('ax19RevisedBasic').replace(/^Rs\.?\s*/i, '')) + '/-</b><br>on <b>' + esc(window.CAS_axData && window.CAS_axData.ropa19OptionDate ? dot(window.CAS_axData.ropa19OptionDate) : '') + '</b> in the level <b>' + esc(T('ax19Level').replace(/^LEVEL-0?/, '')) + '</b> of the Pay Matrix<br>in terms of Memo No-437-SE(P&amp;B) / SL / 5S-408 / 19<br>Dated 13.12.2019.<br>Date of next increment:- <b>' + esc((function(){ const c = document.querySelector('#ax19IncrementBody tr td'); const t = c ? c.textContent.trim() : ''; return /^\d\d-\d\d-\d{4}$/.test(t) ? t.replace(/-/g, '.') : T('ax19NextIncrement'); })()) + '</b>.<div class="di">District Inspector of Schools (SE), ' + esc(ctx.district) + '</div></div><div class="pr"></div></div>';
+            tail = '<div class="fxf-box" style="margin-top:2mm"><div class="pl" style="flex:1.3;min-height:28mm"></div><div class="pr"></div></div>';
         } else if (id === 'annexRopa09Page') {
-            tail = '<div class="fxf-box" style="margin-top:2mm"><div class="pl">Pay provisionally fixed at<br>Rs. <b>' + esc(T('ax09RevisedBasic').replace(/^Rs\.?\s*/i, '')) + '/-</b> on <b>' + esc(T('ax09EffectDate')) + '</b><br>under the Pay Band Scale Rs. <b>9000/- &ndash; 40,500/-</b> in terms of G.O. NO. 46-SE(B) dated 27.2.09 &amp; G.O. NO. 181-SE(B) dated 8.10.09.<br>Date of next increment .......<b>' + esc(T('ax09NextIncrement')) + '</b>.<div class="di">District Inspector of Schools<br>(Secondary Education) ' + esc(ctx.district) + '</div></div><div class="pr"></div></div>';
+            tail = '<div class="fxf-box" style="margin-top:2mm"><div class="pl" style="min-height:28mm"></div><div class="pr"></div></div>';
         }
         return page(el.innerHTML + tail);
     }
