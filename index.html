@@ -1967,7 +1967,7 @@ table.fxf-emol table td{text-align:left;border:none}
             <div class="fg wide"><label>By Whom Tendered &ndash; Name &amp; Address <em>(auto, editable)</em></label>
                 <input id="chlTenderedBy" value="HM / Secy, TALDANGRA FULMATI HIGH SCHOOL(H.S.), P.O.-TALDANGRA, Block-TALDANGRA, Dist.-BANKURA" onchange="refreshAllOverdrawn()">
             </div>
-            <datalist id="chlDeptList"><option value="Assistant Inspector of Schools (S.E.), Khatra, Khatra Subdivision, P.O.-Khatra, District-Bankura"><option value="D.I. of Schools (S.E.), Bankura"></datalist>
+            <datalist id="chlDeptList"><option value="Assistant Inspector of Schools (S.E.), Khatra, Khatra Subdivision, P.O.-Khatra, District-Bankura"><option value="District Inspector of Schools (S.E.), Bankura, P.O.-Bankura, District-Bankura"></datalist>
             <div class="fg wide"><label>Departmental Officer / D.D.O. (item 7) &mdash; A.I. (S.E.), Khatra signs; D.I. Bankura is the controlling office <em>(default, editable)</em></label>
                 <input id="chlDeptOfficer" list="chlDeptList" value="Assistant Inspector of Schools (S.E.), Khatra, Khatra Subdivision, P.O.-Khatra, District-Bankura" onchange="refreshAllOverdrawn()">
             </div>
@@ -7457,8 +7457,8 @@ function refreshAllOverdrawn() {
 
 // ==================== TREASURY / BANK PRESETS FOR T.R. FORM NO. 7 ====================
 const TREASURY_PRESETS = {
-    KHATRA:  { bank: 'PUNJAB NATIONAL BANK ; KHATRA',  treasury: 'KHATRA',  code: 'B A C' },
-    BANKURA: { bank: 'STATE BANK OF INDIA ; BANKURA',  treasury: 'BANKURA', code: 'B A A' }
+    KHATRA:  { bank: 'PUNJAB NATIONAL BANK ; KHATRA',  treasury: 'KHATRA',  code: 'B A C', officer: 'Assistant Inspector of Schools (S.E.), Khatra, Khatra Subdivision, P.O.-Khatra, District-Bankura' },
+    BANKURA: { bank: 'STATE BANK OF INDIA ; BANKURA',  treasury: 'BANKURA', code: 'B A A', officer: 'District Inspector of Schools (S.E.), Bankura, P.O.-Bankura, District-Bankura' }
 };
 const CHL_COMMON_ACCOUNT14 = '22020211000170';
 const CHL_COMMON_HEAD = '2202 - EDUCATION-02-110-NP-ASSIST TO-NO-001-SECONDARY SCHOOL-70-REFUND';
@@ -7472,6 +7472,9 @@ function applyTreasuryPreset() {
         document.getElementById('chlTreasuryCode').value = p.code;
         document.getElementById('chlAccountCode14').value = CHL_COMMON_ACCOUNT14;
         document.getElementById('chlHead').value = CHL_COMMON_HEAD;
+        // Item 7 (Departmental Officer): Bankura treasury -> D.I. Bankura ; Khatra treasury -> A.I. Khatra
+        document.getElementById('chlDeptOfficer').value = p.officer;
+        const ddo = document.getElementById('ofcDdoOffice'); if (ddo) ddo.value = p.officer;
     } else {
         // MANUAL: clear the three treasury fields so they can be typed fresh
         ['chlBank', 'chlTreasury', 'chlTreasuryCode'].forEach(id => { document.getElementById(id).value = ''; });
