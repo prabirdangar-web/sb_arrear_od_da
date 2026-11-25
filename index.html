@@ -4817,7 +4817,13 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
     let events = [];
     function pushEvent(dateObj, data) { events.push({ date: new Date(dateObj), ...data }); }
 
-    const lwpEntries98 = getLwpEffectEntries();
+    // ROPA-98 / ROPA-90 phase: LWP entries (non-medical) as in v31. Dates normalised to local midnight so an LWP starting
+    // exactly on an increment date is counted the same way as in v31.
+    const lwpEntries98 = getLwpEffectEntries().map(e => {
+        const f = new Date(e.from.getFullYear(), e.from.getMonth(), e.from.getDate());
+        const t = new Date(e.to.getFullYear(), e.to.getMonth(), e.to.getDate());
+        return Object.assign({}, e, { from: f, to: t, start: f, end: t });
+    });
 
     pushEvent(optionDate, { label: "DOA / PAY FIXATION", isInitial: true });
 
@@ -4869,7 +4875,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
             while (loopYear <= segEnd.getFullYear()) {
                 let normalCycleDate = new Date(loopYear, optionMonth, 1);
                 if (normalCycleDate < segEnd) {
-                    let cumulativeLwp98 = 0;   // ROPA-98 annual increments are not LWP-deferred in this tool
+                    let cumulativeLwp98 = lwpDaysAppliedBy(lwpEntries98, normalCycleDate);   // LWP defers ROPA-98 annual increments (as in v31)
                     let newLwpThisCycle98 = Math.max(0, cumulativeLwp98 - lwpConsumedSoFar98);
                     let incrementDate = newLwpThisCycle98 > 0 ? addDays(normalCycleDate, newLwpThisCycle98) : new Date(normalCycleDate);
                     lwpConsumedSoFar98 = cumulativeLwp98;
@@ -4899,7 +4905,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
                 let priorCycleDate = new Date(yr - 1, anchorMonth, 1);
                 // a 10/18/20-year milestone falling on or before the promotion date belongs to the pre-promotion cycle: the promotion restarts the cycle (ROPA-98)
                 let interveningMilestone = milestoneDefs.find(m => m.d >= priorCycleDate && m.d < normalCycleDate && (k === 0 || m.d > segStart));
-                let cumulativeLwp98 = 0;   // ROPA-98 annual increments are not LWP-deferred in this tool
+                let cumulativeLwp98 = lwpDaysAppliedBy(lwpEntries98, normalCycleDate);   // LWP defers ROPA-98 annual increments (as in v31)
                 let newLwpThisCycle98 = Math.max(0, cumulativeLwp98 - lwpConsumedSoFar98);
                 let incrementDate;
                 if (interveningMilestone) {
