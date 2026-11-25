@@ -257,6 +257,11 @@
         text-align: left;
     }
     .slip-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #e4e4e7; padding: 1px 0; }
+    /* LWP note rows: long sentences must wrap, not squeeze the label into a 1-character column */
+    .slip-row.slip-lwp { display: block !important; text-align: left; line-height: 1.35; }
+    .slip-row.slip-lwp > span { display: inline !important; white-space: normal !important; text-align: left !important; padding: 0 !important; overflow-wrap: anywhere; }
+    .slip-row.slip-lwp > span:first-child { font-weight: 700; }
+    .slip-row.slip-lwp > span:first-child::after { content: " \2014  "; font-weight: 400; }
     .slip-bold { font-weight: bold; }
 
     .grid-inputs { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px 14px; margin-bottom:10px; }
@@ -465,6 +470,8 @@
         #sbPrintArea .slip-row:last-child { border-bottom: 0 !important; }
         #sbPrintArea .slip-row > span { min-width: 0; overflow-wrap: anywhere; }
         #sbPrintArea .slip-row > span:last-child { text-align: right; white-space: nowrap; flex: 0 0 auto; }
+        #sbPrintArea .slip-row.slip-lwp { display: block !important; }
+        #sbPrintArea .slip-row.slip-lwp > span { display: inline !important; white-space: normal !important; text-align: left !important; flex: none !important; }
         #sbPrintArea .slip-box hr { margin: 0.6mm 0 !important; border-top: 1px dashed #555 !important; }
         #sbPrintArea tr { break-inside: auto; page-break-inside: auto; }
         #sbTable90 tbody td:first-child, #sbTable98 tbody td:first-child, #sbTable09 tbody td:first-child, #sbTable19 tbody td:first-child { white-space: nowrap; }
@@ -1813,6 +1820,27 @@ table.fxf-emol table td{text-align:left;border:none}
             <button type="button" class="btn-sync" onclick="generateWrongIncrementOverdrawn()">&#9889; Generate Month-Wise Over-Drawal (Wrong Increment)</button>
             <button type="button" class="btn-print" onclick="seedSamirCase()">Load Samir Kumar Sen case (Bankura Town H.S.)</button>
         </div>
+    </div>
+
+    <!-- CAS DATE GIVEN EARLIER THAN DUE BY SCHOOL (LWP NOT DEFERRED) -->
+    <h3 id="cwHeading">CAS (10 / 18 / 20-Year) Benefit Given Earlier Than Due by School &mdash; Impact &amp; Over-Drawal (LWP not deferred)</h3>
+    <div class="panel" style="border-left:4px solid #7c3aed;">
+        <div style="font-size:0.82rem; color:#475569; margin-bottom:8px;">
+            Enter the date on which the school wrongly gave the CAS additional increment. The tool regenerates the Pay Tables twice &mdash; <b>Drawn</b> (CAS on the school's date) and <b>Admissible / Due</b> (CAS date corrected for every LWP entered in Tab 1, e.g. 309 + 292 = 601 days) &mdash;
+            and fills the Month-Wise Over Drawn table below (Basic, D.A., H.R.A., M.A., I.R. on both sides; part-months are day-weighted). The impact summary shows Amount Drawn, Amount Due and Over Drawn. Generate the Pay Tables in Tab 1 first.
+        </div>
+        <div class="grid">
+            <div class="fg"><label>CAS Milestone</label><select id="cwMilestone"><option value="10">10 Years</option><option value="18">18 Years</option><option value="20" selected>20 Years</option></select></div>
+            <div class="fg"><label>CAS Benefit Date Given by School (wrong)</label><input type="date" id="cwWrongDate"></div>
+            <div class="fg"><label>Period From (month) &mdash; blank = auto</label><input type="month" id="cwFrom"></div>
+            <div class="fg"><label>Period To (month) &mdash; blank = auto</label><input type="month" id="cwTo"></div>
+            <div class="fg"><label>Existing Table Rows</label><select id="cwApply"><option value="replace" selected>Replace with generated rows</option><option value="append">Append to existing rows</option></select></div>
+            <div class="fg"><label><input type="checkbox" id="cwSetReason" checked style="width:auto;"> Write the &ldquo;Sub:&rdquo; reason automatically</label></div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button type="button" class="btn-sync" onclick="generateCasWrongDateOverdrawn()">&#9889; Generate Impact &amp; Month-Wise Over-Drawal (CAS date wrong)</button>
+        </div>
+        <div id="cwSummary" style="margin-top:10px;"></div>
     </div>
 
     <!-- 1. SCHOOL & EMPLOYEE DETAILS (SYNCED) -->
@@ -4018,11 +4046,11 @@ function daysBetween(from,to){
         // ROPA-2019 milestone dates, a ROPA-1998 10/18/20-Year milestone is NEVER
         // snapped to a Jan2-Jun30 "window" — it always falls on the exact anniversary
         // of the 1st Date of Joining, shifted only by any LWP days actually taken.
-        const lwpDays = lwpDaysAppliedBy(entries, originalDate);
+        const lwpDays = lwpTotalForShift(originalDate, entries);
         return lwpDays > 0 ? addDays(originalDate, lwpDays) : new Date(originalDate);
     }
     function resolveDateNoWindow(originalDate, entries) {
-        const lwpDays = lwpDaysAppliedBy(entries, originalDate);
+        const lwpDays = lwpTotalForShift(originalDate, entries);
         return lwpDays > 0 ? addDays(originalDate, lwpDays) : new Date(originalDate);
     }
     function clubSameDayMilestones(rows, optDate) {
@@ -4047,17 +4075,51 @@ function resolveAnnualIncrementWithLwp(julDate) {
     if (eff.skip) return { date: new Date(julDate), win: 'B', lwpShifted: false, skip: true };
     return { date: new Date(eff.financialDate), win: 'B', lwpShifted: true };
 }
+// Total LWP days that postpone a milestone, re-counted until stable: the shifted completion date can run into
+// further LWP spells that start AFTER the original completion date but BEFORE the shifted one.
+function lwpIterDefer(entries, comp) {
+    let defer = cumulativeDeferDays(entries, comp);
+    for (let i = 0; i < 25 && defer > 0; i++) {
+        const again = cumulativeDeferDays(entries, addDays(comp, defer));
+        if (again === defer) break;
+        defer = again;
+    }
+    return defer;
+}
+function lwpTotalForShift(originalDate, entries) {
+    let days = lwpDaysAppliedBy(entries, originalDate);
+    for (let i = 0; i < 25 && days > 0; i++) {
+        const again = lwpDaysAppliedBy(entries, addDays(originalDate, days));
+        if (again === days) break;
+        days = again;
+    }
+    return days;
+}
+// Wrapper: adds normalDate = the NORMAL (no-LWP) benefit date, used as the "Notional date" in remarks.
 function resolveDateWithLwp(original, entries) {
+    const r = resolveDateWithLwpCore(original, entries);
+    r.normalDate = resolveDateWithLwpCore(original, []).date;
+    return r;
+}
+function resolveDateWithLwpCore(original, entries) {
     const comp = addDays(original, -1);   // CAS completion date = day before the anniversary
-    const defer = cumulativeDeferDays(entries, comp);
-    const shiftedD = defer > 0 ? addDays(comp, defer) : comp;
+    const defer = lwpIterDefer(entries, comp);
+    const shiftedD = defer > 0 ? addDays(comp, defer) : comp;          // shifted COMPLETION date
+    const shiftedAnniv = defer > 0 ? addDays(shiftedD, 1) : null;       // shifted anniversary (what the remark text expects)
     if (checkWindow(shiftedD) === 'A') {
         const tj = new Date(shiftedD.getFullYear(), 6, 1);
         const ye = getLwpEffectForYear(entries, tj.getFullYear());
-        if (ye && !ye.skip) return { shiftedComp: shiftedD, date: new Date(ye.financialDate), win: 'A', lwpShifted: true, lwpDays: defer, lwpShiftedDate: shiftedD, snappedToWindow: false };
-        return { shiftedComp: shiftedD, date: tj, win: 'A', lwpShifted: false, lwpDays: defer, lwpShiftedDate: defer > 0 ? shiftedD : null, snappedToWindow: false };
+        if (ye && !ye.skip) return { shiftedComp: shiftedD, date: new Date(ye.financialDate), win: 'A', lwpShifted: true, lwpDays: defer, lwpShiftedDate: shiftedAnniv, snappedToWindow: false };
+        return { shiftedComp: shiftedD, date: tj, win: 'A', lwpShifted: false, lwpDays: defer, lwpShiftedDate: shiftedAnniv, snappedToWindow: defer > 0 };
     }
-    return { shiftedComp: shiftedD, date: addDays(shiftedD, 1), win: 'B', lwpShifted: false, lwpDays: defer, lwpShiftedDate: defer > 0 ? shiftedD : null, snappedToWindow: false };
+    return { shiftedComp: shiftedD, date: addDays(shiftedD, 1), win: 'B', lwpShifted: defer > 0, lwpDays: defer, lwpShiftedDate: shiftedAnniv, snappedToWindow: false };
+}
+// "CAS date wrongly given by school" what-if: pay tables are regenerated with that milestone forced on the school's date.
+function casOverrideResolved(name, resolved) {
+    const o = window.__casDateOverride; if (!o) return resolved;
+    const mm = String(name || '').match(/(\d+)\s*Y/i); if (!mm || +mm[1] !== o.years) return resolved;
+    const d = new Date(o.date);
+    return Object.assign({}, resolved, { date: d, shiftedComp: addDays(d, -1), lwpShifted: false, snappedToWindow: false, lwpDays: 0, lwpShiftedDate: null, win: checkWindow(d), normalDate: d });
 }
 
 
@@ -4780,7 +4842,7 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
         { d: new Date(doj.getFullYear() + 20, doj.getMonth(), doj.getDate()), name: "20 YEARS - ADDL. INCREMENT", type: "20Y" }
     ];
     if (!isEligible18Y) milestoneDefs = milestoneDefs.filter(m => m.type !== "18Y");
-    milestoneDefs = milestoneDefs.map(m => ({ ...m, d: resolveRopa98MilestoneDate(m.d, lwpEntries98) }))
+    milestoneDefs = milestoneDefs.map(m => ({ ...m, d: (window.__casDateOverride && +String(m.type).replace(/\D/g,'') === window.__casDateOverride.years) ? new Date(window.__casDateOverride.date) : resolveRopa98MilestoneDate(m.d, lwpEntries98) }))
                                   .filter(m => m.d >= optionDate && m.d <= endDate);
     milestoneDefs.forEach(m => pushEvent(m.d, { label: m.name, isMilestone: true, milestoneType: m.type }));
 
@@ -5084,9 +5146,9 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
     }
 
     milestoneDefs09.forEach(milestone => {
-        { let resolved = resolveDateWithLwp(milestone.d, lwpEntries09);
+        { let resolved = casOverrideResolved(milestone.name, resolveDateWithLwp(milestone.d, lwpEntries09));
             if (resolved.shiftedComp >= optionDate && resolved.shiftedComp <= endDate) {
-                pushEvent(resolved.date, { label: milestone.name, isMilestone: true, exactMilestoneDate: milestone.d, win: resolved.win, isLwpDeferred: resolved.lwpShifted, notionalDate: resolved.win === 'A' ? new Date(milestone.d.getFullYear(), 6, 1) : milestone.d, snappedToWindow: resolved.snappedToWindow, lwpDaysApplied: resolved.lwpDays, lwpShiftedDate: resolved.lwpShiftedDate });
+                pushEvent(resolved.date, { label: milestone.name, isMilestone: true, exactMilestoneDate: milestone.d, win: resolved.win, isLwpDeferred: resolved.lwpShifted, notionalDate: resolved.normalDate || (resolved.win === 'A' ? new Date(milestone.d.getFullYear(), 6, 1) : milestone.d), snappedToWindow: resolved.snappedToWindow, lwpDaysApplied: resolved.lwpDays, lwpShiftedDate: resolved.lwpShiftedDate });
             }
         }
     });
@@ -5128,9 +5190,9 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
         let optInc09 = 0;
         let lwpNote = '';
         if (ev.isLwpDeferred) {
-            lwpNote = `<div class="slip-row" style="color:#c2410c;"><span>LWP (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Notional date ${formatDate(ev.notionalDate)}; financial benefit deferred to ${formatDate(ev.date)}</span></div>`;
+            lwpNote = `<div class="slip-row slip-lwp" style="color:#c2410c;"><span>LWP (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Notional date ${formatDate(ev.notionalDate)}; financial benefit deferred to ${formatDate(ev.date)}</span></div>`;
         } else if (ev.snappedToWindow) {
-            lwpNote = `<div class="slip-row" style="color:#0f766e;"><span>LWP enjoyed: ${ev.lwpDaysApplied} day(s) (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Milestone notionally shifts from ${formatDate(ev.exactMilestoneDate || ev.notionalDate)} to ${formatDate(ev.lwpShiftedDate)}; as shifted date falls within 2.1 to 30.6, pay fixed / benifit admmissible w.e.f. ${formatDate(ev.date)} as per ROPA-09/ROPA-19</span></div>`;
+            lwpNote = `<div class="slip-row slip-lwp" style="color:#0f766e;"><span>LWP enjoyed: ${ev.lwpDaysApplied} day(s) (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Milestone notionally shifts from ${formatDate(ev.exactMilestoneDate || ev.notionalDate)} to ${formatDate(ev.lwpShiftedDate)}; as shifted date falls within 2.1 to 30.6, pay fixed / benifit admmissible w.e.f. ${formatDate(ev.date)} as per ROPA-09/ROPA-19</span></div>`;
         }
 
         if (ev.isInitial) {
@@ -5442,9 +5504,9 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
     }
 
     milestoneDefs19.forEach(milestone => {
-        { let resolved = resolveDateWithLwp(milestone.d, lwpEntries19);
+        { let resolved = casOverrideResolved(milestone.name, resolveDateWithLwp(milestone.d, lwpEntries19));
             if (resolved.shiftedComp >= startDate && resolved.shiftedComp <= dor) {
-                pushEvent(resolved.date, { label: milestone.name, isMilestone: true, exactMilestoneDate: milestone.d, win: resolved.win, isLwpDeferred: resolved.lwpShifted, notionalDate: resolved.win === 'A' ? new Date(milestone.d.getFullYear(), 6, 1) : milestone.d, snappedToWindow: resolved.snappedToWindow, lwpDaysApplied: resolved.lwpDays, lwpShiftedDate: resolved.lwpShiftedDate });
+                pushEvent(resolved.date, { label: milestone.name, isMilestone: true, exactMilestoneDate: milestone.d, win: resolved.win, isLwpDeferred: resolved.lwpShifted, notionalDate: resolved.normalDate || (resolved.win === 'A' ? new Date(milestone.d.getFullYear(), 6, 1) : milestone.d), snappedToWindow: resolved.snappedToWindow, lwpDaysApplied: resolved.lwpDays, lwpShiftedDate: resolved.lwpShiftedDate });
             }
         }
     });
@@ -5465,9 +5527,9 @@ function computeRopa98Timeline(doj, optionDate, scaleKey, initialBasicPay, endDa
         let existingLevel = runningLevel;
         let lwpNote = '';
         if (ev.isLwpDeferred) {
-            lwpNote = `<div class="slip-row" style="color:#c2410c;"><span>LWP (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Notional date ${formatDate(ev.notionalDate)}; financial benefit deferred to ${formatDate(ev.date)}</span></div>`;
+            lwpNote = `<div class="slip-row slip-lwp" style="color:#c2410c;"><span>LWP (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Notional date ${formatDate(ev.notionalDate)}; financial benefit deferred to ${formatDate(ev.date)}</span></div>`;
         } else if (ev.snappedToWindow) {
-            lwpNote = `<div class="slip-row" style="color:#0f766e;"><span>LWP enjoyed: ${ev.lwpDaysApplied} day(s) (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Milestone notionally shifts from ${formatDate(ev.exactMilestoneDate || ev.notionalDate)} to ${formatDate(ev.lwpShiftedDate)}; as shifted date falls within 2.1 to 30.6, pay fixed at NORMAL increment w.e.f. ${formatDate(ev.date)} as per ROPA-09/ROPA-19</span></div>`;
+            lwpNote = `<div class="slip-row slip-lwp" style="color:#0f766e;"><span>LWP enjoyed: ${ev.lwpDaysApplied} day(s) (non-medical, G.O. 181-SE(B) Dt. 8.10.2009)</span><span>Milestone notionally shifts from ${formatDate(ev.exactMilestoneDate || ev.notionalDate)} to ${formatDate(ev.lwpShiftedDate)}; as shifted date falls within 2.1 to 30.6, pay fixed at NORMAL increment w.e.f. ${formatDate(ev.date)} as per ROPA-09/ROPA-19</span></div>`;
         }
         let promoDetail = null;
 
@@ -7612,6 +7674,115 @@ function generateWrongIncrementOverdrawn() {
     if (typeof refreshAllOverdrawn === 'function') refreshAllOverdrawn();
     const tot = (window._odSums && window._odSums.overDrawn) || 0;
     alert(`Generated ${rows.length} month row(s) up to ${monthLabelShort(to)}. Total over-drawn: Rs. ${tot.toLocaleString('en-IN')}`);
+}
+
+// ===================== CAS DATE GIVEN EARLIER THAN DUE BY SCHOOL: IMPACT + OVER-DRAWAL =====================
+// DRAWN = pay tables with the milestone forced on the school's (wrong) date.  ADMISSIBLE = normal tables (LWP-corrected date).
+function generateCasWrongDateOverdrawn() {
+    const years = parseInt(val('cwMilestone'), 10) || 20;
+    const wrongIso = val('cwWrongDate');
+    if (!wrongIso) { alert('Please enter the CAS benefit date wrongly given by the school.'); return; }
+    if (!val('doj')) { alert('Please fill the Date of Joining in Tab 1 and generate the Pay Tables first.'); return; }
+    const hasAny = () => (window.pfTimeline98 && window.pfTimeline98.length) || (window.pfTimeline09 && window.pfTimeline09.length) || (window.pfTimeline19 && window.pfTimeline19.length);
+    if (!hasAny()) processFixationTimeline();
+    if (!hasAny()) { alert('Pay Tables are not generated yet. Fill Tab 1 (DOJ, scale / option date, ROPA-98 / 09 / 19, LWP) and click Generate Pay Tables, then run this again.'); return; }
+
+    const wrongD = new Date(wrongIso + 'T00:00:00');
+    const grab = () => ({ t98: window.pfTimeline98, t09: window.pfTimeline09, t19: window.pfTimeline19 });
+    const useSet = (st) => { window.pfTimeline98 = st.t98; window.pfTimeline09 = st.t09; window.pfTimeline19 = st.t19; };
+    let setAdm, setDrawn;
+    try {
+        window.__casDateOverride = null; processFixationTimeline(); setAdm = grab();
+        window.__casDateOverride = { years: years, date: wrongD }; processFixationTimeline(); setDrawn = grab();
+    } finally {
+        window.__casDateOverride = null; processFixationTimeline();
+    }
+
+    // corrected CAS date = date of the milestone row in the admissible tables
+    let rightD = null;
+    [setAdm.t98, setAdm.t09, setAdm.t19].forEach(arr => (arr || []).forEach(r => {
+        const mm = /(\d+)\s*YEARS/i.exec(String(r.label || ''));
+        if (!rightD && mm && +mm[1] === years && r.date) rightD = new Date(r.date);
+    }));
+    if (!rightD) { alert('The ' + years + '-Year benefit row was not found in the generated Pay Tables (check DOJ / option dates).'); return; }
+    if (rightD.getTime() === wrongD.getTime()) { alert('The school\'s date is the same as the admissible date (' + wiDmy(wrongIso) + ') - there is nothing to recover.'); return; }
+
+    const lo = rightD < wrongD ? rightD : wrongD;
+    const hi = new Date((rightD < wrongD ? wrongD : rightD).getTime()); hi.setDate(hi.getDate() - 1);
+    const ym = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const from = val('cwFrom') || ym(lo), to = val('cwTo') || ym(hi);
+    if (from > to) { alert('Period From cannot be later than Period To.'); return; }
+
+    const hraMode = val('hraMode') || 'auto', hraRatePct = num('hraRate'), hraFixed = num('hraFixed');
+    const irBase = (st) => { useSet(st); return (window.pfTimeline19 && window.pfTimeline19.length > 0) ? payBandWeightedFromTimeline(2016, 7, num('prevBasic')) : num('prevBasic'); };
+    const irBaseAdm = irBase(setAdm), irBaseDr = irBase(setDrawn);
+    // day-weighted Pay Band / Grade Pay for a month under one table set (handles a change in the middle of the month)
+    const weighted = (st, y, m) => {
+        useSet(st); const dim = new Date(y, m, 0).getDate(); let n = 0, pb = 0, gp = 0, first = null;
+        for (let d = 1; d <= dim; d++) { const sn = getOdSnapshot(new Date(y, m - 1, d)); if (!sn) continue; if (!first) first = sn; pb += sn.payBand || 0; gp += sn.gradePay || 0; n++; }
+        return n ? { payBand: Math.round(pb / n), gradePay: Math.round(gp / n), first: first } : null;
+    };
+
+    const rows = []; let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number); let guard = 0;
+    while ((y < ty || (y === ty && m <= tm)) && guard++ < 700) {
+        const mStr = y + '-' + String(m).padStart(2, '0');
+        const a = weighted(setAdm, y, m), d = weighted(setDrawn, y, m);
+        if (a && d) {
+            const admBasic = a.payBand + a.gradePay, drBasic = d.payBand + d.gradePay;
+            const rate = getDaRates(mStr).drawn, ma = defaultMaForMonth(y, m), hraRate = defaultHraRateForMonth(y, m, hraRatePct);
+            rows.push({
+                id: ++odSeq, month: mStr, band: a.first.band, scale: a.first.scale,
+                drPayBand: d.payBand, drGradePay: d.gradePay, drDP: 0, drDA: Math.round(drBasic * rate),
+                drHRA: calculateHraAmount(drBasic, y, m, hraRate, hraMode, hraFixed), drMA: ma, drIR: defaultIrForMonth(y, m, irBaseDr),
+                admPayBand: a.payBand, admGradePay: a.gradePay, admDP: 0, admDA: Math.round(admBasic * rate),
+                admHRA: calculateHraAmount(admBasic, y, m, hraRate, hraMode, hraFixed), admMA: ma, admIR: defaultIrForMonth(y, m, irBaseAdm),
+                remarks: years + '-Year benefit given by school w.e.f. ' + wiDmy(wrongIso) + '; admissible w.e.f. ' + wiDmy(rightD.getFullYear() + '-' + String(rightD.getMonth() + 1).padStart(2, '0') + '-' + String(rightD.getDate()).padStart(2, '0')) + ' - drawn Rs.' + drBasic + ' vs admissible Rs.' + admBasic
+            });
+        }
+        m++; if (m > 12) { m = 1; y++; }
+    }
+    useSet(setAdm);   // leave the normal (admissible) tables as the live ones
+    if (!rows.length) { alert('No months generated for that period.'); return; }
+
+    odRows = (val('cwApply') === 'append') ? odRows.concat(rows) : rows;
+    odRows.sort((x, z) => x.month.localeCompare(z.month));
+
+    const rightIso = rightD.getFullYear() + '-' + String(rightD.getMonth() + 1).padStart(2, '0') + '-' + String(rightD.getDate()).padStart(2, '0');
+    const orig = new Date(new Date(val('doj')).getFullYear() + years, new Date(val('doj')).getMonth(), new Date(val('doj')).getDate());
+    const lwpDays = lwpIterDefer(getLwpEffectEntries(), addDays(orig, -1));
+    const ps = document.getElementById('reasonPreset');
+    if (ps && !ps.querySelector('option[value="SAL_CAS"]') && typeof owRebuildPreset === 'function') owRebuildPreset('SAL_CAS');
+    if (ps) { ps.value = 'SAL_CAS'; if (typeof ofcApplyReasonPreset === 'function') ofcApplyReasonPreset(); }
+    if (document.getElementById('cwSetReason').checked) {
+        document.getElementById('reasonText').value =
+            'excess pay and allowances drawn from ' + monthLabelShort(from) + ' to ' + monthLabelShort(to) + ' (' + rows.length + ' months), as the ' + years + '-Year (CAS) additional increment was given by the school w.e.f. ' +
+            wiDmy(wrongIso) + ' without deferring it for the Leave Without Pay (LWP) of ' + lwpDays + ' days; the benefit is admissible only w.e.f. ' + wiDmy(rightIso) + '.';
+    }
+    renderOdTable();
+    if (typeof refreshAllOverdrawn === 'function') refreshAllOverdrawn();
+
+    // ---- impact summary: Amount Drawn / Amount Due / Over Drawn ----
+    const sums = window._odSums || {};
+    const dr = Math.round(sums.drTotal || 0), due = Math.round(sums.admTotal || 0), od = Math.round(sums.overDrawn || 0);
+    const R = (n) => 'Rs. ' + Math.round(n).toLocaleString('en-IN');
+    const snapAt = (st, dt) => { useSet(st); const sn = getOdSnapshot(dt); return sn ? (sn.payBand || 0) + (sn.gradePay || 0) : 0; };
+    const drawnBasicAtWrong = snapAt(setDrawn, wrongD), admBasicAtWrong = snapAt(setAdm, wrongD), admBasicAtRight = snapAt(setAdm, rightD);
+    useSet(setAdm);
+    const dmy = (dt) => String(dt.getDate()).padStart(2, '0') + '.' + String(dt.getMonth() + 1).padStart(2, '0') + '.' + dt.getFullYear();
+    const td = 'style="border:1px solid #94a3b8; padding:5px 8px;"', tdr = 'style="border:1px solid #94a3b8; padding:5px 8px; text-align:right;"';
+    document.getElementById('cwSummary').innerHTML =
+        '<div style="border:1px solid #7c3aed; border-radius:6px; padding:10px; background:#faf5ff; font-size:0.85rem;">' +
+        '<div style="font-weight:700; margin-bottom:6px;">Impact of the ' + years + '-Year CAS date given wrongly by the school</div>' +
+        '<table style="border-collapse:collapse; width:100%; font-size:0.83rem;">' +
+        '<tr><td ' + td + '>CAS date given by school (wrong)</td><td ' + tdr + '><b>' + dmy(wrongD) + '</b></td><td ' + td + '>Basic drawn from that date</td><td ' + tdr + '>' + R(drawnBasicAtWrong) + '</td></tr>' +
+        '<tr><td ' + td + '>CAS date admissible (after ' + lwpDays + ' days LWP)</td><td ' + tdr + '><b>' + dmy(rightD) + '</b></td><td ' + td + '>Basic admissible till ' + dmy(hi) + ' / from ' + dmy(rightD) + '</td><td ' + tdr + '>' + R(admBasicAtWrong) + ' / ' + R(admBasicAtRight) + '</td></tr>' +
+        '<tr><td ' + td + '>Period of over-drawal</td><td ' + tdr + ' colspan="3">' + monthLabelShort(from) + ' to ' + monthLabelShort(to) + ' (' + rows.length + ' month rows, part-months day-weighted)</td></tr>' +
+        '<tr style="background:#f1f5f9;"><td ' + td + '>Amount Drawn (Basic + D.A. + H.R.A. + M.A. + I.R.)</td><td ' + tdr + '>' + R(dr) + '</td><td ' + td + '>Amount Due / Admissible</td><td ' + tdr + '>' + R(due) + '</td></tr>' +
+        '<tr style="background:#fee2e2; font-weight:700;"><td ' + td + '>OVER DRAWN (to be deposited through T.R. Form 7)</td><td ' + tdr + '>' + R(od) + '</td><td ' + td + ' colspan="2">Say Rs. ' + od.toLocaleString('en-IN') + '/- (Rupees ' + numberToWords(od) + ' only)</td></tr>' +
+        '</table>' +
+        '<div style="margin-top:6px; color:#475569;">Pay after ' + dmy(rightD) + ' and all later increments are the same on both sides, so the recovery is limited to the period above. D.A. / H.R.A. / M.A. / I.R. use the rates in this tool; edit any month in the table below if the actual drawn amounts differ.</div>' +
+        '</div>';
+    alert('Generated ' + rows.length + ' month row(s) (' + monthLabelShort(from) + ' to ' + monthLabelShort(to) + '). Total over-drawn: Rs. ' + od.toLocaleString('en-IN'));
 }
 // Quick-load for the Samir Kumar Sen case (details from his over-drawal workbook)
 function seedSamirCase() {
@@ -10235,6 +10406,9 @@ const OFC_PRESETS = {
   SAL_INC:  { label:'Increment wrongly granted again (option / increment date not changeable) - extra stage drawn', grp:'SAL', item:'salary (pay and allowances)',
               reason:'excess pay and allowances drawn during {PERIOD} ({N} months) as an additional increment was wrongly granted, which was not permissible because the Date of Option / increment date cannot be changed.',
               cause:'An increment was granted again on a date which was not permissible, as the Date of Option / increment date cannot be changed. The 10-year (CAS) benefit stands on its own due date, but pay continued to be drawn one stage higher than admissible, which came to notice on verification, and the excess was drawn inadvertently during the aforesaid period.' },
+  SAL_CAS:  { label:'CAS (10/18/20-Year) benefit given earlier than due by school - LWP not deferred', grp:'SAL', item:'salary (pay and allowances)',
+              reason:'excess pay and allowances drawn during {PERIOD} ({N} months) as the CAS (10 / 18 / 20-Year) additional increment was granted earlier than due, without deferring it for the Leave Without Pay (LWP) availed.',
+              cause:'The CAS additional increment was granted on an earlier date without deferring it by the non-qualifying Leave Without Pay (LWP) availed, which came to notice on verification, and the excess was drawn inadvertently during the aforesaid period.' },
   SAL_DA:   { label:'D.A. / I.R. drawn at a rate higher than admissible', grp:'SAL', item:'salary (D.A. / I.R. component)',
               reason:'excess drawal of D.A. / I.R. during {PERIOD} at a rate higher than the admissible rate.',
               cause:'D.A. / I.R. was drawn at a rate higher than the admissible rate during the aforesaid period, inadvertently and without any deliberate intention.' },
